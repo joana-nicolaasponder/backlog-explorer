@@ -10,7 +10,11 @@ interface GameFormData {
   image: string
 }
 
-function AddGameModal() {
+interface AddGameModalProps {
+  onGameAdded: () => void
+}
+
+function AddGameModal({ onGameAdded }: AddGameModalProps) {
   
   const [showModal, setShowModal] = useState(false)
   const [formData, setFormData] = useState<GameFormData>({
@@ -49,6 +53,7 @@ function AddGameModal() {
         progress: 0,
         image: '',
       })
+      onGameAdded() // Call the callback to refresh the games list
     }
   }
   const handleChange = (
