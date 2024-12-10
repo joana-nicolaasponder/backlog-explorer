@@ -80,19 +80,62 @@ const GameDetails = () => {
 
   const fetchGameAndNotes = async () => {
     try {
-      // Fetch game details
-      const { data: gameData, error: gameError } = await supabase
-        .from('games')
-        .select('*')
-        .eq('id', id)
+      const { data: userData } = await supabase.auth.getUser()
+      const user_id = userData.user?.id
+
+      if (!user_id) {
+        console.error('No user ID found')
+        return
+      }
+
+      // Fetch game details and user-specific data
+      const { data: userGameData, error: gameError } = await supabase
+        .from('user_games')
+        .select(`
+          id,
+          status,
+          progress,
+          game:games (
+            id,
+            title,
+            rawg_id,
+            rawg_slug,
+            metacritic_rating,
+            release_date,
+            background_image,
+            description
+          )
+        `)
+        .eq('user_id', user_id)
+        .eq('game_id', id)
         .single()
 
-      if (gameError) throw gameError
-      setGame(gameData)
-      
-      if (gameData) {
-        fetchRawgDetails(gameData.title);
-        fetchHowLongToBeat(gameData.title);
+      if (gameError) {
+        console.error('Error fetching game:', gameError)
+        return
+      }
+
+      if (!userGameData) {
+        console.error('Game not found')
+        return
+      }
+
+      setGame({
+        id: userGameData.game.id,
+        title: userGameData.game.title,
+        status: userGameData.status,
+        progress: userGameData.progress,
+        rawg_id: userGameData.game.rawg_id,
+        rawg_slug: userGameData.game.rawg_slug,
+        metacritic_rating: userGameData.game.metacritic_rating,
+        release_date: userGameData.game.release_date,
+        background_image: userGameData.game.background_image,
+        description: userGameData.game.description
+      })
+
+      if (userGameData.game) {
+        fetchRawgDetails(userGameData.game.title);
+        fetchHowLongToBeat(userGameData.game.title);
       }
 
       // Fetch game notes
@@ -139,22 +182,23 @@ const GameDetails = () => {
       // If this is a completion entry, update the game's progress to 100%
       if (noteForm.is_completion_entry) {
         const { error: updateError } = await supabase
-          .from('games')
+          .from('user_games')
           .update({
             progress: 100,
             status: 'Done' // Optionally update status to Done
           })
-          .eq('id', game.id)
+          .eq('game_id', game.id)
           .eq('user_id', user_id)
 
         if (updateError) {
           console.error('Error updating game progress:', updateError)
-          throw updateError
         }
       }
 
-      // Refresh notes and game details
+      // Refresh game and notes
       fetchGameAndNotes()
+      
+      // Reset form
       setNoteForm({
         content: '',
         mood: null,
@@ -165,6 +209,7 @@ const GameDetails = () => {
         completion_date: null
       })
       setShowAddNote(false)
+
     } catch (error) {
       console.error('Error adding note:', error)
     }
@@ -246,12 +291,12 @@ const GameDetails = () => {
       const user_id = userData.user?.id;
 
       const { error } = await supabase
-        .from('games')
+        .from('user_games')
         .update({
           progress: newProgress,
           status: newProgress === 100 ? 'Done' : game.status
         })
-        .eq('id', game.id)
+        .eq('game_id', game.id)
         .eq('user_id', user_id);
 
       if (error) throw error;
@@ -322,8 +367,8 @@ const GameDetails = () => {
       <div className="mb-4 sm:mb-6">
         <h1 className="text-2xl sm:text-3xl font-bold mb-2">{game.title}</h1>
         <div className="flex flex-wrap gap-2 sm:gap-4 text-sm">
-          <span className="badge badge-primary">{game.platform}</span>
-          <span className="badge badge-secondary">{game.genre}</span>
+          <span className="badge badge-primary">{game.rawg_id}</span>
+          <span className="badge badge-secondary">{game.metacritic_rating}</span>
           <span className="badge badge-accent">{game.status}</span>
         </div>
       </div>
