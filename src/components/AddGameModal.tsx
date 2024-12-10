@@ -12,11 +12,12 @@ interface GameFormData {
 
 interface AddGameModalProps {
   onGameAdded: () => void
+  isOnboarding?: boolean
   showModal: boolean
   setShowModal: (showModal: boolean) => void
 }
 
-function AddGameModal({ onGameAdded, showModal, setShowModal }: AddGameModalProps) {
+const AddGameModal: React.FC<AddGameModalProps> = ({ onGameAdded, isOnboarding = false, showModal, setShowModal }) => {
   const [formData, setFormData] = useState<GameFormData>({
     title: '',
     platforms: [],
@@ -74,10 +75,34 @@ function AddGameModal({ onGameAdded, showModal, setShowModal }: AddGameModalProp
     setIsLoading(true)
 
     try {
+      // Get current user
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('No user found')
 
-      // Create the game
+      // Debug: Check if user exists in users table
+      const { data: userRecord, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+
+      console.log('Current user:', user.id)
+      console.log('User record:', userRecord)
+      console.log('User error:', userError)
+
+      // If no user record, try to create one
+      if (!userRecord) {
+        const { error: insertError } = await supabase
+          .from('users')
+          .insert([{ id: user.id, email: user.email }])
+        
+        if (insertError) {
+          console.error('Error creating user record:', insertError)
+          throw insertError
+        }
+      }
+
+      // Create the game first
       const { data: game, error: gameError } = await supabase
         .from('games')
         .insert([
@@ -95,58 +120,60 @@ function AddGameModal({ onGameAdded, showModal, setShowModal }: AddGameModalProp
       if (gameError) throw gameError
 
       // Get platform IDs
-      const { data: selectedPlatformIds, error: platformError } = await supabase
-        .from('platforms')
-        .select('id')
-        .in('name', formData.platforms)
+      if (formData.platforms.length > 0) {
+        const { data: platformIds, error: platformError } = await supabase
+          .from('platforms')
+          .select('id')
+          .in('name', formData.platforms)
 
-      if (platformError) throw platformError
+        if (platformError) throw platformError
 
-      // Add platform relationships
-      if (selectedPlatformIds && selectedPlatformIds.length > 0) {
-        const { error: platformLinkError } = await supabase
-          .from('game_platforms')
-          .insert(
-            selectedPlatformIds.map(platform => ({
-              game_id: game.id,
-              platform_id: platform.id
-            }))
-          )
+        if (platformIds && platformIds.length > 0) {
+          const { error: linkError } = await supabase
+            .from('game_platforms')
+            .insert(
+              platformIds.map(platform => ({
+                game_id: game.id,
+                platform_id: platform.id
+              }))
+            )
 
-        if (platformLinkError) throw platformLinkError
+          if (linkError) throw linkError
+        }
       }
 
       // Get genre IDs
-      const { data: selectedGenreIds, error: genreError } = await supabase
-        .from('genres')
-        .select('id')
-        .in('name', formData.genres)
+      if (formData.genres.length > 0) {
+        const { data: genreIds, error: genreError } = await supabase
+          .from('genres')
+          .select('id')
+          .in('name', formData.genres)
 
-      if (genreError) throw genreError
+        if (genreError) throw genreError
 
-      // Add genre relationships
-      if (selectedGenreIds && selectedGenreIds.length > 0) {
-        const { error: genreLinkError } = await supabase
-          .from('game_genres')
-          .insert(
-            selectedGenreIds.map(genre => ({
-              game_id: game.id,
-              genre_id: genre.id
-            }))
-          )
+        if (genreIds && genreIds.length > 0) {
+          const { error: linkError } = await supabase
+            .from('game_genres')
+            .insert(
+              genreIds.map(genre => ({
+                game_id: game.id,
+                genre_id: genre.id
+              }))
+            )
 
-        if (genreLinkError) throw genreLinkError
+          if (linkError) throw linkError
+        }
       }
 
-      // Reset form and close modal
       setFormData({
         title: '',
         platforms: [],
         genres: [],
         status: 'Not Started',
         progress: 0,
-        image: '',
+        image: ''
       })
+
       onGameAdded()
     } catch (error) {
       console.error('Error adding game:', error)
@@ -156,8 +183,14 @@ function AddGameModal({ onGameAdded, showModal, setShowModal }: AddGameModalProp
   }
 
   return (
-    <div className="modal modal-open">
-      <div className="modal-box max-w-2xl">
+    <div className={`modal ${showModal ? 'modal-open' : ''} ${isOnboarding ? 'z-[100]' : ''}`}>
+      <div className="modal-box max-w-2xl relative">
+        <button
+          className="btn btn-sm btn-circle absolute right-2 top-2"
+          onClick={() => setShowModal(false)}
+        >
+          ✕
+        </button>
         <h3 className="font-bold text-lg mb-4">Add New Game</h3>
         <form onSubmit={handleSubmit}>
           <div className="form-control mb-4">
