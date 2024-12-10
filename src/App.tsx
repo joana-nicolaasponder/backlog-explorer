@@ -53,7 +53,7 @@ const App: React.FC = () => {
                   Explore
                 </Link>
               </div>
-              <AddGameModal onGameAdded={() => {}} />
+              <AddGameModal onGameAdded={() => {}} userId={session?.user.id} />
               <button className="btn btn-ghost" onClick={handleLogout}>
                 Logout
               </button>
