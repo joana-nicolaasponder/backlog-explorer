@@ -377,20 +377,20 @@ const GameCard: React.FC<GameCardProps> = ({ games, userId, onRefresh }) => {
                   </span>
                 ))}
               </div>
-              <div className="flex gap-2 items-center flex-wrap mt-2">
+              <div className="flex gap-2 items-center flex-wrap mt-2 mb-4">
                 {game.genres?.map((genre) => (
                   <span key={genre} className="badge badge-accent">
                     {genre}
                   </span>
                 ))}
               </div>
-              <div className="w-full bg-base-200 rounded-full">
+              <div className="w-full bg-base-200 rounded-full overflow-hidden mb-4">
                 <div 
-                  className="bg-primary rounded-full h-2" 
+                  className="bg-primary rounded-full h-2 transition-all duration-300" 
                   style={{ width: `${game.progress || 0}%` }}
                 />
               </div>
-              <div className="card-actions justify-end">
+              <div className="card-actions justify-end mt-auto">
                 <button
                   className="btn btn-secondary"
                   onClick={() => {
