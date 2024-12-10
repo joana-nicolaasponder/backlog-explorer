@@ -1,50 +1,81 @@
-# React + TypeScript + Vite
+# Backlog Explorer
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A web application for gamers to track their gaming backlog, built with React, TypeScript, and Supabase.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- Track your gaming backlog with standardized game data from RAWG
+- Add games with consistent metadata (genres, platforms, images)
+- Track progress and status for each game
+- Add notes and completion entries
+- Filter and sort your game library
 
-## Expanding the ESLint configuration
+## Tech Stack
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+- Frontend: React + TypeScript + Vite
+- Backend: Supabase (PostgreSQL + Authentication)
+- APIs: RAWG for game data
 
-- Configure the top-level `parserOptions` property like this:
+## Project Evolution & Learnings
 
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
+### Database Design Evolution
 
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
+1. **Initial Structure**
+   - Single `games` table with user-specific data
+   - Simple but led to duplicate game data across users
 
-```js
-// eslint.config.js
-import react from 'eslint-plugin-react'
+2. **Improved Structure with RAWG Integration**
+   - Split into `games` (shared data) and `user_games` (user-specific data)
+   - Better data normalization and consistency
+   - Standardized game information from RAWG
 
-export default tseslint.config({
-  // Set the react version
-  settings: { react: { version: '18.3' } },
-  plugins: {
-    // Add the react plugin
-    react,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended rules
-    ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
-  },
-})
-```
+### Key Learnings
+
+1. **Database Management**
+   - Always use separate development and production databases
+   - Plan database migrations carefully
+   - Consider data migration strategies early in development
+   - Document database schema changes
+
+2. **API Integration**
+   - Using RAWG API improved data consistency
+   - Standardized game metadata (genres, platforms)
+   - Better user experience with game search and addition
+
+3. **Data Normalization**
+   - Splitting game data from user progress improved efficiency
+   - Reduced data duplication
+   - Made it easier to maintain consistent game information
+
+4. **Migration Challenges**
+   - Learned importance of testing migrations
+   - Backup strategies are crucial
+   - Consider impact on existing data when restructuring
+
+### Future Improvements
+
+1. **Database**
+   - Implement proper development/production database separation
+   - Add database backup strategies
+   - Improve migration testing process
+
+2. **Features**
+   - Enhanced game search capabilities
+   - More detailed progress tracking
+   - Social features (share libraries, recommendations)
+
+## Development Setup
+
+1. Clone the repository
+2. Install dependencies: `npm install`
+3. Set up environment variables:
+   ```
+   VITE_SUPABASE_URL=your_supabase_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_key
+   VITE_RAWG_API_KEY=your_rawg_api_key
+   ```
+4. Run development server: `npm run dev`
+
+## Contributing
+
+Feel free to submit issues and enhancement requests!
