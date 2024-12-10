@@ -34,7 +34,11 @@ const Auth: React.FC<AuthProps> = ({ onAuth }) => {
         console.error('Login error:', error.message)
         alert(`Login error: ${error.message}`)
       } else {
-        onAuth(data.session) 
+        console.log(
+          `User logged in successfully at ${new Date().toLocaleString()}: `,
+          data.session.user
+        )
+        onAuth(data.session)
       }
     }
   }
