@@ -393,10 +393,11 @@ const GameCard: React.FC<GameCardProps> = ({ games, userId, onRefresh }) => {
               <div className="card-actions justify-end mt-auto">
                 <button
                   className="btn btn-secondary"
-                  onClick={() => {
-                    setFormData(game)
-                    setShowEditModal(true)
-                    setIsOpen(true)
+                  onClick={(e) => {
+                    e.stopPropagation();  
+                    setFormData(game);
+                    setShowEditModal(true);
+                    setIsOpen(true);
                   }}
                 >
                   Edit
