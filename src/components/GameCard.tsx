@@ -14,8 +14,8 @@ interface Genre {
 interface Game {
   id: string
   title: string
-  platform: string[]
-  genre: string[]
+  platforms: string[]
+  genres: string[]
   status: string
   progress: number
   image: string
@@ -47,55 +47,64 @@ const getStatusBadgeColor = (status: string): string => {
 const GameCard: React.FC<GameCardProps> = ({ games, userId, onRefresh }) => {
   const [showEditModal, setShowEditModal] = useState(false)
   const [formData, setFormData] = useState<Game | null>(null)
-  const [platformOptions, setPlatformOptions] = useState<Platform[]>([])
+  const [platformOptions, setPlatformOptions] = useState<string[]>([])
   const [genreOptions, setGenreOptions] = useState<string[]>([])
   const [statusOptions, setStatusOptions] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
 
   useEffect(() => {
     const fetchOptions = async () => {
-      // Fetch platforms
-      const { data: platforms } = await supabase
-        .from('platforms')
-        .select('id, name')
+      try {
+        console.log('Fetching options for edit modal')
+        
+        // Get all platforms
+        const { data: platforms, error: platformError } = await supabase
+          .from('platforms')
+          .select('id, name')
+          .order('name')
 
-      if (platforms) {
-        setPlatformOptions(platforms)
-      }
+        console.log('All platforms for edit:', platforms)
 
-      // Fetch genres
-      const { data: genres } = await supabase
-        .from('genres')
-        .select('id, name')
-        .order('name')
+        if (platformError) {
+          console.error('Error fetching platforms:', platformError)
+        } else if (platforms) {
+          setPlatformOptions(platforms.map(p => p.name))
+        }
 
-      if (genres) {
-        setGenreOptions(genres.map((g) => g.name))
-      }
+        // Get all genres
+        const { data: genres, error: genreError } = await supabase
+          .from('genres')
+          .select('id, name')
+          .order('name')
 
-      // Fetch statuses
-      const { data: statuses } = await supabase
-        .from('games')
-        .select('status')
-        .not('status', 'is', null)
+        console.log('All genres for edit:', genres)
 
-      if (statuses) {
-        const uniqueStatuses = Array.from(
-          new Set(statuses.map((s) => s.status))
-        )
-        setStatusOptions(uniqueStatuses)
+        if (genreError) {
+          console.error('Error fetching genres:', genreError)
+        } else if (genres) {
+          setGenreOptions(genres.map(g => g.name))
+        }
+
+        // Set predefined status options
+        setStatusOptions(['Not Started', 'In Progress', 'Completed', 'DNF', 'Wishlist', 'Try Again', 'Come back!', 'Currently Playing', 'Endless', 'Satisfied', 'Done', 'Owned'])
+      } catch (error) {
+        console.error('Error in fetchOptions:', error)
       }
     }
 
-    fetchOptions()
-  }, [])
+    if (isOpen) {
+      fetchOptions()
+    }
+  }, [isOpen])
 
   const handleEditSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    setIsLoading(true)
+    if (!formData) return
 
+    setIsLoading(true)
     try {
-      // First, update the game details
+      // Update the game's basic information
       const { error: updateError } = await supabase
         .from('games')
         .update({
@@ -108,37 +117,41 @@ const GameCard: React.FC<GameCardProps> = ({ games, userId, onRefresh }) => {
 
       if (updateError) throw updateError
 
-      // Handle platforms
-      const selectedPlatforms = platformOptions.filter((platform) =>
-        formData.platform.includes(platform.name)
-      )
+      // Get platform IDs from names
+      const { data: selectedPlatformIds, error: platformError } = await supabase
+        .from('platforms')
+        .select('id')
+        .in('name', formData.platforms)
+
+      if (platformError) throw platformError
 
       // Delete existing platform relationships
-      const { error: deletePlatformError } = await supabase
+      const { error: deleteError } = await supabase
         .from('game_platforms')
         .delete()
         .eq('game_id', formData.id)
 
-      if (deletePlatformError) throw deletePlatformError
+      if (deleteError) throw deleteError
 
-      // Insert new platform relationships
-      const { error: insertPlatformError } = await supabase
-        .from('game_platforms')
-        .insert(
-          selectedPlatforms.map((platform) => ({
-            game_id: formData.id,
-            platform_id: platform.id,
-          }))
-        )
+      // Add new platform relationships
+      if (selectedPlatformIds && selectedPlatformIds.length > 0) {
+        const { error: insertError } = await supabase
+          .from('game_platforms')
+          .insert(
+            selectedPlatformIds.map(platform => ({
+              game_id: formData.id,
+              platform_id: platform.id
+            }))
+          )
 
-      if (insertPlatformError) throw insertPlatformError
+        if (insertError) throw insertError
+      }
 
-      // Handle genres
-      // Get genre IDs for selected genres
-      const { data: genreData, error: genreError } = await supabase
+      // Get genre IDs from names
+      const { data: selectedGenreIds, error: genreError } = await supabase
         .from('genres')
-        .select('id, name')
-        .in('name', formData.genre)
+        .select('id')
+        .in('name', formData.genres)
 
       if (genreError) throw genreError
 
@@ -150,21 +163,22 @@ const GameCard: React.FC<GameCardProps> = ({ games, userId, onRefresh }) => {
 
       if (deleteGenreError) throw deleteGenreError
 
-      // Insert new genre relationships
-      const { error: insertGenreError } = await supabase
-        .from('game_genres')
-        .insert(
-          genreData.map((genre) => ({
-            game_id: formData.id,
-            genre_id: genre.id,
-          }))
-        )
+      // Add new genre relationships
+      if (selectedGenreIds && selectedGenreIds.length > 0) {
+        const { error: insertGenreError } = await supabase
+          .from('game_genres')
+          .insert(
+            selectedGenreIds.map(genre => ({
+              game_id: formData.id,
+              genre_id: genre.id
+            }))
+          )
 
-      if (insertGenreError) throw insertGenreError
+        if (insertGenreError) throw insertGenreError
+      }
 
+      onRefresh()
       setShowEditModal(false)
-      setFormData(null)
-      onRefresh() // Refresh the games list after successful update
     } catch (error) {
       console.error('Error updating game:', error)
     } finally {
@@ -210,46 +224,46 @@ const GameCard: React.FC<GameCardProps> = ({ games, userId, onRefresh }) => {
               </div>
               <div className="form-control">
                 <label className="label">
-                  <span className="label-text">Platform</span>
+                  <span className="label-text">Platforms</span>
                 </label>
                 <select
-                  name="platform"
+                  name="platforms"
                   className="select select-bordered"
                   multiple
-                  value={formData.platform || []}
+                  value={formData.platforms || []}
                   onChange={(e) => {
                     const selectedOptions = Array.from(
                       e.target.selectedOptions
                     ).map((option) => option.value)
                     setFormData({
                       ...formData,
-                      platform: selectedOptions,
+                      platforms: selectedOptions,
                     })
                   }}
                 >
                   {platformOptions.map((platform) => (
-                    <option key={platform.id} value={platform.name}>
-                      {platform.name}
+                    <option key={platform} value={platform}>
+                      {platform}
                     </option>
                   ))}
                 </select>
               </div>
               <div className="form-control">
                 <label className="label">
-                  <span className="label-text">Genre</span>
+                  <span className="label-text">Genres</span>
                 </label>
                 <select
-                  name="genre"
+                  name="genres"
                   className="select select-bordered"
                   multiple
-                  value={formData.genre || []}
+                  value={formData.genres || []}
                   onChange={(e) => {
                     const selectedOptions = Array.from(
                       e.target.selectedOptions
                     ).map((option) => option.value)
                     setFormData({
                       ...formData,
-                      genre: selectedOptions,
+                      genres: selectedOptions,
                     })
                   }}
                 >
@@ -346,35 +360,37 @@ const GameCard: React.FC<GameCardProps> = ({ games, userId, onRefresh }) => {
             <div className="card-body">
               <h2 className="card-title flex justify-between items-center">
                 {game.title}{' '}
-                <div className={`badge ${getStatusBadgeColor(game.status)}`}>
+                <div className={`badge ${getStatusBadgeColor(game.status || '')}`}>
                   {game.status}
                 </div>
               </h2>
               <div className="flex gap-2 items-center flex-wrap">
-                {game.platform.map((platform) => (
+                {game.platforms?.map((platform) => (
                   <span key={platform} className="badge badge-outline">
                     {platform}
                   </span>
                 ))}
               </div>
               <div className="flex gap-2 items-center flex-wrap mt-2">
-                {game.genre.map((genre) => (
+                {game.genres?.map((genre) => (
                   <span key={genre} className="badge badge-accent">
                     {genre}
                   </span>
                 ))}
               </div>
-              <progress
-                className="progress progress-primary w-full"
-                value={game.progress}
-                max="100"
-              ></progress>
+              <div className="w-full bg-base-200 rounded-full">
+                <div 
+                  className="bg-primary rounded-full h-2" 
+                  style={{ width: `${game.progress || 0}%` }}
+                />
+              </div>
               <div className="card-actions justify-end">
                 <button
                   className="btn btn-secondary"
                   onClick={() => {
                     setFormData(game)
                     setShowEditModal(true)
+                    setIsOpen(true)
                   }}
                 >
                   Edit
