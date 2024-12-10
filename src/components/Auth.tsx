@@ -9,71 +9,130 @@ interface AuthProps {
 const Auth: React.FC<AuthProps> = ({ onAuth }) => {
   const [email, setEmail] = useState<string>('')
   const [password, setPassword] = useState<string>('')
+  const [confirmPassword, setConfirmPassword] = useState<string>('')
   const [isSignUp, setIsSignUp] = useState<boolean>(false)
   const [isResetPassword, setIsResetPassword] = useState<boolean>(false)
   const [resetSent, setResetSent] = useState<boolean>(false)
+  const [loading, setLoading] = useState<boolean>(false)
+  const [googleLoading, setGoogleLoading] = useState<boolean>(false)
+  const [error, setError] = useState<string>('')
+  const [success, setSuccess] = useState<string>('')
+
+  const validateEmail = (email: string) => {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return re.test(email)
+  }
+
+  const validatePassword = (password: string) => {
+    return password.length >= 6
+  }
+
+  const clearMessages = () => {
+    setError('')
+    setSuccess('')
+  }
 
   const handleAuth = async () => {
-    if (isResetPassword) {
-      try {
+    clearMessages()
+    setLoading(true)
+
+    try {
+      if (!validateEmail(email)) {
+        throw new Error('Please enter a valid email address')
+      }
+
+      if (isResetPassword) {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: window.location.origin + '/reset-password',
         })
         if (error) throw error
         setResetSent(true)
-        alert('Check your email for the password reset link')
-      } catch (error: any) {
-        console.error('Reset password error:', error.message)
-        alert(`Reset password error: ${error.message}`)
+        setSuccess('Password reset instructions have been sent to your email')
+        return
       }
-      return
-    }
 
-    if (isSignUp) {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-      })
-      if (error) {
-        console.error('Sign-up error:', error.message)
-        alert(`Sign-up error: ${error.message}`)
-      } else {
-        alert(
-          'Sign-up successful! Please check your email to confirm your account.'
-        )
+      if (!validatePassword(password)) {
+        throw new Error('Password must be at least 6 characters long')
       }
-    } else {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-      if (error) {
-        console.error('Login error:', error.message)
-        alert(`Login error: ${error.message}`)
+
+      if (isSignUp) {
+        if (password !== confirmPassword) {
+          throw new Error('Passwords do not match')
+        }
+
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+        })
+        if (error) throw error
+        setSuccess('Sign-up successful! Please check your email to confirm your account.')
       } else {
-        console.log(
-          `User logged in successfully at ${new Date().toLocaleString()}: `,
-          data.session.user
-        )
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        })
+        if (error) throw error
         onAuth(data.session)
       }
+    } catch (err: any) {
+      setError(err.message)
+      console.error(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleGoogleSignIn = async () => {
+    clearMessages()
+    setGoogleLoading(true)
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin
+        }
+      })
+      if (error) throw error
+    } catch (err: any) {
+      setError(err.message)
+      console.error('Google sign-in error:', err.message)
+    } finally {
+      setGoogleLoading(false)
+    }
+  }
+
+  const handleModeSwitch = (mode: 'signup' | 'login' | 'reset') => {
+    clearMessages()
+    setPassword('')
+    setConfirmPassword('')
+    
+    if (mode === 'reset') {
+      setIsResetPassword(true)
+      setIsSignUp(false)
+    } else {
+      setIsResetPassword(false)
+      setIsSignUp(mode === 'signup')
     }
   }
 
   if (resetSent) {
     return (
-      <div className="p-4 text-center">
-        <h2 className="text-lg font-bold mb-4">Password Reset Email Sent</h2>
-        <p className="mb-4">Please check your email for the password reset link.</p>
-        <button
-          className="btn btn-primary"
-          onClick={() => {
-            setIsResetPassword(false)
-            setResetSent(false)
-          }}
-        >
-          Back to Login
-        </button>
+      <div className="min-h-screen flex items-center justify-center bg-base-200">
+        <div className="p-8 bg-base-100 rounded-lg shadow-lg w-full max-w-md text-center">
+          <h2 className="text-2xl font-bold mb-4">Check Your Email</h2>
+          <p className="mb-6 text-base-content/80">
+            We've sent password reset instructions to your email address.
+          </p>
+          <button
+            className="btn btn-primary w-full"
+            onClick={() => {
+              setIsResetPassword(false)
+              setResetSent(false)
+            }}
+          >
+            Back to Login
+          </button>
+        </div>
       </div>
     )
   }
@@ -81,61 +140,144 @@ const Auth: React.FC<AuthProps> = ({ onAuth }) => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-base-200">
       <div className="p-8 bg-base-100 rounded-lg shadow-lg w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-6 text-center">
-          {isResetPassword ? 'Reset Password' : isSignUp ? 'Sign Up' : 'Login'}
-        </h2>
-        <div className="form-control w-full max-w-xs">
+        <div className="text-center mb-8">
+          <h2 className="text-2xl font-bold">
+            {isResetPassword ? 'Reset Password' : isSignUp ? 'Create Account' : 'Welcome Back'}
+          </h2>
+          <p className="text-base-content/60 mt-2">
+            {isResetPassword 
+              ? 'Enter your email to receive reset instructions' 
+              : isSignUp 
+                ? 'Start managing your game backlog today'
+                : 'Sign in to continue to Backlog Explorer'}
+          </p>
+        </div>
+
+        {(error || success) && (
+          <div className={`alert ${error ? 'alert-error' : 'alert-success'} mb-6`}>
+            <span>{error || success}</span>
+          </div>
+        )}
+
+        <div className="form-control w-full">
           <label className="label">
             <span className="label-text">Email</span>
           </label>
           <input
             type="email"
-            className="input input-bordered w-full"
+            placeholder="your@email.com"
+            className={`input input-bordered w-full ${error && error.includes('email') ? 'input-error' : ''}`}
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value)
+              clearMessages()
+            }}
           />
         </div>
         
         {!isResetPassword && (
-          <div className="form-control w-full max-w-xs mt-4">
+          <div className="form-control w-full mt-4">
             <label className="label">
               <span className="label-text">Password</span>
             </label>
             <input
               type="password"
-              className="input input-bordered w-full"
+              placeholder={isSignUp ? 'Choose a secure password' : 'Enter your password'}
+              className={`input input-bordered w-full ${error && error.includes('Password') ? 'input-error' : ''}`}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value)
+                clearMessages()
+              }}
             />
           </div>
         )}
 
-        <div className="mt-6 space-y-4">
+        {isSignUp && (
+          <div className="form-control w-full mt-4">
+            <label className="label">
+              <span className="label-text">Confirm Password</span>
+            </label>
+            <input
+              type="password"
+              placeholder="Confirm your password"
+              className={`input input-bordered w-full ${error && error.includes('match') ? 'input-error' : ''}`}
+              value={confirmPassword}
+              onChange={(e) => {
+                setConfirmPassword(e.target.value)
+                clearMessages()
+              }}
+            />
+          </div>
+        )}
+
+        <div className="mt-8 space-y-4">
           <button
-            className="btn btn-primary w-full"
+            className={`btn btn-primary w-full ${loading ? 'loading' : ''}`}
             onClick={handleAuth}
+            disabled={loading || googleLoading}
           >
-            {isResetPassword ? 'Send Reset Instructions' : isSignUp ? 'Sign Up' : 'Login'}
+            {loading 
+              ? 'Please wait...' 
+              : isResetPassword 
+                ? 'Send Reset Instructions' 
+                : isSignUp 
+                  ? 'Create Account' 
+                  : 'Sign In'}
           </button>
+
+          {!isResetPassword && (
+            <>
+              <div className="divider text-base-content/40">or continue with</div>
+
+              <button
+                className={`btn btn-outline w-full ${googleLoading ? 'loading' : ''}`}
+                onClick={handleGoogleSignIn}
+                disabled={loading || googleLoading}
+              >
+                {!googleLoading && (
+                  <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+                    <path
+                      fill="currentColor"
+                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                    />
+                    <path
+                      fill="currentColor"
+                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                    />
+                    <path
+                      fill="currentColor"
+                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                    />
+                    <path
+                      fill="currentColor"
+                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                    />
+                  </svg>
+                )}
+                {googleLoading ? 'Connecting...' : 'Sign in with Google'}
+              </button>
+            </>
+          )}
+
+          <div className="divider text-base-content/40">or</div>
 
           <div className="flex flex-col space-y-3 items-center">
             {!isResetPassword && (
               <button
-                key="signup-toggle"
-                className="btn btn-link text-primary hover:text-primary-focus"
-                onClick={() => setIsSignUp(!isSignUp)}
+                className="btn btn-outline btn-block"
+                onClick={() => handleModeSwitch(isSignUp ? 'login' : 'signup')}
               >
-                {isSignUp ? 'Already have an account? Login' : 'Need an account? Sign Up'}
+                {isSignUp ? 'Already have an account? Sign In' : 'Need an account? Sign Up'}
               </button>
             )}
             
             {!isSignUp && (
               <button
-                key="reset-toggle"
-                className="btn btn-link text-secondary hover:text-secondary-focus text-lg"
-                onClick={() => setIsResetPassword(!isResetPassword)}
+                className="btn btn-ghost btn-block"
+                onClick={() => handleModeSwitch('reset')}
               >
-                {isResetPassword ? 'Back to Login' : '⟲ Forgot your password?'}
+                {isResetPassword ? 'Back to Sign In' : 'Forgot your password?'}
               </button>
             )}
           </div>
