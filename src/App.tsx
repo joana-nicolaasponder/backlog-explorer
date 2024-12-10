@@ -105,7 +105,7 @@ const App: React.FC = () => {
         <>
           <Routes>
             <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="*" element={<Auth />} />
+            <Route path="*" element={<Auth onAuth={setSession} />} />
           </Routes>
         </>
       ) : (
