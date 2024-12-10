@@ -1,23 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import supabase from '../supabaseClient'
-import { Game, GameNote, RawgGameDetails, PlaySession } from '../types'
+import { Game, GameNote, RawgGameDetails } from '../types'
 
 interface GameDetailsProps {}
-
-interface PlaySession {
-  id: string
-  duration: number
-  notes: string
-  played_at: string
-}
 
 const GameDetails = () => {
   const { id } = useParams()
   const [game, setGame] = useState<Game | null>(null)
   const [notes, setNotes] = useState<GameNote[]>([])
   const [rawgDetails, setRawgDetails] = useState<RawgGameDetails | null>(null)
-  const [playSessions, setPlaySessions] = useState<PlaySession[]>([])
   const [loading, setLoading] = useState(true)
   const [showAddNote, setShowAddNote] = useState(false)
   const [editingNote, setEditingNote] = useState<GameNote | null>(null)
@@ -98,16 +90,6 @@ const GameDetails = () => {
 
       if (notesError) throw notesError
       setNotes(notesData || [])
-
-      // Fetch play sessions
-      const { data: sessions, error: sessionsError } = await supabase
-        .from('play_sessions')
-        .select('*')
-        .eq('game_id', id)
-        .order('played_at', { ascending: false })
-
-      if (sessionsError) throw sessionsError
-      setPlaySessions(sessions)
 
     } catch (error) {
       console.error('Error:', error)
@@ -283,12 +265,6 @@ const GameDetails = () => {
     return '⭐'.repeat(rating)
   }
 
-  const formatDuration = (seconds: number): string => {
-    const hours = Math.floor(seconds / 3600)
-    const minutes = Math.floor((seconds % 3600) / 60)
-    return `${hours}h ${minutes}m`
-  }
-
   const formatDate = (dateString: string): string => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -435,38 +411,6 @@ const GameDetails = () => {
         </div>
       )}
 
-      {/* Play Sessions Section */}
-      <div className="mt-8">
-        <h2 className="text-2xl font-semibold mb-4">Play Sessions</h2>
-        {playSessions.length === 0 ? (
-          <p className="text-center py-4 bg-base-200 rounded-lg">
-            No play sessions recorded yet.
-          </p>
-        ) : (
-          <div className="space-y-4">
-            {playSessions.map((session) => (
-              <div key={session.id} className="card bg-base-100 shadow">
-                <div className="card-body">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-semibold">
-                        {formatDate(session.played_at)}
-                      </h3>
-                      <div className="badge badge-primary mt-1">
-                        {formatDuration(session.duration)}
-                      </div>
-                    </div>
-                  </div>
-                  {session.notes && (
-                    <p className="mt-2 whitespace-pre-wrap">{session.notes}</p>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
       {/* Game Journal Section */}
       <div className="mt-8">
         <div className="flex justify-between items-center mb-4">
@@ -500,11 +444,6 @@ const GameDetails = () => {
                             minute: '2-digit'
                           })}
                         </h3>
-                        {note.duration && (
-                          <div className="badge badge-primary">
-                            {Math.floor(note.duration / 3600)}h {Math.floor((note.duration % 3600) / 60)}m
-                          </div>
-                        )}
                       </div>
                       <div className="flex gap-2 mt-1">
                         {note.mood && (
