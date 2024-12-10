@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import supabase from '../supabaseClient'
 import GameCard from '../components/GameCard'
-import AddGameModal from '../components/AddGameModal'
 import SearchBar from '../components/SearchBar'
 
 const Library = () => {
