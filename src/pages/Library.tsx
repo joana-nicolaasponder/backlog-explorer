@@ -44,6 +44,20 @@ const Library = () => {
       console.log('Fetching options for userId:', userId)
 
       try {
+        // Set predefined status options
+        setStatusOptions([
+          'Endless',
+          'Satisfied',
+          'DNF',
+          'Wishlist',
+          'Try Again',
+          'Started',
+          'Owned',
+          'Come back!',
+          'Currently Playing',
+          'Done'
+        ])
+
         // Get all games with their relationships
         const { data: userGames, error: gamesError } = await supabase
           .from('games')
@@ -95,12 +109,6 @@ const Library = () => {
           formattedGames.flatMap(game => game.genres)
         )).sort()
         setGenreOptions(genreNames)
-
-        // Extract unique statuses
-        const uniqueStatuses = Array.from(new Set(
-          formattedGames.map(game => game.status)
-        )).filter(Boolean).sort()
-        setStatusOptions(uniqueStatuses)
 
         // Apply filters
         if (filterPlatform) {
