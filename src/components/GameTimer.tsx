@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import supabase from '../supabaseClient'
 import { GameNote } from '../types'
 
@@ -11,6 +12,7 @@ interface GameTimerProps {
 }
 
 const GameTimer: React.FC<GameTimerProps> = ({ game, onSessionSaved }) => {
+  const navigate = useNavigate()
   const [isRunning, setIsRunning] = useState(false)
   const [time, setTime] = useState(0)
   const [notes, setNotes] = useState('')
@@ -81,6 +83,9 @@ const GameTimer: React.FC<GameTimerProps> = ({ game, onSessionSaved }) => {
       setRating(null)
       setShowNotes(false)
       onSessionSaved()
+      
+      // Navigate to game details page
+      navigate(`/game/${game.id}`)
     } catch (error) {
       console.error('Error saving play session:', error)
     } finally {

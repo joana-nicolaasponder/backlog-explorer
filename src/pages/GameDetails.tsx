@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import supabase from '../supabaseClient'
-import { Game, GameNote, RawgGameDetails } from '../types'
+import { Game, GameNote, RawgGameDetails, HowLongToBeatInfo } from '../types'
 
 interface GameDetailsProps {}
 
@@ -10,6 +10,7 @@ const GameDetails = () => {
   const [game, setGame] = useState<Game | null>(null)
   const [notes, setNotes] = useState<GameNote[]>([])
   const [rawgDetails, setRawgDetails] = useState<RawgGameDetails | null>(null)
+  const [hltbInfo, setHltbInfo] = useState<HowLongToBeatInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [showAddNote, setShowAddNote] = useState(false)
   const [editingNote, setEditingNote] = useState<GameNote | null>(null)
@@ -61,10 +62,24 @@ const GameDetails = () => {
     }
   };
 
+  const fetchHowLongToBeat = async (gameTitle: string) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/hltb?title=${encodeURIComponent(gameTitle)}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.details || 'Failed to fetch HLTB data');
+      }
+      const data = await response.json();
+      console.log('HLTB data received:', data);
+      setHltbInfo(data);
+    } catch (error) {
+      console.error('Error fetching HLTB data:', error);
+      setHltbInfo(null);
+    }
+  };
+
   const fetchGameAndNotes = async () => {
     try {
-      setLoading(true);
-
       // Fetch game details
       const { data: gameData, error: gameError } = await supabase
         .from('games')
@@ -77,6 +92,7 @@ const GameDetails = () => {
       
       if (gameData) {
         fetchRawgDetails(gameData.title);
+        fetchHowLongToBeat(gameData.title);
       }
 
       // Fetch game notes
@@ -277,6 +293,21 @@ const GameDetails = () => {
     })
   }
 
+  const formatDuration = (duration: number | null): string => {
+    if (!duration) return '';
+    const hours = Math.floor(duration / 3600);
+    const minutes = Math.floor((duration % 3600) / 60);
+    const seconds = duration % 60;
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m ${seconds}s`;
+    } else if (minutes > 0) {
+      return `${minutes}m ${seconds}s`;
+    } else {
+      return `${seconds}s`;
+    }
+  }
+
   if (loading) {
     return <div className="p-4">Loading...</div>
   }
@@ -359,6 +390,33 @@ const GameDetails = () => {
                     </div>
                   )}
                 </div>
+
+                {/* How Long to Beat Section */}
+                {hltbInfo && (
+                  <div className="mt-4">
+                    <h3 className="font-semibold text-lg mb-2">How Long to Beat</h3>
+                    <div className="grid grid-cols-1 gap-2">
+                      {hltbInfo.gameplayMain && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">Main Story:</span>
+                          <span className="badge badge-primary">{hltbInfo.gameplayMain} hours</span>
+                        </div>
+                      )}
+                      {hltbInfo.gameplayMainExtra && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">Main + Extras:</span>
+                          <span className="badge badge-secondary">{hltbInfo.gameplayMainExtra} hours</span>
+                        </div>
+                      )}
+                      {hltbInfo.gameplayCompletionist && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">Completionist:</span>
+                          <span className="badge badge-accent">{hltbInfo.gameplayCompletionist} hours</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {rawgDetails.description_raw && (
                   <div>
@@ -449,14 +507,19 @@ const GameDetails = () => {
                         </h3>
                       </div>
                       <div className="flex gap-2 mt-1">
+                        {note.duration && (
+                          <div className="badge badge-primary">
+                            Session: {formatDuration(note.duration)}
+                          </div>
+                        )}
                         {note.mood && (
                           <div className="badge badge-ghost">
-                            Mood: {note.mood}/5
+                            {getMoodEmoji(note.mood)} {note.mood}
                           </div>
                         )}
                         {note.rating && (
                           <div className="badge badge-ghost">
-                            Rating: {note.rating}/5
+                            {getRatingStars(note.rating)}
                           </div>
                         )}
                       </div>
