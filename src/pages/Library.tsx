@@ -60,31 +60,34 @@ const Library = () => {
 
         // Get all games with their relationships
         const { data: userGames, error: gamesError } = await supabase
-          .from('games')
+          .from('user_games')
           .select(`
             id,
-            title,
             status,
             progress,
-            image,
-            created_at,
-            game_platforms!inner (
-              platform_id,
-              platforms!inner (
-                id,
-                name
-              )
-            ),
-            game_genres!inner (
-              genre_id,
-              genres!inner (
-                id,
-                name
+            game:games (
+              id,
+              title,
+              background_image,
+              created_at,
+              game_platforms (
+                platform_id,
+                platforms (
+                  id,
+                  name
+                )
+              ),
+              game_genres (
+                genre_id,
+                genres (
+                  id,
+                  name
+                )
               )
             )
           `)
           .eq('user_id', userId)
-          .order('title', { ascending: true })
+          .order('game(title)', { ascending: true })
 
         if (gamesError) {
           console.error('Error fetching games:', gamesError)
@@ -92,10 +95,15 @@ const Library = () => {
         }
 
         // Format games with platform and genre names
-        let formattedGames = userGames.map(game => ({
-          ...game,
-          platforms: game.game_platforms.map(gp => gp.platforms.name),
-          genres: game.game_genres.map(gg => gg.genres.name)
+        let formattedGames = userGames.map(userGame => ({
+          id: userGame.game.id,
+          title: userGame.game.title,
+          status: userGame.status,
+          progress: userGame.progress,
+          image: userGame.game.background_image,
+          created_at: userGame.game.created_at,
+          platforms: userGame.game.game_platforms.map(gp => gp.platforms.name),
+          genres: userGame.game.game_genres.map(gg => gg.genres.name)
         }))
 
         // Extract unique platform names
