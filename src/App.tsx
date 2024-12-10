@@ -6,6 +6,7 @@ import Auth from './components/Auth'
 import AddGameModal from './components/AddGameModal'
 import Library from './pages/Library'
 import Explore from './pages/Explore'
+import GameDetails from './pages/GameDetails'
 
 const App: React.FC = () => {
   const [session, setSession] = useState<Session | null>(null)
@@ -53,7 +54,7 @@ const App: React.FC = () => {
                   Explore
                 </Link>
               </div>
-              <AddGameModal onGameAdded={() => {}} />
+              <AddGameModal onGameAdded={() => {}} userId={session?.user.id} />
               <button className="btn btn-ghost" onClick={handleLogout}>
                 Logout
               </button>
@@ -63,6 +64,7 @@ const App: React.FC = () => {
           <Routes>
             <Route path="/" element={<Library />} />
             <Route path="/explore" element={<Explore />} />
+            <Route path="/game/:id" element={<GameDetails />} />
           </Routes>
         </>
       )}
