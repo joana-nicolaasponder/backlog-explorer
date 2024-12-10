@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import supabase from '../supabaseClient'
 import GameCard from '../components/GameCard'
 import SearchBar from '../components/SearchBar'
 
 const Library = () => {
-  const [filterStatus, setFilterStatus] = useState<string>('')
+  const location = useLocation()
+  const [filterStatus, setFilterStatus] = useState<string | string[]>(
+    location.state?.filterStatus || ''
+  )
   const [filterPlatform, setFilterPlatform] = useState<string>('')
   const [filterGenre, setFilterGenre] = useState<string>('')
   const [sortOrder, setSortOrder] = useState<string>('alphabetical-asc')
@@ -112,9 +116,15 @@ const Library = () => {
         }
 
         if (filterStatus) {
-          formattedGames = formattedGames.filter(game =>
-            game.status === filterStatus
-          )
+          if (Array.isArray(filterStatus)) {
+            formattedGames = formattedGames.filter(game =>
+              filterStatus.includes(game.status)
+            )
+          } else {
+            formattedGames = formattedGames.filter(game =>
+              game.status === filterStatus
+            )
+          }
         }
 
         if (searchQuery) {
