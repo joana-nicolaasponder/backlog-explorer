@@ -4,15 +4,12 @@ import supabase from '../supabaseClient'
 import { GameNote } from '../types'
 
 interface GameTimerProps {
-  game: {
-    id: string
-    title: string
-  }
-  onSessionSaved: () => void
+  gameId: string
 }
 
-const GameTimer: React.FC<GameTimerProps> = ({ game, onSessionSaved }) => {
+const GameTimer: React.FC<GameTimerProps> = ({ gameId }) => {
   const navigate = useNavigate()
+  const [game, setGame] = useState<{ id: string; title: string } | null>(null)
   const [isRunning, setIsRunning] = useState(false)
   const [time, setTime] = useState(0)
   const [notes, setNotes] = useState('')
@@ -20,6 +17,25 @@ const GameTimer: React.FC<GameTimerProps> = ({ game, onSessionSaved }) => {
   const [isSaving, setIsSaving] = useState(false)
   const [mood, setMood] = useState<GameNote['mood'] | null>(null)
   const [rating, setRating] = useState<number | null>(null)
+
+  useEffect(() => {
+    const fetchGame = async () => {
+      const { data, error } = await supabase
+        .from('games')
+        .select('id, title')
+        .eq('id', gameId)
+        .single()
+
+      if (error) {
+        console.error('Error fetching game:', error)
+        return
+      }
+
+      setGame(data)
+    }
+
+    fetchGame()
+  }, [gameId])
 
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null
@@ -53,6 +69,8 @@ const GameTimer: React.FC<GameTimerProps> = ({ game, onSessionSaved }) => {
   }
 
   const handleSaveSession = async () => {
+    if (!game) return
+
     try {
       setIsSaving(true)
       const { data: { user } } = await supabase.auth.getUser()
@@ -82,7 +100,6 @@ const GameTimer: React.FC<GameTimerProps> = ({ game, onSessionSaved }) => {
       setMood(null)
       setRating(null)
       setShowNotes(false)
-      onSessionSaved()
       
       // Navigate to game details page
       navigate(`/game/${game.id}`)
@@ -104,6 +121,10 @@ const GameTimer: React.FC<GameTimerProps> = ({ game, onSessionSaved }) => {
       Disappointed: '😕'
     }
     return mood ? emojiMap[mood] : ''
+  }
+
+  if (!game) {
+    return <div>Loading...</div>
   }
 
   return (
@@ -149,67 +170,54 @@ const GameTimer: React.FC<GameTimerProps> = ({ game, onSessionSaved }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="form-control">
               <label className="label">
-                <span className="label-text">How did it make you feel?</span>
+                <span className="label-text">How did you feel?</span>
               </label>
-              <select
-                className="select select-bordered w-full"
-                value={mood || ''}
-                onChange={(e) =>
-                  setMood(e.target.value as GameNote['mood'])
-                }
-              >
-                <option value="">Select mood</option>
-                <option value="Excited">Excited 🤩</option>
-                <option value="Satisfied">Satisfied 😊</option>
-                <option value="Frustrated">Frustrated 😤</option>
-                <option value="Confused">Confused 🤔</option>
-                <option value="Nostalgic">Nostalgic 🥹</option>
-                <option value="Impressed">Impressed 😯</option>
-                <option value="Disappointed">Disappointed 😕</option>
-              </select>
+              <div className="flex flex-wrap gap-2">
+                {['Excited', 'Satisfied', 'Frustrated', 'Confused', 'Nostalgic', 'Impressed', 'Disappointed'].map((m) => (
+                  <button
+                    key={m}
+                    className={`btn btn-sm ${mood === m ? 'btn-primary' : 'btn-ghost'}`}
+                    onClick={() => setMood(m as GameNote['mood'])}
+                  >
+                    {getMoodEmoji(m as GameNote['mood'])} {m}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="form-control">
               <label className="label">
-                <span className="label-text">Rating</span>
+                <span className="label-text">Rate your session (1-5)</span>
               </label>
               <div className="rating rating-lg">
-                {[1, 2, 3, 4, 5].map((value) => (
+                {[1, 2, 3, 4, 5].map((r) => (
                   <input
-                    key={value}
+                    key={r}
                     type="radio"
                     name="rating"
                     className="mask mask-star-2 bg-orange-400"
-                    checked={rating === value}
-                    onChange={() => setRating(value)}
+                    checked={rating === r}
+                    onChange={() => setRating(r)}
                   />
                 ))}
               </div>
             </div>
           </div>
 
-          <div className="flex gap-2">
-            <button
-              className="btn btn-primary flex-1"
-              onClick={handleSaveSession}
-              disabled={isSaving}
-            >
-              {isSaving ? 'Saving...' : 'Save Session'}
-            </button>
-            <button
-              className="btn btn-ghost flex-1"
-              onClick={() => {
-                setTime(0)
-                setNotes('')
-                setMood(null)
-                setRating(null)
-                setShowNotes(false)
-              }}
-              disabled={isSaving}
-            >
-              Discard
-            </button>
-          </div>
+          <button
+            className="btn btn-primary w-full"
+            onClick={handleSaveSession}
+            disabled={isSaving}
+          >
+            {isSaving ? (
+              <>
+                <span className="loading loading-spinner"></span>
+                Saving...
+              </>
+            ) : (
+              'Save Session'
+            )}
+          </button>
         </div>
       )}
     </div>
