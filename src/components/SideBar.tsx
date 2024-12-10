@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useState } from 'react'
 
 interface SideBarProps {
@@ -8,6 +8,7 @@ interface SideBarProps {
 
 const SideBar = ({ onLogout, onAddGame }: SideBarProps) => {
   const [isOpen, setIsOpen] = useState(false)
+  const location = useLocation()
 
   return (
     <aside className="sticky top-0 h-screen w-64 bg-base-100 text-base-content shadow-lg flex flex-col">
@@ -59,7 +60,9 @@ const SideBar = ({ onLogout, onAddGame }: SideBarProps) => {
           <nav className="space-y-2">
             <Link
               to="/"
-              className="flex items-center space-x-2 p-2 rounded-lg hover:bg-base-200"
+              className={`flex items-center space-x-2 p-2 rounded-lg hover:bg-base-200 ${
+                location.pathname === '/' ? 'bg-base-200' : ''
+              }`}
               onClick={() => setIsOpen(false)}
             >
               <svg
@@ -70,12 +73,32 @@ const SideBar = ({ onLogout, onAddGame }: SideBarProps) => {
               >
                 <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
               </svg>
+              <span>Home</span>
+            </Link>
+
+            <Link
+              to="/dashboard"
+              className={`flex items-center space-x-2 p-2 rounded-lg hover:bg-base-200 ${
+                location.pathname === '/dashboard' ? 'bg-base-200' : ''
+              }`}
+              onClick={() => setIsOpen(false)}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path d="M2 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1H3a1 1 0 01-1-1V4zM8 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1H9a1 1 0 01-1-1V4zM15 3a1 1 0 00-1 1v12a1 1 0 001 1h2a1 1 0 001-1V4a1 1 0 00-1-1h-2z" />
+              </svg>
               <span>Dashboard</span>
             </Link>
 
             <Link
               to="/library"
-              className="flex items-center space-x-2 p-2 rounded-lg hover:bg-base-200"
+              className={`flex items-center space-x-2 p-2 rounded-lg hover:bg-base-200 ${
+                location.pathname === '/library' ? 'bg-base-200' : ''
+              }`}
               onClick={() => setIsOpen(false)}
             >
               <svg
@@ -91,7 +114,9 @@ const SideBar = ({ onLogout, onAddGame }: SideBarProps) => {
 
             <Link
               to="/explore"
-              className="flex items-center space-x-2 p-2 rounded-lg hover:bg-base-200"
+              className={`flex items-center space-x-2 p-2 rounded-lg hover:bg-base-200 ${
+                location.pathname === '/explore' ? 'bg-base-200' : ''
+              }`}
               onClick={() => setIsOpen(false)}
             >
               <svg
