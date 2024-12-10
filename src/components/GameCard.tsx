@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import supabase from '../supabaseClient'
 
 interface Platform {
@@ -45,6 +46,7 @@ const getStatusBadgeColor = (status: string): string => {
 }
 
 const GameCard: React.FC<GameCardProps> = ({ games, userId, onRefresh }) => {
+  const navigate = useNavigate()
   const [showEditModal, setShowEditModal] = useState(false)
   const [formData, setFormData] = useState<Game | null>(null)
   const [platformOptions, setPlatformOptions] = useState<string[]>([])
@@ -347,9 +349,13 @@ const GameCard: React.FC<GameCardProps> = ({ games, userId, onRefresh }) => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-8">
         {games.map((game) => (
-          <div key={game.id} className="card w-full bg-base-100 shadow-xl">
+          <div
+            key={game.id}
+            className="card bg-base-100 shadow-xl cursor-pointer hover:shadow-2xl transition-shadow duration-200"
+            onClick={() => navigate(`/game/${game.id}`)}
+          >
             <figure>
               <img
                 src={game.image || '/default-image.jpg'}
