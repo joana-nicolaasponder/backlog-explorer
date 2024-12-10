@@ -120,7 +120,8 @@ const Auth: React.FC<AuthProps> = ({ onAuth }) => {
         <div className="flex flex-col space-y-2">
           {!isResetPassword && (
             <button
-              className="btn btn-link"
+              key="signup-toggle"
+              className="btn btn-link text-primary"
               onClick={() => setIsSignUp(!isSignUp)}
             >
               {isSignUp ? 'Already have an account? Login' : 'Need an account? Sign Up'}
@@ -129,10 +130,11 @@ const Auth: React.FC<AuthProps> = ({ onAuth }) => {
           
           {!isSignUp && (
             <button
-              className="btn btn-link"
+              key="reset-toggle"
+              className="btn btn-link text-secondary"
               onClick={() => setIsResetPassword(!isResetPassword)}
             >
-              {isResetPassword ? 'Back to Login' : 'Forgot Password?'}
+              {isResetPassword ? 'Back to Login' : 'Forgot your password?'}
             </button>
           )}
         </div>
