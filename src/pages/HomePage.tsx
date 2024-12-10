@@ -1,0 +1,226 @@
+import React, { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import supabase from '../supabaseClient'
+import GameTimer from '../components/GameTimer'
+
+interface Game {
+  id: string
+  title: string
+  image: string
+  progress: number
+  game_platforms: {
+    platforms: {
+      name: string
+    }
+  }[]
+  game_genres: {
+    genres: {
+      name: string
+    }
+  }[]
+}
+
+const HomePage = () => {
+  const navigate = useNavigate()
+  const [currentGames, setCurrentGames] = useState<Game[]>([])
+  const [selectedGame, setSelectedGame] = useState<Game | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchCurrentGames = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+          navigate('/login')
+          return
+        }
+
+        const { data: games, error } = await supabase
+          .from('games')
+          .select(`
+            id,
+            title,
+            image,
+            progress,
+            game_platforms!inner (
+              platforms!inner (
+                name
+              )
+            ),
+            game_genres!inner (
+              genres!inner (
+                name
+              )
+            )
+          `)
+          .eq('user_id', user.id)
+          .eq('status', 'Currently Playing')
+
+        if (error) throw error
+
+        setCurrentGames(games || [])
+        // Only set selected game if none is selected yet
+        if (!selectedGame && games && games.length > 0) {
+          setSelectedGame(games[0])
+        }
+      } catch (error) {
+        console.error('Error fetching current games:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchCurrentGames()
+  }, [navigate])
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="loading loading-spinner loading-lg"></div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-4xl font-bold mb-8">Welcome Back!</h1>
+      
+      <div className="mb-12">
+        <h2 className="text-2xl font-semibold mb-4">Currently Playing</h2>
+        {currentGames.length === 0 ? (
+          <div className="text-center py-8 bg-base-200 rounded-lg">
+            <p className="text-lg mb-4">You're not playing any games right now.</p>
+            <button 
+              className="btn btn-primary"
+              onClick={() => navigate('/library')}
+            >
+              Browse Your Library
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="mb-8">
+              <div className="card bg-base-100 shadow-xl">
+                <div className="card-body">
+                  <div className="flex flex-col md:flex-row gap-4 items-center mb-4">
+                    <div className="form-control flex-1 w-full">
+                      <label className="label">
+                        <span className="label-text">Select a game to track</span>
+                      </label>
+                      <select
+                        className="select select-bordered w-full"
+                        value={selectedGame?.id || ''}
+                        onChange={(e) => {
+                          const game = currentGames.find(g => g.id === e.target.value)
+                          setSelectedGame(game || null)
+                        }}
+                      >
+                        {currentGames.map((game) => (
+                          <option key={game.id} value={game.id}>
+                            {game.title}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  {selectedGame && (
+                    <GameTimer 
+                      game={selectedGame}
+                      onSessionSaved={() => {
+                        const fetchCurrentGames = async () => {
+                          try {
+                            const { data: { user } } = await supabase.auth.getUser()
+                            if (!user) {
+                              navigate('/login')
+                              return
+                            }
+
+                            const { data: games, error } = await supabase
+                              .from('games')
+                              .select(`
+                                id,
+                                title,
+                                image,
+                                progress,
+                                game_platforms!inner (
+                                  platforms!inner (
+                                    name
+                                  )
+                                ),
+                                game_genres!inner (
+                                  genres!inner (
+                                    name
+                                  )
+                                )
+                              `)
+                              .eq('user_id', user.id)
+                              .eq('status', 'Currently Playing')
+
+                            if (error) throw error
+
+                            setCurrentGames(games || [])
+                          } catch (error) {
+                            console.error('Error fetching current games:', error)
+                          } finally {
+                            setLoading(false)
+                          }
+                        }
+
+                        fetchCurrentGames()
+                      }} 
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {currentGames.map((game) => (
+                <div 
+                  key={game.id}
+                  className="card bg-base-100 shadow-xl hover:shadow-2xl transition-shadow cursor-pointer"
+                  onClick={() => navigate(`/game/${game.id}`)}
+                >
+                  <figure>
+                    <img
+                      src={game.image || '/default-image.jpg'}
+                      alt={game.title}
+                      className="w-full h-48 object-cover"
+                    />
+                  </figure>
+                  <div className="card-body">
+                    <h3 className="card-title">{game.title}</h3>
+                    <div className="flex gap-2 flex-wrap mb-2">
+                      {game.game_platforms.map((gp, index) => (
+                        <span key={index} className="badge badge-outline">
+                          {gp.platforms.name}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="flex gap-2 flex-wrap mb-4">
+                      {game.game_genres.map((gg, index) => (
+                        <span key={index} className="badge badge-accent">
+                          {gg.genres.name}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="w-full bg-base-200 rounded-full overflow-hidden">
+                      <div 
+                        className="bg-primary rounded-full h-2 transition-all duration-300" 
+                        style={{ width: `${game.progress || 0}%` }}
+                      />
+                    </div>
+                    <p className="text-right text-sm text-base-content/70">
+                      {game.progress || 0}% Complete
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default HomePage

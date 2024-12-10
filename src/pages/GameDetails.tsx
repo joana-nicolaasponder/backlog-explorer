@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import supabase from '../supabaseClient'
-import { Game, GameNote, RawgGameDetails } from '../types'
+import { Game, GameNote, RawgGameDetails, HowLongToBeatInfo } from '../types'
 
 interface GameDetailsProps {}
 
@@ -10,6 +10,7 @@ const GameDetails = () => {
   const [game, setGame] = useState<Game | null>(null)
   const [notes, setNotes] = useState<GameNote[]>([])
   const [rawgDetails, setRawgDetails] = useState<RawgGameDetails | null>(null)
+  const [hltbInfo, setHltbInfo] = useState<HowLongToBeatInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [showAddNote, setShowAddNote] = useState(false)
   const [editingNote, setEditingNote] = useState<GameNote | null>(null)
@@ -24,10 +25,6 @@ const GameDetails = () => {
   })
   const [isUpdatingProgress, setIsUpdatingProgress] = useState(false)
   const [selectedScreenshot, setSelectedScreenshot] = useState<string | null>(null)
-
-  useEffect(() => {
-    fetchGameAndNotes()
-  }, [id])
 
   const fetchRawgDetails = async (gameTitle: string) => {
     try {
@@ -65,6 +62,22 @@ const GameDetails = () => {
     }
   };
 
+  const fetchHowLongToBeat = async (gameTitle: string) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/hltb?title=${encodeURIComponent(gameTitle)}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.details || 'Failed to fetch HLTB data');
+      }
+      const data = await response.json();
+      console.log('HLTB data received:', data);
+      setHltbInfo(data);
+    } catch (error) {
+      console.error('Error fetching HLTB data:', error);
+      setHltbInfo(null);
+    }
+  };
+
   const fetchGameAndNotes = async () => {
     try {
       // Fetch game details
@@ -79,6 +92,7 @@ const GameDetails = () => {
       
       if (gameData) {
         fetchRawgDetails(gameData.title);
+        fetchHowLongToBeat(gameData.title);
       }
 
       // Fetch game notes
@@ -90,12 +104,17 @@ const GameDetails = () => {
 
       if (notesError) throw notesError
       setNotes(notesData || [])
+
     } catch (error) {
       console.error('Error:', error)
     } finally {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    fetchGameAndNotes()
+  }, [id])
 
   const addNote = async () => {
     if (!noteForm.content?.trim() || !game) return
@@ -264,6 +283,31 @@ const GameDetails = () => {
     return '⭐'.repeat(rating)
   }
 
+  const formatDate = (dateString: string): string => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
+  const formatDuration = (duration: number | null): string => {
+    if (!duration) return '';
+    const hours = Math.floor(duration / 3600);
+    const minutes = Math.floor((duration % 3600) / 60);
+    const seconds = duration % 60;
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m ${seconds}s`;
+    } else if (minutes > 0) {
+      return `${minutes}m ${seconds}s`;
+    } else {
+      return `${seconds}s`;
+    }
+  }
+
   if (loading) {
     return <div className="p-4">Loading...</div>
   }
@@ -346,6 +390,34 @@ const GameDetails = () => {
                     </div>
                   )}
                 </div>
+
+                {/* How Long to Beat Section */}
+                {hltbInfo && (
+                  <div className="mt-4">
+                    <h3 className="font-semibold text-lg mb-2">How Long to Beat</h3>
+                    <div className="grid grid-cols-1 gap-2">
+                      {hltbInfo.gameplayMain && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">Main Story:</span>
+                          <span className="badge badge-primary">{hltbInfo.gameplayMain} hours</span>
+                        </div>
+                      )}
+                      {hltbInfo.gameplayMainExtra && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">Main + Extras:</span>
+                          <span className="badge badge-secondary">{hltbInfo.gameplayMainExtra} hours</span>
+                        </div>
+                      )}
+                      {hltbInfo.gameplayCompletionist && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">Completionist:</span>
+                          <span className="badge badge-accent">{hltbInfo.gameplayCompletionist} hours</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {rawgDetails.description_raw && (
                   <div>
                     <h3 className="font-semibold text-lg mb-2">About</h3>
@@ -400,234 +472,252 @@ const GameDetails = () => {
         </div>
       )}
 
-      {/* Notes Section */}
-      <div className="card bg-base-200">
-        <div className="card-body">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="card-title">Game Journal</h2>
-            <button
-              className="btn btn-primary"
-              onClick={() => setShowAddNote(true)}
-            >
-              Add Entry
-            </button>
-          </div>
+      {/* Game Journal Section */}
+      <div className="mt-8">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-semibold">Game Journal</h2>
+          <button
+            className="btn btn-primary"
+            onClick={() => setShowAddNote(true)}
+          >
+            Add Entry
+          </button>
+        </div>
 
-          {/* Add Note Modal */}
-          {showAddNote && (
-            <div className="modal modal-open">
-              <div className="modal-box">
-                <h3 className="font-bold text-lg mb-4">
-                  {editingNote ? 'Edit Journal Entry' : 'Add Journal Entry'}
-                </h3>
-                <div className="form-control gap-4">
-                  {/* Note Content */}
-                  <div>
-                    <label className="label">
-                      <span className="label-text">Your thoughts</span>
-                    </label>
-                    <textarea
-                      className="textarea textarea-bordered w-full"
-                      placeholder="Write about your experience..."
-                      value={noteForm.content}
-                      onChange={(e) =>
-                        setNoteForm({ ...noteForm, content: e.target.value })
-                      }
-                    ></textarea>
-                  </div>
-
-                  {/* Mood Selection */}
-                  <div>
-                    <label className="label">
-                      <span className="label-text">How did it make you feel?</span>
-                    </label>
-                    <select
-                      className="select select-bordered w-full"
-                      value={noteForm.mood || ''}
-                      onChange={(e) =>
-                        setNoteForm({
-                          ...noteForm,
-                          mood: e.target.value as GameNote['mood']
-                        })
-                      }
-                    >
-                      <option value="">Select mood</option>
-                      <option value="Excited">Excited 🤩</option>
-                      <option value="Satisfied">Satisfied 😊</option>
-                      <option value="Frustrated">Frustrated 😤</option>
-                      <option value="Confused">Confused 🤔</option>
-                      <option value="Nostalgic">Nostalgic 🥹</option>
-                      <option value="Impressed">Impressed 😯</option>
-                      <option value="Disappointed">Disappointed 😕</option>
-                    </select>
-                  </div>
-
-                  {/* Rating */}
-                  <div>
-                    <label className="label">
-                      <span className="label-text">Rating</span>
-                    </label>
-                    <div className="rating rating-lg">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <input
-                          key={star}
-                          type="radio"
-                          name="rating"
-                          className="mask mask-star-2 bg-orange-400"
-                          checked={noteForm.rating === star}
-                          onChange={() =>
-                            setNoteForm({ ...noteForm, rating: star })
-                          }
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Play Session Details */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="label">
-                        <span className="label-text">Session Date</span>
-                      </label>
-                      <input
-                        type="date"
-                        className="input input-bordered w-full"
-                        value={noteForm.play_session_date || ''}
-                        onChange={(e) =>
-                          setNoteForm({
-                            ...noteForm,
-                            play_session_date: e.target.value
-                          })
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className="label">
-                        <span className="label-text">Hours Played</span>
-                      </label>
-                      <input
-                        type="number"
-                        step="0.5"
-                        min="0"
-                        className="input input-bordered w-full"
-                        value={noteForm.hours_played || ''}
-                        onChange={(e) =>
-                          setNoteForm({
-                            ...noteForm,
-                            hours_played: parseFloat(e.target.value)
-                          })
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  {/* Completion Entry */}
-                  <div className="form-control">
-                    <label className="label cursor-pointer">
-                      <span className="label-text">Is this a completion entry?</span>
-                      <input
-                        type="checkbox"
-                        className="toggle toggle-primary"
-                        checked={noteForm.is_completion_entry || false}
-                        onChange={(e) => {
-                          const isCompletion = e.target.checked;
-                          setNoteForm((prev) => ({
-                            ...prev,
-                            is_completion_entry: isCompletion,
-                            completion_date: isCompletion ? new Date().toISOString().split('T')[0] : null
-                          }));
-                        }}
-                      />
-                    </label>
-                  </div>
-
-                  {/* Form Actions */}
-                  <div className="modal-action">
-                    <button
-                      className="btn"
-                      onClick={() => {
-                        setNoteForm({
-                          content: '',
-                          mood: null,
-                          rating: null,
-                          play_session_date: null,
-                          hours_played: null,
-                          is_completion_entry: false,
-                          completion_date: null
-                        });
-                        setShowAddNote(false);
-                      }}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      className="btn btn-primary"
-                      onClick={editingNote ? updateNote : addNote}
-                      disabled={!noteForm.content}
-                    >
-                      {editingNote ? 'Update' : 'Add'} Note
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Notes List */}
+        {notes.length === 0 ? (
+          <p className="text-center py-4 bg-base-200 rounded-lg">
+            No journal entries yet. Start tracking your gaming journey!
+          </p>
+        ) : (
           <div className="space-y-4">
             {notes.map((note) => (
-              <div
-                key={note.id}
-                className={`bg-base-300 p-4 rounded-lg ${
-                  note.is_completion_entry ? 'border-2 border-primary' : ''
-                }`}
-              >
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      {note.mood && (
-                        <span className="text-xl" title={note.mood}>
-                          {getMoodEmoji(note.mood)}
-                        </span>
-                      )}
-                      {note.rating && (
-                        <span className="text-sm">{getRatingStars(note.rating)}</span>
-                      )}
-                      {note.is_completion_entry && (
-                        <span className="badge badge-primary">Completion Entry</span>
-                      )}
+              <div key={note.id} className="card bg-base-100 shadow">
+                <div className="card-body">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold">
+                          {new Date(note.created_at).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </h3>
+                      </div>
+                      <div className="flex gap-2 mt-1">
+                        {note.duration && (
+                          <div className="badge badge-primary">
+                            Session: {formatDuration(note.duration)}
+                          </div>
+                        )}
+                        {note.mood && (
+                          <div className="badge badge-ghost">
+                            {getMoodEmoji(note.mood)} {note.mood}
+                          </div>
+                        )}
+                        {note.rating && (
+                          <div className="badge badge-ghost">
+                            {getRatingStars(note.rating)}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <p className="mb-2">{note.content}</p>
-                    <div className="text-sm opacity-70 space-y-1">
-                      {note.play_session_date && (
-                        <p>Played on: {new Date(note.play_session_date).toLocaleDateString()}</p>
-                      )}
-                      {note.hours_played && <p>Hours: {note.hours_played}</p>}
-                      {note.completion_date && (
-                        <p>Completed on: {new Date(note.completion_date).toLocaleDateString()}</p>
-                      )}
+                    <div className="flex gap-2">
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => {
+                          setEditingNote(note)
+                          setNoteForm({
+                            content: note.content,
+                            mood: note.mood,
+                            rating: note.rating,
+                            play_session_date: note.play_session_date,
+                            hours_played: note.hours_played,
+                            is_completion_entry: note.is_completion_entry,
+                            completion_date: note.completion_date
+                          })
+                          setShowAddNote(true)
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="btn btn-ghost btn-sm text-error"
+                        onClick={() => deleteNote(note.id)}
+                      >
+                        Delete
+                      </button>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <button
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => startEditingNote(note)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="btn btn-ghost btn-sm text-error"
-                      onClick={() => deleteNote(note.id)}
-                    >
-                      Delete
-                    </button>
-                  </div>
+                  <p className="mt-2 whitespace-pre-wrap">{note.content}</p>
                 </div>
               </div>
             ))}
           </div>
-        </div>
+        )}
       </div>
+
+      {/* Add Note Modal */}
+      {showAddNote && (
+        <div className="modal modal-open">
+          <div className="modal-box">
+            <h3 className="font-bold text-lg mb-4">
+              {editingNote ? 'Edit Journal Entry' : 'Add Journal Entry'}
+            </h3>
+            <div className="form-control gap-4">
+              {/* Note Content */}
+              <div>
+                <label className="label">
+                  <span className="label-text">Your thoughts</span>
+                </label>
+                <textarea
+                  className="textarea textarea-bordered w-full"
+                  placeholder="Write about your experience..."
+                  value={noteForm.content}
+                  onChange={(e) =>
+                    setNoteForm({ ...noteForm, content: e.target.value })
+                  }
+                ></textarea>
+              </div>
+
+              {/* Mood Selection */}
+              <div>
+                <label className="label">
+                  <span className="label-text">How did it make you feel?</span>
+                </label>
+                <select
+                  className="select select-bordered w-full"
+                  value={noteForm.mood || ''}
+                  onChange={(e) =>
+                    setNoteForm({
+                      ...noteForm,
+                      mood: e.target.value as GameNote['mood']
+                    })
+                  }
+                >
+                  <option value="">Select mood</option>
+                  <option value="Excited">Excited 🤩</option>
+                  <option value="Satisfied">Satisfied 😊</option>
+                  <option value="Frustrated">Frustrated 😤</option>
+                  <option value="Confused">Confused 🤔</option>
+                  <option value="Nostalgic">Nostalgic 🥹</option>
+                  <option value="Impressed">Impressed 😯</option>
+                  <option value="Disappointed">Disappointed 😕</option>
+                </select>
+              </div>
+
+              {/* Rating */}
+              <div>
+                <label className="label">
+                  <span className="label-text">Rating</span>
+                </label>
+                <div className="rating rating-lg">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <input
+                      key={star}
+                      type="radio"
+                      name="rating"
+                      className="mask mask-star-2 bg-orange-400"
+                      checked={noteForm.rating === star}
+                      onChange={() =>
+                        setNoteForm({ ...noteForm, rating: star })
+                      }
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Play Session Details */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="label">
+                    <span className="label-text">Session Date</span>
+                  </label>
+                  <input
+                    type="date"
+                    className="input input-bordered w-full"
+                    value={noteForm.play_session_date || ''}
+                    onChange={(e) =>
+                      setNoteForm({
+                        ...noteForm,
+                        play_session_date: e.target.value
+                      })
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="label">
+                    <span className="label-text">Hours Played</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    className="input input-bordered w-full"
+                    value={noteForm.hours_played || ''}
+                    onChange={(e) =>
+                      setNoteForm({
+                        ...noteForm,
+                        hours_played: parseFloat(e.target.value)
+                      })
+                    }
+                  />
+                </div>
+              </div>
+
+              {/* Completion Entry */}
+              <div className="form-control">
+                <label className="label cursor-pointer">
+                  <span className="label-text">Is this a completion entry?</span>
+                  <input
+                    type="checkbox"
+                    className="toggle toggle-primary"
+                    checked={noteForm.is_completion_entry || false}
+                    onChange={(e) => {
+                      const isCompletion = e.target.checked;
+                      setNoteForm((prev) => ({
+                        ...prev,
+                        is_completion_entry: isCompletion,
+                        completion_date: isCompletion ? new Date().toISOString().split('T')[0] : null
+                      }));
+                    }}
+                  />
+                </label>
+              </div>
+
+              {/* Form Actions */}
+              <div className="modal-action">
+                <button
+                  className="btn"
+                  onClick={() => {
+                    setNoteForm({
+                      content: '',
+                      mood: null,
+                      rating: null,
+                      play_session_date: null,
+                      hours_played: null,
+                      is_completion_entry: false,
+                      completion_date: null
+                    });
+                    setShowAddNote(false);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={editingNote ? updateNote : addNote}
+                  disabled={!noteForm.content}
+                >
+                  {editingNote ? 'Update' : 'Add'} Note
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
