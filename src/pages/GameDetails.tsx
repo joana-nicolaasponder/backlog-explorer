@@ -25,10 +25,6 @@ const GameDetails = () => {
   const [isUpdatingProgress, setIsUpdatingProgress] = useState(false)
   const [selectedScreenshot, setSelectedScreenshot] = useState<string | null>(null)
 
-  useEffect(() => {
-    fetchGameAndNotes()
-  }, [id])
-
   const fetchRawgDetails = async (gameTitle: string) => {
     try {
       const apiKey = import.meta.env.VITE_RAWG_API_KEY;
@@ -67,6 +63,8 @@ const GameDetails = () => {
 
   const fetchGameAndNotes = async () => {
     try {
+      setLoading(true);
+
       // Fetch game details
       const { data: gameData, error: gameError } = await supabase
         .from('games')
@@ -97,6 +95,10 @@ const GameDetails = () => {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    fetchGameAndNotes()
+  }, [id])
 
   const addNote = async () => {
     if (!noteForm.content?.trim() || !game) return
@@ -357,6 +359,7 @@ const GameDetails = () => {
                     </div>
                   )}
                 </div>
+
                 {rawgDetails.description_raw && (
                   <div>
                     <h3 className="font-semibold text-lg mb-2">About</h3>
