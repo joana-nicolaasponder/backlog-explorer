@@ -79,64 +79,66 @@ const Auth: React.FC<AuthProps> = ({ onAuth }) => {
   }
 
   return (
-    <div className="p-4">
-      <h2 className="text-lg font-bold mb-4">
-        {isResetPassword ? 'Reset Password' : isSignUp ? 'Sign Up' : 'Login'}
-      </h2>
-      <div className="form-control w-full max-w-xs">
-        <label className="label">
-          <span className="label-text">Email</span>
-        </label>
-        <input
-          type="email"
-          className="input input-bordered w-full"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-      </div>
-      
-      {!isResetPassword && (
-        <div className="form-control w-full max-w-xs mt-4">
+    <div className="min-h-screen flex items-center justify-center bg-base-200">
+      <div className="p-8 bg-base-100 rounded-lg shadow-lg w-full max-w-md">
+        <h2 className="text-2xl font-bold mb-6 text-center">
+          {isResetPassword ? 'Reset Password' : isSignUp ? 'Sign Up' : 'Login'}
+        </h2>
+        <div className="form-control w-full max-w-xs">
           <label className="label">
-            <span className="label-text">Password</span>
+            <span className="label-text">Email</span>
           </label>
           <input
-            type="password"
+            type="email"
             className="input input-bordered w-full"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
           />
         </div>
-      )}
+        
+        {!isResetPassword && (
+          <div className="form-control w-full max-w-xs mt-4">
+            <label className="label">
+              <span className="label-text">Password</span>
+            </label>
+            <input
+              type="password"
+              className="input input-bordered w-full"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+        )}
 
-      <div className="mt-6 space-y-4">
-        <button
-          className="btn btn-primary w-full max-w-xs"
-          onClick={handleAuth}
-        >
-          {isResetPassword ? 'Send Reset Instructions' : isSignUp ? 'Sign Up' : 'Login'}
-        </button>
+        <div className="mt-6 space-y-4">
+          <button
+            className="btn btn-primary w-full"
+            onClick={handleAuth}
+          >
+            {isResetPassword ? 'Send Reset Instructions' : isSignUp ? 'Sign Up' : 'Login'}
+          </button>
 
-        <div className="flex flex-col space-y-2">
-          {!isResetPassword && (
-            <button
-              key="signup-toggle"
-              className="btn btn-link text-primary"
-              onClick={() => setIsSignUp(!isSignUp)}
-            >
-              {isSignUp ? 'Already have an account? Login' : 'Need an account? Sign Up'}
-            </button>
-          )}
-          
-          {!isSignUp && (
-            <button
-              key="reset-toggle"
-              className="btn btn-link text-secondary"
-              onClick={() => setIsResetPassword(!isResetPassword)}
-            >
-              {isResetPassword ? 'Back to Login' : 'Forgot your password?'}
-            </button>
-          )}
+          <div className="flex flex-col space-y-3 items-center">
+            {!isResetPassword && (
+              <button
+                key="signup-toggle"
+                className="btn btn-link text-primary hover:text-primary-focus"
+                onClick={() => setIsSignUp(!isSignUp)}
+              >
+                {isSignUp ? 'Already have an account? Login' : 'Need an account? Sign Up'}
+              </button>
+            )}
+            
+            {!isSignUp && (
+              <button
+                key="reset-toggle"
+                className="btn btn-link text-secondary hover:text-secondary-focus text-lg"
+                onClick={() => setIsResetPassword(!isResetPassword)}
+              >
+                {isResetPassword ? 'Back to Login' : '⟲ Forgot your password?'}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
