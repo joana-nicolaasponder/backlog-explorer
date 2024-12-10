@@ -6,6 +6,7 @@ import Auth from './components/Auth'
 import Library from './pages/Library'
 import Explore from './pages/Explore'
 import GameDetails from './pages/GameDetails'
+import Dashboard from './pages/Dashboard'
 import SideBar from './components/SideBar'
 
 const App: React.FC = () => {
@@ -44,7 +45,8 @@ const App: React.FC = () => {
           <SideBar onLogout={handleLogout} />
           <main className="flex-1 p-8">
             <Routes>
-              <Route path="/" element={<Library />} />
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/library" element={<Library />} />
               <Route path="/explore" element={<Explore />} />
               <Route path="/game/:id" element={<GameDetails />} />
             </Routes>
