@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react'
 import supabase from '../supabaseClient'
+import GameSearch from './GameSearch'
+import { RAWGGame } from '../types/rawg'
+import { mapRAWGGameToIds } from '../services/rawgMappings'
 
 interface GameFormData {
   title: string
@@ -8,6 +11,12 @@ interface GameFormData {
   status: string
   progress: number
   image: string
+  rawg_id?: number
+  rawg_slug?: string
+  metacritic_rating?: number
+  release_date?: string
+  background_image?: string
+  description?: string
 }
 
 interface AddGameModalProps {
@@ -28,6 +37,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({ onGameAdded, isOnboarding =
   })
   const [platformOptions, setPlatformOptions] = useState<string[]>([])
   const [genreOptions, setGenreOptions] = useState<string[]>([])
+  const [selectedGame, setSelectedGame] = useState<RAWGGame | null>(null)
   const [statusOptions] = useState<string[]>([
     'Endless',
     'Satisfied',
@@ -70,75 +80,158 @@ const AddGameModal: React.FC<AddGameModalProps> = ({ onGameAdded, isOnboarding =
     }
   }
 
+  const handleGameSelect = async (game: RAWGGame) => {
+    setSelectedGame(game)
+    
+    // Check if game already exists for this user
+    const { data: existingGame } = await supabase
+      .from('games')
+      .select(`
+        id,
+        title,
+        status,
+        progress,
+        platforms (id, name),
+        genres (id, name)
+      `)
+      .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+      .eq('title', game.name)
+      .single();
+
+    if (existingGame) {
+      // If game exists, populate form with existing data
+      setFormData({
+        title: existingGame.title,
+        platforms: existingGame.platforms?.map(p => p.name) || [],
+        genres: existingGame.genres?.map(g => g.name) || [],
+        status: existingGame.status,
+        progress: existingGame.progress,
+        image: game.background_image || '',
+        rawg_id: game.id,
+        rawg_slug: game.slug,
+        metacritic_rating: game.metacritic || undefined,
+        release_date: game.released || undefined,
+        background_image: game.background_image || undefined,
+        description: game.description || undefined
+      });
+    } else {
+      // If game doesn't exist, proceed with RAWG data
+      const { platformIds, genreIds } = await mapRAWGGameToIds(game);
+      
+      // Fetch platform and genre names for the mapped IDs
+      const { data: platforms } = await supabase
+        .from('platforms')
+        .select('name')
+        .in('id', platformIds);
+      
+      const { data: genres } = await supabase
+        .from('genres')
+        .select('name')
+        .in('id', genreIds);
+
+      setFormData({
+        title: game.name,
+        platforms: platforms?.map(p => p.name) || [],
+        genres: genres?.map(g => g.name) || [],
+        status: 'Not Started',
+        progress: 0,
+        image: game.background_image || '',
+        rawg_id: game.id,
+        rawg_slug: game.slug,
+        metacritic_rating: game.metacritic || undefined,
+        release_date: game.released || undefined,
+        background_image: game.background_image || undefined,
+        description: game.description || undefined
+      });
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setIsLoading(true)
+    e.preventDefault();
+    setIsLoading(true);
 
     try {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('No user found')
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No user found');
 
-      // Debug: Check if user exists in users table
-      const { data: userRecord, error: userError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', user.id)
-        .single()
-
-      console.log('Current user:', user.id)
-      console.log('User record:', userRecord)
-      console.log('User error:', userError)
-
-      // If no user record, try to create one
-      if (!userRecord) {
-        const { error: insertError } = await supabase
-          .from('users')
-          .insert([{ id: user.id, email: user.email }])
-        
-        if (insertError) {
-          console.error('Error creating user record:', insertError)
-          throw insertError
-        }
-      }
-
-      // Create the game first
-      const { data: game, error: gameError } = await supabase
+      // Check if game already exists
+      const { data: existingGame } = await supabase
         .from('games')
-        .insert([
-          {
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('title', formData.title)
+        .single();
+
+      let gameId: string;
+
+      if (existingGame) {
+        // Update existing game
+        const { error: updateError } = await supabase
+          .from('games')
+          .update({
+            status: formData.status,
+            progress: formData.progress,
+            image: formData.image,
+            rawg_id: formData.rawg_id,
+            rawg_slug: formData.rawg_slug,
+            metacritic_rating: formData.metacritic_rating,
+            release_date: formData.release_date,
+            background_image: formData.background_image,
+            description: formData.description
+          })
+          .eq('id', existingGame.id);
+
+        if (updateError) throw updateError;
+        gameId = existingGame.id;
+
+        // Delete existing platform and genre relationships
+        await supabase.from('game_platforms').delete().eq('game_id', gameId);
+        await supabase.from('game_genres').delete().eq('game_id', gameId);
+      } else {
+        // Create new game
+        const { data: newGame, error: gameError } = await supabase
+          .from('games')
+          .insert([{
             title: formData.title,
             status: formData.status,
             progress: formData.progress,
             image: formData.image,
-            user_id: user.id
-          }
-        ])
-        .select()
-        .single()
+            user_id: user.id,
+            rawg_id: formData.rawg_id,
+            rawg_slug: formData.rawg_slug,
+            metacritic_rating: formData.metacritic_rating,
+            release_date: formData.release_date,
+            background_image: formData.background_image,
+            description: formData.description
+          }])
+          .select()
+          .single();
 
-      if (gameError) throw gameError
+        if (gameError) throw gameError;
+        if (!newGame) throw new Error('Failed to create game');
+        gameId = newGame.id;
+      }
 
       // Get platform IDs
       if (formData.platforms.length > 0) {
         const { data: platformIds, error: platformError } = await supabase
           .from('platforms')
           .select('id')
-          .in('name', formData.platforms)
+          .in('name', formData.platforms);
 
-        if (platformError) throw platformError
+        if (platformError) throw platformError;
 
         if (platformIds && platformIds.length > 0) {
           const { error: linkError } = await supabase
             .from('game_platforms')
             .insert(
               platformIds.map(platform => ({
-                game_id: game.id,
+                game_id: gameId,
                 platform_id: platform.id
               }))
-            )
+            );
 
-          if (linkError) throw linkError
+          if (linkError) throw linkError;
         }
       }
 
@@ -147,21 +240,21 @@ const AddGameModal: React.FC<AddGameModalProps> = ({ onGameAdded, isOnboarding =
         const { data: genreIds, error: genreError } = await supabase
           .from('genres')
           .select('id')
-          .in('name', formData.genres)
+          .in('name', formData.genres);
 
-        if (genreError) throw genreError
+        if (genreError) throw genreError;
 
         if (genreIds && genreIds.length > 0) {
           const { error: linkError } = await supabase
             .from('game_genres')
             .insert(
               genreIds.map(genre => ({
-                game_id: game.id,
+                game_id: gameId,
                 genre_id: genre.id
               }))
-            )
+            );
 
-          if (linkError) throw linkError
+          if (linkError) throw linkError;
         }
       }
 
@@ -172,15 +265,15 @@ const AddGameModal: React.FC<AddGameModalProps> = ({ onGameAdded, isOnboarding =
         status: 'Not Started',
         progress: 0,
         image: ''
-      })
+      });
 
-      onGameAdded()
+      onGameAdded();
     } catch (error) {
-      console.error('Error adding game:', error)
+      console.error('Error adding game:', error);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <div className={`modal ${showModal ? 'modal-open' : ''} ${isOnboarding ? 'z-[100]' : ''}`}>
@@ -192,6 +285,11 @@ const AddGameModal: React.FC<AddGameModalProps> = ({ onGameAdded, isOnboarding =
           ✕
         </button>
         <h3 className="font-bold text-lg mb-4">Add New Game</h3>
+        
+        <div className="mb-6">
+          <GameSearch onGameSelect={handleGameSelect} />
+        </div>
+
         <form onSubmit={handleSubmit}>
           <div className="form-control mb-4">
             <label className="label">
