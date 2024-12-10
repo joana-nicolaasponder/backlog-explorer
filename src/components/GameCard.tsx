@@ -29,20 +29,28 @@ interface GameCardProps {
 }
 
 const getStatusBadgeColor = (status: string): string => {
-  const todoStatuses = ['Wishlist', 'Try Again', 'Started', 'Owned']
-  const inProgressStatuses = ['Come back!', 'Currently Playing']
-  const completedStatuses = ['Endless', 'Satisfied', 'Done']
-
-  if (todoStatuses.includes(status)) {
-    return 'bg-blue-100 text-blue-800' // Pastel blue
-  } else if (inProgressStatuses.includes(status)) {
-    return 'bg-amber-100 text-amber-800' // Pastel amber
-  } else if (completedStatuses.includes(status)) {
-    return 'bg-green-100 text-green-800' // Pastel green
-  } else if (status === 'DNF') {
-    return 'bg-rose-100 text-rose-800' // Pastel rose/red
+  switch (status) {
+    case 'Endless':
+    case 'Satisfied':
+    case 'Done':
+      return 'bg-green-100 text-green-800' // Completed games
+    
+    case 'DNF':
+      return 'bg-rose-100 text-rose-800' // Dropped games
+    
+    case 'Wishlist':
+    case 'Try Again':
+    case 'Started':
+    case 'Owned':
+      return 'bg-blue-100 text-blue-800' // Todo/Backlog games
+    
+    case 'Come back!':
+    case 'Currently Playing':
+      return 'bg-amber-100 text-amber-800' // In Progress games
+    
+    default:
+      return 'bg-gray-100 text-gray-800' // Default
   }
-  return 'bg-gray-100 text-gray-800' // Pastel gray as default
 }
 
 const GameCard: React.FC<GameCardProps> = ({ games, userId, onRefresh }) => {
@@ -89,7 +97,18 @@ const GameCard: React.FC<GameCardProps> = ({ games, userId, onRefresh }) => {
         }
 
         // Set predefined status options
-        setStatusOptions(['Not Started', 'In Progress', 'Completed', 'DNF', 'Wishlist', 'Try Again', 'Come back!', 'Currently Playing', 'Endless', 'Satisfied', 'Done', 'Owned'])
+        setStatusOptions([
+          'Endless',
+          'Satisfied',
+          'DNF',
+          'Wishlist',
+          'Try Again',
+          'Started',
+          'Owned',
+          'Come back!',
+          'Currently Playing',
+          'Done'
+        ])
       } catch (error) {
         console.error('Error in fetchOptions:', error)
       }
@@ -191,12 +210,40 @@ const GameCard: React.FC<GameCardProps> = ({ games, userId, onRefresh }) => {
   const handleDeleteClick = async (gameId: string) => {
     if (window.confirm('Are you sure you want to delete this game?')) {
       try {
-        const { error } = await supabase.from('games').delete().eq('id', gameId)
+        // First delete the game-platform relationships
+        const { error: platformError } = await supabase
+          .from('game_platforms')
+          .delete()
+          .eq('game_id', gameId)
+
+        if (platformError) {
+          console.error('Error deleting game platforms:', platformError)
+          return
+        }
+
+        // Then delete the game-genre relationships
+        const { error: genreError } = await supabase
+          .from('game_genres')
+          .delete()
+          .eq('game_id', gameId)
+
+        if (genreError) {
+          console.error('Error deleting game genres:', genreError)
+          return
+        }
+
+        // Finally delete the game itself
+        const { error } = await supabase
+          .from('games')
+          .delete()
+          .eq('id', gameId)
 
         if (error) {
           console.error('Error deleting game:', error)
         } else {
           onRefresh() // Refresh the games list after successful deletion
+          // Force a page refresh to update all components
+          window.location.reload()
         }
       } catch (error) {
         console.error('Error:', error)
@@ -404,7 +451,10 @@ const GameCard: React.FC<GameCardProps> = ({ games, userId, onRefresh }) => {
                 </button>
                 <button
                   className="btn btn-error"
-                  onClick={() => handleDeleteClick(game.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteClick(game.id);
+                  }}
                 >
                   Delete
                 </button>
