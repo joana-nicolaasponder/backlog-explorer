@@ -122,6 +122,8 @@ const App: React.FC = () => {
             {showAddGame && (
               <AddGameModal 
                 onGameAdded={handleGameAdded}
+                showModal={showAddGame}
+                setShowModal={setShowAddGame}
               />
             )}
           </main>
