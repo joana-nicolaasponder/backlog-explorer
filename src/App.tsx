@@ -11,6 +11,58 @@ import HomePage from './pages/HomePage'
 import SideBar from './components/SideBar'
 import AddGameModal from './components/AddGameModal'
 
+const ResetPassword = () => {
+  const [newPassword, setNewPassword] = useState('')
+  const [message, setMessage] = useState('')
+  const navigate = useNavigate()
+
+  const handleReset = async () => {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      })
+
+      if (error) throw error
+      
+      setMessage('Password updated successfully!')
+      setTimeout(() => {
+        navigate('/')
+      }, 2000)
+    } catch (error: any) {
+      setMessage(`Error: ${error.message}`)
+    }
+  }
+
+  return (
+    <div className="p-4 max-w-md mx-auto mt-8">
+      <h2 className="text-2xl font-bold mb-4">Reset Your Password</h2>
+      <div className="form-control">
+        <label className="label">
+          <span className="label-text">New Password</span>
+        </label>
+        <input
+          type="password"
+          className="input input-bordered"
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+          placeholder="Enter your new password"
+        />
+      </div>
+      <button 
+        className="btn btn-primary mt-4 w-full"
+        onClick={handleReset}
+      >
+        Update Password
+      </button>
+      {message && (
+        <div className={`mt-4 p-4 rounded ${message.includes('Error') ? 'bg-error text-error-content' : 'bg-success text-success-content'}`}>
+          {message}
+        </div>
+      )}
+    </div>
+  )
+}
+
 const App: React.FC = () => {
   const [session, setSession] = useState<Session | null>(null)
   const [showAddGame, setShowAddGame] = useState(false)
@@ -61,6 +113,7 @@ const App: React.FC = () => {
               <Route path="/library" element={<Library />} />
               <Route path="/explore" element={<Explore />} />
               <Route path="/game/:id" element={<GameDetails />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
             </Routes>
             {showAddGame && (
               <AddGameModal 
