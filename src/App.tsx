@@ -7,6 +7,7 @@ import Library from './pages/Library'
 import Explore from './pages/Explore'
 import GameDetails from './pages/GameDetails'
 import Dashboard from './pages/Dashboard'
+import HomePage from './pages/HomePage'
 import SideBar from './components/SideBar'
 import AddGameModal from './components/AddGameModal'
 
@@ -55,7 +56,8 @@ const App: React.FC = () => {
           <SideBar onLogout={handleLogout} onAddGame={() => setShowAddGame(true)} />
           <main className="flex-1 overflow-auto">
             <Routes>
-              <Route path="/" element={<Dashboard />} />
+              <Route path="/" element={<HomePage />} />
+              <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/library" element={<Library />} />
               <Route path="/explore" element={<Explore />} />
               <Route path="/game/:id" element={<GameDetails />} />
