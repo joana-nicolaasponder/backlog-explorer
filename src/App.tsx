@@ -54,7 +54,7 @@ const App: React.FC = () => {
       ) : (
         <div className="flex min-h-screen bg-base-200">
           <SideBar onLogout={handleLogout} onAddGame={() => setShowAddGame(true)} />
-          <main className="flex-1 overflow-auto">
+          <main className="flex-1 overflow-auto pt-16 lg:pt-0">
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/dashboard" element={<Dashboard />} />
