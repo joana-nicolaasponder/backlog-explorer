@@ -102,7 +102,12 @@ const App: React.FC = () => {
   return (
     <div>
       {!session ? (
-        <Auth />
+        <>
+          <Routes>
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="*" element={<Auth />} />
+          </Routes>
+        </>
       ) : (
         <div className="flex min-h-screen bg-base-200">
           <SideBar onLogout={handleLogout} onAddGame={() => setShowAddGame(true)} />
@@ -113,7 +118,6 @@ const App: React.FC = () => {
               <Route path="/library" element={<Library />} />
               <Route path="/explore" element={<Explore />} />
               <Route path="/game/:id" element={<GameDetails />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
             </Routes>
             {showAddGame && (
               <AddGameModal 
