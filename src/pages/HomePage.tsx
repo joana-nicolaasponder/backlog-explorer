@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import supabase from '../supabaseClient'
 import GameTimer from '../components/GameTimer'
+import OnboardingFlow from '../components/OnboardingFlow'
 
 interface Game {
   id: string
@@ -25,6 +26,7 @@ const HomePage = () => {
   const [currentGames, setCurrentGames] = useState<Game[]>([])
   const [selectedGame, setSelectedGame] = useState<Game | null>(null)
   const [loading, setLoading] = useState(true)
+  const [showOnboarding, setShowOnboarding] = useState(false)
 
   useEffect(() => {
     const fetchCurrentGames = async () => {
@@ -35,6 +37,16 @@ const HomePage = () => {
           return
         }
 
+        // First check if user has any games at all
+        const { count: totalGames } = await supabase
+          .from('games')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+
+        // Only show onboarding if user has no games at all
+        setShowOnboarding(totalGames === 0)
+
+        // Then get currently playing games for display
         const { data: games, error } = await supabase
           .from('games')
           .select(`
@@ -81,6 +93,17 @@ const HomePage = () => {
     )
   }
 
+  if (showOnboarding) {
+    return (
+      <OnboardingFlow
+        onComplete={() => {
+          setShowOnboarding(false)
+          navigate('/library')
+        }}
+      />
+    )
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-4xl font-bold mb-8">Welcome Back!</h1>
@@ -123,56 +146,16 @@ const HomePage = () => {
                       </select>
                     </div>
                   </div>
+
                   {selectedGame && (
                     <GameTimer 
-                      game={selectedGame}
-                      onSessionSaved={() => {
-                        const fetchCurrentGames = async () => {
-                          try {
-                            const { data: { user } } = await supabase.auth.getUser()
-                            if (!user) {
-                              navigate('/login')
-                              return
-                            }
-
-                            const { data: games, error } = await supabase
-                              .from('games')
-                              .select(`
-                                id,
-                                title,
-                                image,
-                                progress,
-                                game_platforms!inner (
-                                  platforms!inner (
-                                    name
-                                  )
-                                ),
-                                game_genres!inner (
-                                  genres!inner (
-                                    name
-                                  )
-                                )
-                              `)
-                              .eq('user_id', user.id)
-                              .eq('status', 'Currently Playing')
-
-                            if (error) throw error
-
-                            setCurrentGames(games || [])
-                          } catch (error) {
-                            console.error('Error fetching current games:', error)
-                          } finally {
-                            setLoading(false)
-                          }
-                        }
-
-                        fetchCurrentGames()
-                      }} 
+                      gameId={selectedGame.id}
                     />
                   )}
                 </div>
               </div>
             </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {currentGames.map((game) => (
                 <div 
