@@ -11,6 +11,58 @@ import HomePage from './pages/HomePage'
 import SideBar from './components/SideBar'
 import AddGameModal from './components/AddGameModal'
 
+const ResetPassword = () => {
+  const [newPassword, setNewPassword] = useState('')
+  const [message, setMessage] = useState('')
+  const navigate = useNavigate()
+
+  const handleReset = async () => {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      })
+
+      if (error) throw error
+      
+      setMessage('Password updated successfully!')
+      setTimeout(() => {
+        navigate('/')
+      }, 2000)
+    } catch (error: any) {
+      setMessage(`Error: ${error.message}`)
+    }
+  }
+
+  return (
+    <div className="p-4 max-w-md mx-auto mt-8">
+      <h2 className="text-2xl font-bold mb-4">Reset Your Password</h2>
+      <div className="form-control">
+        <label className="label">
+          <span className="label-text">New Password</span>
+        </label>
+        <input
+          type="password"
+          className="input input-bordered"
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+          placeholder="Enter your new password"
+        />
+      </div>
+      <button 
+        className="btn btn-primary mt-4 w-full"
+        onClick={handleReset}
+      >
+        Update Password
+      </button>
+      {message && (
+        <div className={`mt-4 p-4 rounded ${message.includes('Error') ? 'bg-error text-error-content' : 'bg-success text-success-content'}`}>
+          {message}
+        </div>
+      )}
+    </div>
+  )
+}
+
 const App: React.FC = () => {
   const [session, setSession] = useState<Session | null>(null)
   const [showAddGame, setShowAddGame] = useState(false)
@@ -50,11 +102,16 @@ const App: React.FC = () => {
   return (
     <div>
       {!session ? (
-        <Auth />
+        <>
+          <Routes>
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="*" element={<Auth onAuth={setSession} />} />
+          </Routes>
+        </>
       ) : (
         <div className="flex min-h-screen bg-base-200">
           <SideBar onLogout={handleLogout} onAddGame={() => setShowAddGame(true)} />
-          <main className="flex-1 overflow-auto">
+          <main className="flex-1 overflow-auto pt-16 lg:pt-0">
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/dashboard" element={<Dashboard />} />
@@ -65,6 +122,8 @@ const App: React.FC = () => {
             {showAddGame && (
               <AddGameModal 
                 onGameAdded={handleGameAdded}
+                showModal={showAddGame}
+                setShowModal={setShowAddGame}
               />
             )}
           </main>
