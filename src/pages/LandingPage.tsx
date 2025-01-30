@@ -37,9 +37,9 @@ const LandingPage = () => {
           <div className="flex-1">
             <Link to="/" className="text-xl font-bold">Backlog Explorer</Link>
           </div>
-          <div className="flex-none">
+          {/* <div className="flex-none">
             <Link to="/login" className="btn btn-ghost">Login</Link>
-          </div>
+          </div> */}
         </div>
       </nav>
 
