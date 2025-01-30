@@ -39,7 +39,7 @@ const HomePage = () => {
 
         // First check if user has any games at all
         const { count: totalGames } = await supabase
-          .from('games')
+          .from('user_games')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', user.id)
 
@@ -48,20 +48,24 @@ const HomePage = () => {
 
         // Then get currently playing games for display
         const { data: games, error } = await supabase
-          .from('games')
+          .from('user_games')
           .select(`
             id,
-            title,
-            image,
+            status,
             progress,
-            game_platforms!inner (
-              platforms!inner (
-                name
-              )
-            ),
-            game_genres!inner (
-              genres!inner (
-                name
+            game:games (
+              id,
+              title,
+              background_image,
+              game_platforms (
+                platforms (
+                  name
+                )
+              ),
+              game_genres (
+                genres (
+                  name
+                )
               )
             )
           `)
@@ -70,10 +74,24 @@ const HomePage = () => {
 
         if (error) throw error
 
-        setCurrentGames(games || [])
+        // Transform the data to match the expected format
+        const formattedGames = games?.map(userGame => ({
+          id: userGame.game.id,
+          title: userGame.game.title,
+          image: userGame.game.background_image,
+          progress: userGame.progress,
+          game_platforms: userGame.game.game_platforms.map(gp => ({
+            platforms: { name: gp.platforms.name }
+          })),
+          game_genres: userGame.game.game_genres.map(gg => ({
+            genres: { name: gg.genres.name }
+          }))
+        })) || []
+
+        setCurrentGames(formattedGames)
         // Only set selected game if none is selected yet
-        if (!selectedGame && games && games.length > 0) {
-          setSelectedGame(games[0])
+        if (!selectedGame && formattedGames.length > 0) {
+          setSelectedGame(formattedGames[0])
         }
       } catch (error) {
         console.error('Error fetching current games:', error)

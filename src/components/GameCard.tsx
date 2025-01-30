@@ -34,26 +34,26 @@ const getStatusBadgeColor = (status: string): string => {
     case 'Satisfied':
     case 'Done':
       return 'bg-green-100 text-green-800' // Completed games
-    
+
     case 'DNF':
       return 'bg-rose-100 text-rose-800' // Dropped games
-    
+
     case 'Wishlist':
     case 'Try Again':
     case 'Started':
     case 'Owned':
       return 'bg-blue-100 text-blue-800' // Todo/Backlog games
-    
+
     case 'Come back!':
     case 'Currently Playing':
       return 'bg-amber-100 text-amber-800' // In Progress games
-    
+
     default:
       return 'bg-gray-100 text-gray-800' // Default
   }
 }
 
-const GameCard: React.FC<GameCardProps> = ({ games, userId, onRefresh }) => {
+const GameCard = ({ games, userId, onRefresh }: GameCardProps) => {
   const navigate = useNavigate()
   const [showEditModal, setShowEditModal] = useState(false)
   const [formData, setFormData] = useState<Game | null>(null)
@@ -67,7 +67,7 @@ const GameCard: React.FC<GameCardProps> = ({ games, userId, onRefresh }) => {
     const fetchOptions = async () => {
       try {
         console.log('Fetching options for edit modal')
-        
+
         // Get all platforms
         const { data: platforms, error: platformError } = await supabase
           .from('platforms')
@@ -79,7 +79,7 @@ const GameCard: React.FC<GameCardProps> = ({ games, userId, onRefresh }) => {
         if (platformError) {
           console.error('Error fetching platforms:', platformError)
         } else if (platforms) {
-          setPlatformOptions(platforms.map(p => p.name))
+          setPlatformOptions(platforms.map((p) => p.name))
         }
 
         // Get all genres
@@ -93,7 +93,7 @@ const GameCard: React.FC<GameCardProps> = ({ games, userId, onRefresh }) => {
         if (genreError) {
           console.error('Error fetching genres:', genreError)
         } else if (genres) {
-          setGenreOptions(genres.map(g => g.name))
+          setGenreOptions(genres.map((g) => g.name))
         }
 
         // Set predefined status options
@@ -107,7 +107,7 @@ const GameCard: React.FC<GameCardProps> = ({ games, userId, onRefresh }) => {
           'Owned',
           'Come back!',
           'Currently Playing',
-          'Done'
+          'Done',
         ])
       } catch (error) {
         console.error('Error in fetchOptions:', error)
@@ -125,92 +125,49 @@ const GameCard: React.FC<GameCardProps> = ({ games, userId, onRefresh }) => {
 
     setIsLoading(true)
     try {
-      // Update the game's basic information
+      const { data: userData } = await supabase.auth.getUser()
+      if (!userData.user) throw new Error('No user found')
+
+      // Update user_games entry
       const { error: updateError } = await supabase
-        .from('games')
+        .from('user_games')
         .update({
-          title: formData.title,
           status: formData.status,
           progress: formData.progress,
-          image: formData.image,
+          platforms: formData.platforms,
         })
-        .eq('id', formData.id)
+        .eq('game_id', formData.id)
+        .eq('user_id', userData.user.id)
 
       if (updateError) throw updateError
 
-      // Get platform IDs from names
-      const { data: selectedPlatformIds, error: platformError } = await supabase
-        .from('platforms')
-        .select('id')
-        .in('name', formData.platforms)
-
-      if (platformError) throw platformError
-
-      // Delete existing platform relationships
-      const { error: deleteError } = await supabase
-        .from('game_platforms')
-        .delete()
-        .eq('game_id', formData.id)
-
-      if (deleteError) throw deleteError
-
-      // Add new platform relationships
-      if (selectedPlatformIds && selectedPlatformIds.length > 0) {
-        const { error: insertError } = await supabase
-          .from('game_platforms')
-          .insert(
-            selectedPlatformIds.map(platform => ({
-              game_id: formData.id,
-              platform_id: platform.id
-            }))
-          )
-
-        if (insertError) throw insertError
-      }
-
-      // Get genre IDs from names
-      const { data: selectedGenreIds, error: genreError } = await supabase
-        .from('genres')
-        .select('id')
-        .in('name', formData.genres)
-
-      if (genreError) throw genreError
-
-      // Delete existing genre relationships
-      const { error: deleteGenreError } = await supabase
-        .from('game_genres')
-        .delete()
-        .eq('game_id', formData.id)
-
-      if (deleteGenreError) throw deleteGenreError
-
-      // Add new genre relationships
-      if (selectedGenreIds && selectedGenreIds.length > 0) {
-        const { error: insertGenreError } = await supabase
-          .from('game_genres')
-          .insert(
-            selectedGenreIds.map(genre => ({
-              game_id: formData.id,
-              genre_id: genre.id
-            }))
-          )
-
-        if (insertGenreError) throw insertGenreError
-      }
-
       onRefresh()
       setShowEditModal(false)
+      // Force a page refresh to update all components
+      window.location.reload()
     } catch (error) {
       console.error('Error updating game:', error)
     } finally {
       setIsLoading(false)
+      setFormData(null)
     }
   }
 
   const handleDeleteClick = async (gameId: string) => {
     if (window.confirm('Are you sure you want to delete this game?')) {
       try {
-        // First delete the game-platform relationships
+        // Delete game-mood relationships
+        const { error: moodError } = await supabase
+          .from('game_moods')
+          .delete()
+          .eq('game_id', gameId)
+
+        if (moodError) {
+          console.error('Error deleting game moods:', moodError)
+          return
+        }
+
+        // Delete game-platform relationships
         const { error: platformError } = await supabase
           .from('game_platforms')
           .delete()
@@ -221,7 +178,7 @@ const GameCard: React.FC<GameCardProps> = ({ games, userId, onRefresh }) => {
           return
         }
 
-        // Then delete the game-genre relationships
+        // Delete game-genre relationships
         const { error: genreError } = await supabase
           .from('game_genres')
           .delete()
@@ -232,19 +189,43 @@ const GameCard: React.FC<GameCardProps> = ({ games, userId, onRefresh }) => {
           return
         }
 
+        // Delete game notes
+        const { error: notesError } = await supabase
+          .from('game_notes')
+          .delete()
+          .eq('game_id', gameId)
+
+        if (notesError) {
+          console.error('Error deleting game notes:', notesError)
+          return
+        }
+
+        // Delete user-game relationship
+        const { error: userGameError } = await supabase
+          .from('user_games')
+          .delete()
+          .eq('game_id', gameId)
+          .eq('user_id', userId)
+
+        if (userGameError) {
+          console.error('Error deleting user game:', userGameError)
+          return
+        }
+
         // Finally delete the game itself
-        const { error } = await supabase
+        const { error: gameError } = await supabase
           .from('games')
           .delete()
           .eq('id', gameId)
 
-        if (error) {
-          console.error('Error deleting game:', error)
-        } else {
-          onRefresh() // Refresh the games list after successful deletion
-          // Force a page refresh to update all components
-          window.location.reload()
+        if (gameError) {
+          console.error('Error deleting game:', gameError)
+          return
         }
+
+        onRefresh() // Refresh the games list after successful deletion
+        // Force a page refresh to update all components
+        window.location.reload()
       } catch (error) {
         console.error('Error:', error)
       }
@@ -413,7 +394,9 @@ const GameCard: React.FC<GameCardProps> = ({ games, userId, onRefresh }) => {
             <div className="card-body">
               <h2 className="card-title flex justify-between items-center">
                 {game.title}{' '}
-                <div className={`badge ${getStatusBadgeColor(game.status || '')}`}>
+                <div
+                  className={`badge ${getStatusBadgeColor(game.status || '')}`}
+                >
                   {game.status}
                 </div>
               </h2>
@@ -432,8 +415,8 @@ const GameCard: React.FC<GameCardProps> = ({ games, userId, onRefresh }) => {
                 ))}
               </div>
               <div className="w-full bg-base-200 rounded-full overflow-hidden mb-4">
-                <div 
-                  className="bg-primary rounded-full h-2 transition-all duration-300" 
+                <div
+                  className="bg-primary rounded-full h-2 transition-all duration-300"
                   style={{ width: `${game.progress || 0}%` }}
                 />
               </div>
@@ -441,10 +424,10 @@ const GameCard: React.FC<GameCardProps> = ({ games, userId, onRefresh }) => {
                 <button
                   className="btn btn-secondary"
                   onClick={(e) => {
-                    e.stopPropagation();  
-                    setFormData(game);
-                    setShowEditModal(true);
-                    setIsOpen(true);
+                    e.stopPropagation()
+                    setFormData(game)
+                    setShowEditModal(true)
+                    setIsOpen(true)
                   }}
                 >
                   Edit
@@ -452,8 +435,8 @@ const GameCard: React.FC<GameCardProps> = ({ games, userId, onRefresh }) => {
                 <button
                   className="btn btn-error"
                   onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteClick(game.id);
+                    e.stopPropagation()
+                    handleDeleteClick(game.id)
                   }}
                 >
                   Delete
