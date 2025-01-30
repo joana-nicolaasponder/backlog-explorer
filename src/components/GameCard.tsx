@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import supabase from '../supabaseClient'
+import EditGameModal from './EditGameModal'
 
 interface Platform {
   id: string
@@ -56,102 +57,7 @@ const getStatusBadgeColor = (status: string): string => {
 const GameCard = ({ games, userId, onRefresh }: GameCardProps) => {
   const navigate = useNavigate()
   const [showEditModal, setShowEditModal] = useState(false)
-  const [formData, setFormData] = useState<Game | null>(null)
-  const [platformOptions, setPlatformOptions] = useState<string[]>([])
-  const [genreOptions, setGenreOptions] = useState<string[]>([])
-  const [statusOptions, setStatusOptions] = useState<string[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [isOpen, setIsOpen] = useState(false)
-
-  useEffect(() => {
-    const fetchOptions = async () => {
-      try {
-        console.log('Fetching options for edit modal')
-
-        // Get all platforms
-        const { data: platforms, error: platformError } = await supabase
-          .from('platforms')
-          .select('id, name')
-          .order('name')
-
-        console.log('All platforms for edit:', platforms)
-
-        if (platformError) {
-          console.error('Error fetching platforms:', platformError)
-        } else if (platforms) {
-          setPlatformOptions(platforms.map((p) => p.name))
-        }
-
-        // Get all genres
-        const { data: genres, error: genreError } = await supabase
-          .from('genres')
-          .select('id, name')
-          .order('name')
-
-        console.log('All genres for edit:', genres)
-
-        if (genreError) {
-          console.error('Error fetching genres:', genreError)
-        } else if (genres) {
-          setGenreOptions(genres.map((g) => g.name))
-        }
-
-        // Set predefined status options
-        setStatusOptions([
-          'Endless',
-          'Satisfied',
-          'DNF',
-          'Wishlist',
-          'Try Again',
-          'Started',
-          'Owned',
-          'Come back!',
-          'Currently Playing',
-          'Done',
-        ])
-      } catch (error) {
-        console.error('Error in fetchOptions:', error)
-      }
-    }
-
-    if (isOpen) {
-      fetchOptions()
-    }
-  }, [isOpen])
-
-  const handleEditSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    if (!formData) return
-
-    setIsLoading(true)
-    try {
-      const { data: userData } = await supabase.auth.getUser()
-      if (!userData.user) throw new Error('No user found')
-
-      // Update user_games entry
-      const { error: updateError } = await supabase
-        .from('user_games')
-        .update({
-          status: formData.status,
-          progress: formData.progress,
-          platforms: formData.platforms,
-        })
-        .eq('game_id', formData.id)
-        .eq('user_id', userData.user.id)
-
-      if (updateError) throw updateError
-
-      onRefresh()
-      setShowEditModal(false)
-      // Force a page refresh to update all components
-      window.location.reload()
-    } catch (error) {
-      console.error('Error updating game:', error)
-    } finally {
-      setIsLoading(false)
-      setFormData(null)
-    }
-  }
+  const [selectedGame, setSelectedGame] = useState<Game | null>(null)
 
   const handleDeleteClick = async (gameId: string) => {
     if (window.confirm('Are you sure you want to delete this game?')) {
@@ -236,145 +142,16 @@ const GameCard = ({ games, userId, onRefresh }: GameCardProps) => {
 
   return (
     <div>
-      {showEditModal && formData && (
-        <div className="modal modal-open">
-          <div className="modal-box">
-            <h3 className="font-bold text-lg">Edit Game</h3>
-            <form onSubmit={handleEditSubmit}>
-              <div className="form-control">
-                <label className="label">Title</label>
-                <input
-                  type="text"
-                  className="input input-bordered"
-                  value={formData.title}
-                  onChange={(e) =>
-                    setFormData({ ...formData, title: e.target.value })
-                  }
-                />
-              </div>
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text">Platforms</span>
-                </label>
-                <select
-                  name="platforms"
-                  className="select select-bordered"
-                  multiple
-                  value={formData.platforms || []}
-                  onChange={(e) => {
-                    const selectedOptions = Array.from(
-                      e.target.selectedOptions
-                    ).map((option) => option.value)
-                    setFormData({
-                      ...formData,
-                      platforms: selectedOptions,
-                    })
-                  }}
-                >
-                  {platformOptions.map((platform) => (
-                    <option key={platform} value={platform}>
-                      {platform}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text">Genres</span>
-                </label>
-                <select
-                  name="genres"
-                  className="select select-bordered"
-                  multiple
-                  value={formData.genres || []}
-                  onChange={(e) => {
-                    const selectedOptions = Array.from(
-                      e.target.selectedOptions
-                    ).map((option) => option.value)
-                    setFormData({
-                      ...formData,
-                      genres: selectedOptions,
-                    })
-                  }}
-                >
-                  {genreOptions.map((genre) => (
-                    <option key={genre} value={genre}>
-                      {genre}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text">Status</span>
-                </label>
-                <select
-                  name="status"
-                  className="select select-bordered"
-                  value={formData.status}
-                  onChange={(e) =>
-                    setFormData({ ...formData, status: e.target.value })
-                  }
-                >
-                  <option value="">Select Status</option>
-                  {statusOptions.map((status) => (
-                    <option key={status} value={status}>
-                      {status}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text">Progress</span>
-                </label>
-                <input
-                  type="number"
-                  name="progress"
-                  placeholder="Progress (e.g., 50)"
-                  className="input input-bordered"
-                  value={formData.progress}
-                  onChange={(e) =>
-                    setFormData({ ...formData, progress: e.target.value })
-                  }
-                  min="0"
-                  max="100"
-                />
-              </div>
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text">Image URL</span>
-                </label>
-                <input
-                  type="text"
-                  name="image"
-                  placeholder="Image URL"
-                  className="input input-bordered"
-                  value={formData.image}
-                  onChange={(e) =>
-                    setFormData({ ...formData, image: e.target.value })
-                  }
-                />
-              </div>
-              <div className="modal-action">
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={isLoading}
-                >
-                  Save
-                </button>
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => setShowEditModal(false)}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+      {showEditModal && selectedGame && (
+        <EditGameModal
+          game={selectedGame}
+          onGameUpdated={() => {
+            onRefresh()
+            window.location.reload()
+          }}
+          showModal={showEditModal}
+          setShowModal={setShowEditModal}
+        />
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-8">
@@ -425,9 +202,8 @@ const GameCard = ({ games, userId, onRefresh }: GameCardProps) => {
                   className="btn btn-secondary"
                   onClick={(e) => {
                     e.stopPropagation()
-                    setFormData(game)
+                    setSelectedGame(game)
                     setShowEditModal(true)
-                    setIsOpen(true)
                   }}
                 >
                   Edit
