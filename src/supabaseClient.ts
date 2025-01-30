@@ -13,7 +13,22 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.error('Available env vars:', import.meta.env)
 }
 
-// Create and export the Supabase client
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Create and export the Supabase client with custom error handling
+const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
+  },
+  global: {
+    fetch: (...args) => {
+      return fetch(...args).catch(error => {
+        // Handle network errors gracefully
+        console.error('Network error:', error);
+        throw new Error('Unable to connect to the service. Please check your internet connection.');
+      });
+    }
+  }
+})
 
 export default supabase

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import supabase from '../supabaseClient'
 import { Game, GameNote, RawgGameDetails, HowLongToBeatInfo } from '../types'
+import EditGameModal from '../components/EditGameModal'
 
 interface GameDetailsProps {}
 
@@ -25,6 +26,7 @@ const GameDetails = () => {
   })
   const [isUpdatingProgress, setIsUpdatingProgress] = useState(false)
   const [selectedScreenshot, setSelectedScreenshot] = useState<string | null>(null)
+  const [showEditModal, setShowEditModal] = useState(false)
 
   const fetchRawgDetails = async (gameTitle: string) => {
     try {
@@ -365,7 +367,15 @@ const GameDetails = () => {
     <div className="p-2 sm:p-4 max-w-4xl mx-auto">
       {/* Game Header */}
       <div className="mb-4 sm:mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold mb-2">{game.title}</h1>
+        <div className="flex justify-between items-start mb-2">
+          <h1 className="text-2xl sm:text-3xl font-bold">{game.title}</h1>
+          <button 
+            onClick={() => setShowEditModal(true)}
+            className="btn btn-ghost btn-sm"
+          >
+            Edit
+          </button>
+        </div>
         <div className="flex flex-wrap gap-2 sm:gap-4 text-sm">
           <span className="badge badge-primary">{game.rawg_id}</span>
           <span className="badge badge-secondary">{game.metacritic_rating}</span>
@@ -763,6 +773,13 @@ const GameDetails = () => {
           </div>
         </div>
       )}
+      {/* Edit Game Modal */}
+      <EditGameModal
+        game={game}
+        showModal={showEditModal}
+        setShowModal={setShowEditModal}
+        onGameUpdated={fetchGameAndNotes}
+      />
     </div>
   )
 }
