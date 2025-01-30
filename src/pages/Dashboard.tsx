@@ -32,22 +32,29 @@ const Dashboard = () => {
     const fetchGameStats = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
+        if (!user) {
+          navigate('/login')
+          return
+        }
 
-        // Get games with their genres and platforms
-        const { data: games, error } = await supabase
-          .from('games')
+        // Get user games with their genres and platforms
+        const { data: userGames, error } = await supabase
+          .from('user_games')
           .select(`
             status,
-            created_at,
-            game_genres!inner (
-              genres!inner (
-                name
-              )
-            ),
-            game_platforms!inner (
-              platforms!inner (
-                name
+            progress,
+            game:games (
+              id,
+              title,
+              game_genres (
+                genres (
+                  name
+                )
+              ),
+              game_platforms (
+                platforms (
+                  name
+                )
               )
             )
           `)
@@ -64,13 +71,13 @@ const Dashboard = () => {
           .limit(1)
           .single()
 
-        const completedGames = games.filter(game => 
+        const completedGames = userGames.filter(game => 
           ['Endless', 'Done', 'Satisfied', 'DNF'].includes(game.status)
         ).length
 
         // Count genre occurrences
-        const genreCounts = games.reduce((acc: { [key: string]: number }, game) => {
-          game.game_genres.forEach((gg: any) => {
+        const genreCounts = userGames.reduce((acc: { [key: string]: number }, userGame) => {
+          userGame.game.game_genres.forEach((gg: any) => {
             const genreName = gg.genres.name
             acc[genreName] = (acc[genreName] || 0) + 1
           })
@@ -78,8 +85,8 @@ const Dashboard = () => {
         }, {})
 
         // Count platform occurrences
-        const platformCounts = games.reduce((acc: { [key: string]: number }, game) => {
-          game.game_platforms.forEach((gp: any) => {
+        const platformCounts = userGames.reduce((acc: { [key: string]: number }, userGame) => {
+          userGame.game.game_platforms.forEach((gp: any) => {
             const platformName = gp.platforms.name
             acc[platformName] = (acc[platformName] || 0) + 1
           })
@@ -88,23 +95,22 @@ const Dashboard = () => {
 
         // Find the most common genre and platform
         const getTopItem = (counts: { [key: string]: number }) => {
+          if (Object.keys(counts).length === 0) return 'None'
           return Object.entries(counts).reduce((a, b) => a[1] > b[1] ? a : b)[0]
         }
 
-        const gameStats = {
-          totalLibrary: games.length,
-          backlog: games.length - completedGames,
-          currentlyPlaying: games.filter(game => game.status === 'Currently Playing').length,
+        setStats({
+          totalLibrary: userGames.length,
+          backlog: userGames.filter(game => game.status === 'Wishlist' || game.status === 'Owned').length,
+          currentlyPlaying: userGames.filter(game => game.status === 'Currently Playing').length,
           completed: completedGames,
           topGenre: getTopItem(genreCounts),
           topPlatform: getTopItem(platformCounts),
           recentActivity: recentNote ? {
             date: new Date(recentNote.created_at).toLocaleDateString(),
-            action: recentNote.content.slice(0, 50) + '...'
-          } : null,
-        }
-
-        setStats(gameStats)
+            action: recentNote.content
+          } : null
+        })
       } catch (error) {
         console.error('Error fetching game stats:', error)
       } finally {
@@ -113,7 +119,7 @@ const Dashboard = () => {
     }
 
     fetchGameStats()
-  }, [])
+  }, [navigate])
 
   return (
     <div className="p-8">
