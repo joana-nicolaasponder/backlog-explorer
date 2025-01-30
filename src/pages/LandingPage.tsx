@@ -45,7 +45,7 @@ const LandingPage = () => {
 
       <main className="container mx-auto px-4 py-16 md:py-24">
         <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-5xl font-bold mb-6 bg-gradient-to-r from-primary via-purple-500 to-secondary bg-clip-text text-transparent animate-gradient">
+          <h1 className="text-5xl font-bold mb-6 bg-gradient-to-r from-primary via-purple-500 to-secondary bg-clip-text text-transparent animate-gradient leading-relaxed py-2">
             Your Personal Gaming Companion
           </h1>
           
@@ -92,8 +92,7 @@ const LandingPage = () => {
                   </svg>
                   <h3 className="card-title">Track Your Progress</h3>
                 </div>
-                <p>Keep track of your gaming journey with intuitive progress tracking. 
-                   Set custom status updates and celebrate your gaming milestones.</p>
+                <p>Every game tells a story—whether you’re deep in an adventure, taking a break, or moving on. Keep track of your journey and celebrate every win.</p>
               </div>
             </div>
             
@@ -138,6 +137,89 @@ const LandingPage = () => {
           </div>
         </div>
       </main>
+
+      <section className="py-16">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold mb-4">Meet the Developer</h2>
+              <div className="avatar mb-6">
+                <div className="w-24 h-24 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
+                  <img src="https://api.dicebear.com/9.x/adventurer/svg?seed=Sophia&glasses[]&glassesProbability=0&hair=long01,long02,long03,long04,long05,long06,long07,long08,long09,long10,long11,long12,long13,long14,long15,long16,long17,long18,long19,long20,long21,long22,long23,long24,long25,long26&hairColor=562306&skinColor=ecad80,f2d3b1&backgroundColor=a991f7" alt="Avatar" />
+                </div>
+              </div>
+              <p className="text-lg font-medium">Hi! I'm Joana 👋</p>
+              <p className="text-base-content/70">Full-stack Developer & Gaming Enthusiast</p>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-8">
+              <div className="card bg-base-200">
+                <div className="card-body">
+                  <h3 className="card-title mb-4">
+                    <svg className="w-5 h-5 text-primary mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    </svg>
+                    The Journey
+                  </h3>
+                  <p>
+                    Fresh out of bootcamp in 2023, I combined my newfound coding skills with a 
+                    problem I knew all too well: managing an ever-growing game collection while 
+                    balancing life as a full-time professional and mom to a toddler.
+                  </p>
+                </div>
+              </div>
+
+              <div className="card bg-base-200">
+                <div className="card-body">
+                  <h3 className="card-title mb-4">
+                    <svg className="w-5 h-5 text-primary mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                    The Inspiration
+                  </h3>
+                  <p>
+                    Like many gamers, I found myself buying exciting new games only to have them 
+                    sit untouched. With limited gaming time, choosing what to play next became 
+                    overwhelming rather than enjoyable.
+                  </p>
+                </div>
+              </div>
+
+              <div className="card bg-base-200">
+                <div className="card-body">
+                  <h3 className="card-title mb-4">
+                    <svg className="w-5 h-5 text-primary mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    The Solution
+                  </h3>
+                  <p>
+                    Backlog Explorer isn't just another tracking tool—it's a response to the 
+                    overwhelm of choice. It helps you rediscover games you were once excited 
+                    about by matching them to your current mood and available time.
+                  </p>
+                </div>
+              </div>
+
+              <div className="card bg-base-200">
+                <div className="card-body">
+                  <h3 className="card-title mb-4">
+                    <svg className="w-5 h-5 text-primary mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                    </svg>
+                    Personal Touch
+                  </h3>
+                  <p>
+                    This is my passion project, built in moments between work and family time. 
+                    It combines my love for coding with gaming, and I hope it helps you find 
+                    more joy in your gaming collection!
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <footer className="border-t border-base-200 py-8 mt-16">
         <div className="container mx-auto px-4 text-center text-base-content/60">
