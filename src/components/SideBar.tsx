@@ -42,9 +42,9 @@ const SideBar = ({ onLogout, onAddGame }: SideBarProps) => {
 
           <nav className="space-y-2">
             <Link
-              to="/"
+              to="/app"
               className={`flex items-center space-x-2 p-2 rounded-lg hover:bg-base-200 ${
-                location.pathname === '/' ? 'bg-base-200' : ''
+                location.pathname === '/app' ? 'bg-base-200' : ''
               }`}
               onClick={() => setIsOpen(false)}
             >
@@ -60,9 +60,9 @@ const SideBar = ({ onLogout, onAddGame }: SideBarProps) => {
             </Link>
 
             <Link
-              to="/dashboard"
+              to="/app/dashboard"
               className={`flex items-center space-x-2 p-2 rounded-lg hover:bg-base-200 ${
-                location.pathname === '/dashboard' ? 'bg-base-200' : ''
+                location.pathname === '/app/dashboard' ? 'bg-base-200' : ''
               }`}
               onClick={() => setIsOpen(false)}
             >
@@ -78,9 +78,9 @@ const SideBar = ({ onLogout, onAddGame }: SideBarProps) => {
             </Link>
 
             <Link
-              to="/library"
+              to="/app/library"
               className={`flex items-center space-x-2 p-2 rounded-lg hover:bg-base-200 ${
-                location.pathname === '/library' ? 'bg-base-200' : ''
+                location.pathname === '/app/library' ? 'bg-base-200' : ''
               }`}
               onClick={() => setIsOpen(false)}
             >
@@ -96,9 +96,9 @@ const SideBar = ({ onLogout, onAddGame }: SideBarProps) => {
             </Link>
 
             <Link
-              to="/explore"
+              to="/app/explore"
               className={`flex items-center space-x-2 p-2 rounded-lg hover:bg-base-200 ${
-                location.pathname === '/explore' ? 'bg-base-200' : ''
+                location.pathname === '/app/explore' ? 'bg-base-200' : ''
               }`}
               onClick={() => setIsOpen(false)}
             >
@@ -120,10 +120,7 @@ const SideBar = ({ onLogout, onAddGame }: SideBarProps) => {
         </div>
 
         <div className="mt-16 space-y-4">
-          <button
-            onClick={onAddGame}
-            className="w-full btn btn-primary"
-          >
+          <button onClick={onAddGame} className="w-full btn btn-primary">
             Add Game
           </button>
           <button onClick={onLogout} className="btn btn-outline w-full">
@@ -150,9 +147,9 @@ const SideBar = ({ onLogout, onAddGame }: SideBarProps) => {
 
               <nav className="space-y-2">
                 <Link
-                  to="/"
+                  to="/app"
                   className={`flex items-center space-x-2 p-2 rounded-lg hover:bg-base-200 ${
-                    location.pathname === '/' ? 'bg-base-200' : ''
+                    location.pathname === '/app' ? 'bg-base-200' : ''
                   }`}
                   onClick={() => setIsOpen(false)}
                 >
@@ -168,9 +165,9 @@ const SideBar = ({ onLogout, onAddGame }: SideBarProps) => {
                 </Link>
 
                 <Link
-                  to="/dashboard"
+                  to="/app/dashboard"
                   className={`flex items-center space-x-2 p-2 rounded-lg hover:bg-base-200 ${
-                    location.pathname === '/dashboard' ? 'bg-base-200' : ''
+                    location.pathname === '/app/dashboard' ? 'bg-base-200' : ''
                   }`}
                   onClick={() => setIsOpen(false)}
                 >
@@ -186,9 +183,9 @@ const SideBar = ({ onLogout, onAddGame }: SideBarProps) => {
                 </Link>
 
                 <Link
-                  to="/library"
+                  to="/app/library"
                   className={`flex items-center space-x-2 p-2 rounded-lg hover:bg-base-200 ${
-                    location.pathname === '/library' ? 'bg-base-200' : ''
+                    location.pathname === '/app/library' ? 'bg-base-200' : ''
                   }`}
                   onClick={() => setIsOpen(false)}
                 >
@@ -204,9 +201,9 @@ const SideBar = ({ onLogout, onAddGame }: SideBarProps) => {
                 </Link>
 
                 <Link
-                  to="/explore"
+                  to="/app/explore"
                   className={`flex items-center space-x-2 p-2 rounded-lg hover:bg-base-200 ${
-                    location.pathname === '/explore' ? 'bg-base-200' : ''
+                    location.pathname === '/app/explore' ? 'bg-base-200' : ''
                   }`}
                   onClick={() => setIsOpen(false)}
                 >
@@ -228,10 +225,7 @@ const SideBar = ({ onLogout, onAddGame }: SideBarProps) => {
             </div>
 
             <div className="mt-16 space-y-4">
-              <button
-                onClick={onAddGame}
-                className="w-full btn btn-primary"
-              >
+              <button onClick={onAddGame} className="w-full btn btn-primary">
                 Add Game
               </button>
               <button onClick={onLogout} className="btn btn-outline w-full">
