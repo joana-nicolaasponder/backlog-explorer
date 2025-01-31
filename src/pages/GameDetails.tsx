@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import supabase from '../supabaseClient'
-import { Game, GameNote, RawgGameDetails, HowLongToBeatInfo } from '../types'
+import { Game, GameNote, RawgGameDetails } from '../types'
 import EditGameModal from '../components/EditGameModal'
+import imageCompression from 'browser-image-compression'
 
 interface GameDetailsProps {}
 
@@ -11,7 +12,6 @@ const GameDetails = () => {
   const [game, setGame] = useState<Game | null>(null)
   const [notes, setNotes] = useState<GameNote[]>([])
   const [rawgDetails, setRawgDetails] = useState<RawgGameDetails | null>(null)
-  const [hltbInfo, setHltbInfo] = useState<HowLongToBeatInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [showAddNote, setShowAddNote] = useState(false)
   const [editingNote, setEditingNote] = useState<GameNote | null>(null)
@@ -66,22 +66,6 @@ const GameDetails = () => {
       }
     } catch (error) {
       console.error('Error fetching RAWG details:', error);
-    }
-  };
-
-  const fetchHowLongToBeat = async (gameTitle: string) => {
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/hltb?title=${encodeURIComponent(gameTitle)}`);
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.details || 'Failed to fetch HLTB data');
-      }
-      const data = await response.json();
-      console.log('HLTB data received:', data);
-      setHltbInfo(data);
-    } catch (error) {
-      console.error('Error fetching HLTB data:', error);
-      setHltbInfo(null);
     }
   };
 
@@ -142,7 +126,7 @@ const GameDetails = () => {
 
       if (userGameData.game) {
         fetchRawgDetails(userGameData.game.title);
-        fetchHowLongToBeat(userGameData.game.title);
+
       }
 
       // Fetch game notes
@@ -166,8 +150,57 @@ const GameDetails = () => {
     fetchGameAndNotes()
   }, [id])
 
+  const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB in bytes
+  const MAX_FILES_PER_NOTE = 6; // Reasonable limit per note
+
+  const compressImage = async (file: File) => {
+    const options = {
+      maxSizeMB: 1,              // Max file size of 1MB
+      maxWidthOrHeight: 1920,    // Max width/height of 1920px
+      useWebWorker: true,        // Use web worker for better performance
+      fileType: file.type,       // Maintain original file type
+      initialQuality: 0.8        // Initial quality (0.8 is a good balance)
+    }
+
+    try {
+      // Show compression progress
+      const progress = document.createElement('div')
+      progress.className = 'fixed bottom-4 right-4 bg-base-200 p-4 rounded-lg shadow-lg'
+      progress.innerHTML = `Compressing ${file.name}...`
+      document.body.appendChild(progress)
+
+      const compressedFile = await imageCompression(file, options)
+      document.body.removeChild(progress)
+
+      // Log compression results
+      console.log('Compression results:', {
+        originalSize: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
+        compressedSize: `${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`,
+        ratio: `${((1 - compressedFile.size / file.size) * 100).toFixed(1)}% reduction`
+      })
+
+      return compressedFile
+    } catch (error) {
+      console.error('Error compressing image:', error)
+      throw error
+    }
+  }
+
   const uploadScreenshot = async (file: File) => {
     try {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        throw new Error(`Invalid file type: ${file.name}. Only images are allowed.`);
+      }
+
+      // Compress image before size check
+      const compressedFile = await compressImage(file)
+
+      // Validate compressed file size
+      if (compressedFile.size > MAX_FILE_SIZE) {
+        throw new Error(`File still too large after compression: ${file.name}`);
+      }
+
       const { data: userData } = await supabase.auth.getUser()
       const user_id = userData.user?.id
 
@@ -179,7 +212,7 @@ const GameDetails = () => {
       // Upload to Supabase storage
       const { error: uploadError, data } = await supabase.storage
         .from('game-screenshots')
-        .upload(filePath, file)
+        .upload(filePath, compressedFile)
 
       if (uploadError) throw uploadError
 
@@ -200,16 +233,39 @@ const GameDetails = () => {
     if (!files || files.length === 0) return
 
     try {
-      const urls = await Promise.all(
-        Array.from(files).map(file => uploadScreenshot(file))
-      )
+      // Check total number of files
+      const currentCount = noteForm.screenshots?.length || 0;
+      if (currentCount + files.length > MAX_FILES_PER_NOTE) {
+        alert(`You can only add up to ${MAX_FILES_PER_NOTE} screenshots per note. Please select fewer files.`);
+        return;
+      }
 
-      setNoteForm(prev => ({
-        ...prev,
-        screenshots: [...(prev.screenshots || []), ...urls]
-      }))
+      // Upload files
+      const uploadPromises = Array.from(files).map(file => uploadScreenshot(file));
+      const results = await Promise.allSettled(uploadPromises);
+
+      // Filter successful uploads and handle errors
+      const successfulUrls = results
+        .filter((result): result is PromiseFulfilledResult<string> => result.status === 'fulfilled')
+        .map(result => result.value);
+
+      const errors = results
+        .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+        .map(result => result.reason);
+
+      if (errors.length > 0) {
+        alert(`Some files failed to upload:\n${errors.map(e => e.message).join('\n')}`);
+      }
+
+      if (successfulUrls.length > 0) {
+        setNoteForm(prev => ({
+          ...prev,
+          screenshots: [...(prev.screenshots || []), ...successfulUrls]
+        }));
+      }
     } catch (error) {
-      console.error('Error handling screenshots:', error)
+      console.error('Error handling screenshots:', error);
+      alert('Error uploading screenshots. Please try again.');
     }
   }
 
