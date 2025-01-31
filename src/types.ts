@@ -13,12 +13,6 @@ export interface RawgScreenshot {
   height: number
 }
 
-export interface HowLongToBeatInfo {
-  gameplayMain: number | null;
-  gameplayMainExtra: number | null;
-  gameplayCompletionist: number | null;
-}
-
 export interface Game {
   id: string;
   title: string;
