@@ -17,12 +17,17 @@ const GameDetails = () => {
   const [editingNote, setEditingNote] = useState<GameNote | null>(null)
   const [noteForm, setNoteForm] = useState<Partial<GameNote>>({
     content: '',
-    mood: null,
-    rating: null,
     play_session_date: null,
-    hours_played: null,
+    duration: null,
+    accomplishments: [],
+    mood: null,
+    next_session_plan: {
+      intent: null,
+      note: null
+    },
     is_completion_entry: false,
-    completion_date: null
+    completion_date: null,
+    screenshots: []
   })
   const [isUpdatingProgress, setIsUpdatingProgress] = useState(false)
   const [selectedScreenshot, setSelectedScreenshot] = useState<string | null>(null)
@@ -161,6 +166,60 @@ const GameDetails = () => {
     fetchGameAndNotes()
   }, [id])
 
+  const uploadScreenshot = async (file: File) => {
+    try {
+      const { data: userData } = await supabase.auth.getUser()
+      const user_id = userData.user?.id
+
+      // Create a unique file path
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${Math.random().toString(36).substring(2)}${Date.now()}.${fileExt}`
+      const filePath = `${user_id}/${id}/${fileName}`
+
+      // Upload to Supabase storage
+      const { error: uploadError, data } = await supabase.storage
+        .from('game-screenshots')
+        .upload(filePath, file)
+
+      if (uploadError) throw uploadError
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('game-screenshots')
+        .getPublicUrl(filePath)
+
+      return publicUrl
+    } catch (error) {
+      console.error('Error uploading screenshot:', error)
+      throw error
+    }
+  }
+
+  const handleScreenshotUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files
+    if (!files || files.length === 0) return
+
+    try {
+      const urls = await Promise.all(
+        Array.from(files).map(file => uploadScreenshot(file))
+      )
+
+      setNoteForm(prev => ({
+        ...prev,
+        screenshots: [...(prev.screenshots || []), ...urls]
+      }))
+    } catch (error) {
+      console.error('Error handling screenshots:', error)
+    }
+  }
+
+  const removeScreenshot = (index: number) => {
+    setNoteForm(prev => ({
+      ...prev,
+      screenshots: prev.screenshots?.filter((_, i) => i !== index) || []
+    }))
+  }
+
   const addNote = async () => {
     if (!noteForm.content?.trim() || !game) return
 
@@ -168,16 +227,27 @@ const GameDetails = () => {
       const { data: userData } = await supabase.auth.getUser()
       const user_id = userData.user?.id
 
-      // Start a transaction
+      // The ID from the URL is actually the game ID
+      // Prepare note data with required fields
+      const noteData = {
+        ...noteForm,
+        game_id: id, // Use the game ID directly from the URL
+        user_id,
+        // Ensure all required fields have default values
+        play_session_date: noteForm.play_session_date || null,
+        duration: noteForm.duration || null,
+        accomplishments: noteForm.accomplishments || [],
+        mood: noteForm.mood || null,
+        next_session_plan: noteForm.next_session_plan || { intent: null, note: null },
+        is_completion_entry: noteForm.is_completion_entry || false,
+        completion_date: noteForm.completion_date || null,
+        screenshots: noteForm.screenshots || []
+      }
+
+      // Insert note
       const { error: noteError } = await supabase
         .from('game_notes')
-        .insert([
-          {
-            ...noteForm,
-            game_id: game.id,
-            user_id
-          }
-        ])
+        .insert([noteData])
 
       if (noteError) throw noteError
 
@@ -187,9 +257,9 @@ const GameDetails = () => {
           .from('user_games')
           .update({
             progress: 100,
-            status: 'Done' // Optionally update status to Done
+            status: 'Done'
           })
-          .eq('game_id', game.id)
+          .eq('game_id', id)
           .eq('user_id', user_id)
 
         if (updateError) {
@@ -203,10 +273,14 @@ const GameDetails = () => {
       // Reset form
       setNoteForm({
         content: '',
-        mood: null,
-        rating: null,
         play_session_date: null,
-        hours_played: null,
+        duration: null,
+        accomplishments: [],
+        mood: null,
+        next_session_plan: {
+          intent: null,
+          note: null
+        },
         is_completion_entry: false,
         completion_date: null
       })
@@ -239,10 +313,11 @@ const GameDetails = () => {
     setEditingNote(note);
     setNoteForm({
       content: note.content,
-      mood: note.mood,
-      rating: note.rating,
       play_session_date: note.play_session_date,
-      hours_played: note.hours_played,
+      duration: note.duration,
+      accomplishments: note.accomplishments || [],
+      mood: note.mood,
+      next_session_plan: note.next_session_plan || { intent: null, note: null },
       is_completion_entry: note.is_completion_entry,
       completion_date: note.completion_date
     });
@@ -270,10 +345,14 @@ const GameDetails = () => {
       fetchGameAndNotes();
       setNoteForm({
         content: '',
-        mood: null,
-        rating: null,
         play_session_date: null,
-        hours_played: null,
+        duration: null,
+        accomplishments: [],
+        mood: null,
+        next_session_plan: {
+          intent: null,
+          note: null
+        },
         is_completion_entry: false,
         completion_date: null
       });
@@ -446,32 +525,7 @@ const GameDetails = () => {
                   )}
                 </div>
 
-                {/* How Long to Beat Section */}
-                {hltbInfo && (
-                  <div className="mt-4">
-                    <h3 className="font-semibold text-base sm:text-lg mb-2">How Long to Beat</h3>
-                    <div className="grid grid-cols-1 gap-2">
-                      {hltbInfo.gameplayMain && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">Main Story:</span>
-                          <span className="badge badge-primary">{hltbInfo.gameplayMain} hours</span>
-                        </div>
-                      )}
-                      {hltbInfo.gameplayMainExtra && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">Main + Extras:</span>
-                          <span className="badge badge-secondary">{hltbInfo.gameplayMainExtra} hours</span>
-                        </div>
-                      )}
-                      {hltbInfo.gameplayCompletionist && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">Completionist:</span>
-                          <span className="badge badge-accent">{hltbInfo.gameplayCompletionist} hours</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
+               
 
                 {rawgDetails.description_raw && (
                   <div>
@@ -591,7 +645,8 @@ const GameDetails = () => {
                             play_session_date: note.play_session_date,
                             hours_played: note.hours_played,
                             is_completion_entry: note.is_completion_entry,
-                            completion_date: note.completion_date
+                            completion_date: note.completion_date,
+                            screenshots: note.screenshots || []
                           })
                           setShowAddNote(true)
                         }}
@@ -607,6 +662,21 @@ const GameDetails = () => {
                     </div>
                   </div>
                   <p className="mt-2 whitespace-pre-wrap">{note.content}</p>
+
+                  {/* Screenshots */}
+                  {note.screenshots && note.screenshots.length > 0 && (
+                    <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-4">
+                      {note.screenshots.map((url, index) => (
+                        <img
+                          key={index}
+                          src={url}
+                          alt={`Screenshot ${index + 1}`}
+                          className="w-full h-32 object-cover rounded-lg cursor-pointer"
+                          onClick={() => setSelectedScreenshot(url)}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -622,77 +692,75 @@ const GameDetails = () => {
               {editingNote ? 'Edit Journal Entry' : 'Add Journal Entry'}
             </h3>
             <div className="form-control gap-4">
-              {/* Note Content */}
-              <div>
+              {/* Core Journal Entry */}
+              <div className="space-y-2">
                 <label className="label">
-                  <span className="label-text">Your thoughts</span>
+                  <span className="label-text font-medium text-lg">📝 What happened in this session?</span>
+                  <span className="label-text-alt opacity-70">Required</span>
                 </label>
                 <textarea
-                  className="textarea textarea-bordered w-full"
-                  placeholder="Write about your experience..."
+                  className="textarea textarea-bordered w-full min-h-[200px] text-base"
+                  placeholder="Share your gaming experience! Some ideas:
+• What were the memorable moments?
+• Did you discover anything interesting?
+• Any frustrating parts or funny glitches?
+• What strategies worked or didn't work?
+• How did the story develop?"
                   value={noteForm.content}
                   onChange={(e) =>
                     setNoteForm({ ...noteForm, content: e.target.value })
                   }
                 ></textarea>
+                <p className="text-sm opacity-70 mt-1">Feel free to write as much or as little as you'd like. This is your gaming journal!</p>
               </div>
 
-              {/* Mood Selection */}
-              <div>
+              {/* Screenshots */}
+              <div className="space-y-2">
                 <label className="label">
-                  <span className="label-text">How did it make you feel?</span>
+                  <span className="label-text font-medium text-lg">📸 Add Screenshots</span>
+                  <span className="label-text-alt opacity-70">Optional</span>
                 </label>
-                <select
-                  className="select select-bordered w-full"
-                  value={noteForm.mood || ''}
-                  onChange={(e) =>
-                    setNoteForm({
-                      ...noteForm,
-                      mood: e.target.value as GameNote['mood']
-                    })
-                  }
-                >
-                  <option value="">Select mood</option>
-                  <option value="Excited">Excited 🤩</option>
-                  <option value="Satisfied">Satisfied 😊</option>
-                  <option value="Frustrated">Frustrated 😤</option>
-                  <option value="Confused">Confused 🤔</option>
-                  <option value="Nostalgic">Nostalgic 🥹</option>
-                  <option value="Impressed">Impressed 😯</option>
-                  <option value="Disappointed">Disappointed 😕</option>
-                </select>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleScreenshotUpload}
+                  className="file-input file-input-bordered w-full"
+                />
+                {noteForm.screenshots && noteForm.screenshots.length > 0 && (
+                  <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    {noteForm.screenshots.map((url, index) => (
+                      <div key={index} className="relative group">
+                        <img
+                          src={url}
+                          alt={`Screenshot ${index + 1}`}
+                          className="w-full h-32 object-cover rounded-lg"
+                        />
+                        <button
+                          onClick={() => removeScreenshot(index)}
+                          className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              {/* Rating */}
-              <div>
-                <label className="label">
-                  <span className="label-text">Rating</span>
-                </label>
-                <div className="rating rating-lg">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <input
-                      key={star}
-                      type="radio"
-                      name="rating"
-                      className="mask mask-star-2 bg-orange-400"
-                      checked={noteForm.rating === star}
-                      onChange={() =>
-                        setNoteForm({ ...noteForm, rating: star })
-                      }
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* Play Session Details */}
-              <div className="grid grid-cols-2 gap-4">
+              {/* Session Context */}
+              <div className="bg-base-200 rounded-lg p-4 space-y-6">
+                <h3 className="font-medium text-base">Session Details</h3>
+                
+                {/* Date & Time */}
                 <div>
                   <label className="label">
-                    <span className="label-text">Session Date</span>
+                    <span className="label-text font-medium">📅 When did you play?</span>
+                    <span className="label-text-alt opacity-70">Required</span>
                   </label>
                   <input
-                    type="date"
+                    type="datetime-local"
                     className="input input-bordered w-full"
+                    required
                     value={noteForm.play_session_date || ''}
                     onChange={(e) =>
                       setNoteForm({
@@ -702,23 +770,175 @@ const GameDetails = () => {
                     }
                   />
                 </div>
+
+                {/* Duration */}
                 <div>
                   <label className="label">
-                    <span className="label-text">Hours Played</span>
+                    <span className="label-text font-medium">⏳ How long did you play?</span>
+                    <span className="label-text-alt opacity-70">Optional</span>
                   </label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    min="0"
-                    className="input input-bordered w-full"
-                    value={noteForm.hours_played || ''}
-                    onChange={(e) =>
-                      setNoteForm({
-                        ...noteForm,
-                        hours_played: parseFloat(e.target.value)
-                      })
-                    }
-                  />
+                  <div className="flex gap-4 items-center">
+                    <div className="flex-1">
+                      <input
+                        type="number"
+                        min="0"
+                        className="input input-bordered w-full"
+                        placeholder="30"
+                        value={noteForm.duration || ''}
+                        onChange={(e) =>
+                          setNoteForm({
+                            ...noteForm,
+                            duration: e.target.value ? parseInt(e.target.value) : null
+                          })
+                        }
+                      />
+                    </div>
+                    <span className="text-sm opacity-70">minutes</span>
+                  </div>
+                  <p className="text-xs opacity-70 mt-1">Track your gaming sessions to understand your habits</p>
+                </div>
+
+                {/* Accomplishments */}
+                <div>
+                  <label className="label">
+                    <span className="label-text font-medium">🏆 What did you accomplish?</span>
+                    <span className="label-text-alt opacity-70">Optional</span>
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      'Story Progress',
+                      'Side Quest',
+                      'Exploration',
+                      'Challenge Completed',
+                      'Just Messing Around',
+                      'Grinding',
+                      'Boss Fight',
+                      'Achievement Hunting',
+                      'Learning Game Mechanics'
+                    ].map((accomplishment) => (
+                      <label
+                        key={accomplishment}
+                        className="flex items-center gap-2 cursor-pointer hover:bg-base-300 p-2 rounded-lg transition-colors"
+                      >
+                        <input
+                          type="checkbox"
+                          className="checkbox checkbox-sm"
+                          checked={noteForm.accomplishments?.includes(accomplishment)}
+                          onChange={(e) => {
+                            const currentAccomplishments = noteForm.accomplishments || [];
+                            setNoteForm({
+                              ...noteForm,
+                              accomplishments: e.target.checked
+                                ? [...currentAccomplishments, accomplishment]
+                                : currentAccomplishments.filter(a => a !== accomplishment)
+                            });
+                          }}
+                        />
+                        <span className="text-sm">{accomplishment}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Reflection Section */}
+              <div className="bg-base-200 rounded-lg p-4 space-y-6">
+                <h3 className="font-medium text-base">Reflection</h3>
+
+                {/* Mood & Enjoyment */}
+                <div>
+                  <label className="label">
+                    <span className="label-text font-medium">🎭 How did this session make you feel?</span>
+                  </label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[
+                      { value: 'Amazing', emoji: '🤩', enjoyment: 'high' },
+                      { value: 'Great', emoji: '😊', enjoyment: 'high' },
+                      { value: 'Good', emoji: '🙂', enjoyment: 'medium' },
+                      { value: 'Relaxing', emoji: '😌', enjoyment: 'medium' },
+                      { value: 'Mixed', emoji: '🤔', enjoyment: 'medium' },
+                      { value: 'Frustrating', emoji: '😤', enjoyment: 'low' },
+                      { value: 'Meh', emoji: '😕', enjoyment: 'low' },
+                      { value: 'Regret', emoji: '😫', enjoyment: 'low' }
+                    ].map(({ value, emoji, enjoyment }) => (
+                      <label
+                        key={value}
+                        className={`flex flex-col items-center gap-1 p-2 rounded-lg cursor-pointer transition-all hover:bg-base-300
+                          ${noteForm.mood === value ? `bg-base-300 ring-2 ${{
+                            high: 'ring-success',
+                            medium: 'ring-primary',
+                            low: 'ring-error'
+                          }[enjoyment]}` : ''}`}
+                        onClick={() =>
+                          setNoteForm({
+                            ...noteForm,
+                            mood: value as GameNote['mood']
+                          })
+                        }
+                      >
+                        <span className="text-2xl" role="img" aria-label={value}>
+                          {emoji}
+                        </span>
+                        <span className="text-xs text-center">{value}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Next Time Plans - Optional */}
+                <div className="space-y-4">
+                  <label className="label">
+                    <span className="label-text font-medium">🎯 Next time, I want to...</span>
+                    <span className="label-text-alt opacity-70">Optional</span>
+                  </label>
+                  
+                  {/* Quick Options */}
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      'Continue Story',
+                      'Try Different Build',
+                      'Explore New Area',
+                      'Beat That Boss',
+                      'Grind Items/Levels',
+                      'Try Different Character',
+                      'Complete Side Content'
+                    ].map((intent) => (
+                      <button
+                        key={intent}
+                        type="button"
+                        className={`btn btn-sm ${noteForm.next_session_plan?.intent === intent ? 'btn-primary' : 'btn-ghost'}`}
+                        onClick={() =>
+                          setNoteForm({
+                            ...noteForm,
+                            next_session_plan: {
+                              ...noteForm.next_session_plan,
+                              intent
+                            }
+                          })
+                        }
+                      >
+                        {intent}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Custom Note */}
+                  <div>
+                    <textarea
+                      className="textarea textarea-bordered w-full"
+                      placeholder="Any other thoughts about what you want to do next time? (optional)"
+                      value={noteForm.next_session_plan?.note || ''}
+                      onChange={(e) =>
+                        setNoteForm({
+                          ...noteForm,
+                          next_session_plan: {
+                            ...noteForm.next_session_plan,
+                            note: e.target.value
+                          }
+                        })
+                      }
+                    ></textarea>
+                  </div>
                 </div>
               </div>
 
@@ -749,14 +969,19 @@ const GameDetails = () => {
                   onClick={() => {
                     setNoteForm({
                       content: '',
-                      mood: null,
-                      rating: null,
                       play_session_date: null,
-                      hours_played: null,
+                      duration: null,
+                      accomplishments: [],
+                      mood: null,
+                      next_session_plan: {
+                        intent: null,
+                        note: null
+                      },
                       is_completion_entry: false,
                       completion_date: null
                     });
                     setShowAddNote(false);
+                    setEditingNote(null);
                   }}
                 >
                   Cancel
@@ -764,7 +989,7 @@ const GameDetails = () => {
                 <button
                   className="btn btn-primary"
                   onClick={editingNote ? updateNote : addNote}
-                  disabled={!noteForm.content}
+                  disabled={!noteForm.content?.trim() || !noteForm.play_session_date}
                 >
                   {editingNote ? 'Update' : 'Add'} Note
                 </button>
