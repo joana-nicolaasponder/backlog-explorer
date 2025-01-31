@@ -65,7 +65,9 @@ const Auth: React.FC<AuthProps> = ({ onAuth }) => {
           password,
         })
         if (error) throw error
-        setSuccess('Sign-up successful! Please check your email to confirm your account.')
+        setSuccess(
+          'Sign-up successful! Please check your email to confirm your account.'
+        )
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
@@ -89,8 +91,8 @@ const Auth: React.FC<AuthProps> = ({ onAuth }) => {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin
-        }
+          redirectTo: `${window.location.origin}/app`,
+        },
       })
       if (error) throw error
     } catch (err: any) {
@@ -105,7 +107,7 @@ const Auth: React.FC<AuthProps> = ({ onAuth }) => {
     clearMessages()
     setPassword('')
     setConfirmPassword('')
-    
+
     if (mode === 'reset') {
       setIsResetPassword(true)
       setIsSignUp(false)
@@ -142,19 +144,25 @@ const Auth: React.FC<AuthProps> = ({ onAuth }) => {
       <div className="p-8 bg-base-100 rounded-lg shadow-lg w-full max-w-md">
         <div className="text-center mb-8">
           <h2 className="text-2xl font-bold">
-            {isResetPassword ? 'Reset Password' : isSignUp ? 'Create Account' : 'Welcome Back'}
+            {isResetPassword
+              ? 'Reset Password'
+              : isSignUp
+              ? 'Create Account'
+              : 'Welcome Back'}
           </h2>
           <p className="text-base-content/60 mt-2">
-            {isResetPassword 
-              ? 'Enter your email to receive reset instructions' 
-              : isSignUp 
-                ? 'Start managing your game backlog today'
-                : 'Sign in to continue to Backlog Explorer'}
+            {isResetPassword
+              ? 'Enter your email to receive reset instructions'
+              : isSignUp
+              ? 'Start managing your game backlog today'
+              : 'Sign in to continue to Backlog Explorer'}
           </p>
         </div>
 
         {(error || success) && (
-          <div className={`alert ${error ? 'alert-error' : 'alert-success'} mb-6`}>
+          <div
+            className={`alert ${error ? 'alert-error' : 'alert-success'} mb-6`}
+          >
             <span>{error || success}</span>
           </div>
         )}
@@ -166,7 +174,9 @@ const Auth: React.FC<AuthProps> = ({ onAuth }) => {
           <input
             type="email"
             placeholder="your@email.com"
-            className={`input input-bordered w-full ${error && error.includes('email') ? 'input-error' : ''}`}
+            className={`input input-bordered w-full ${
+              error && error.includes('email') ? 'input-error' : ''
+            }`}
             value={email}
             onChange={(e) => {
               setEmail(e.target.value)
@@ -174,7 +184,7 @@ const Auth: React.FC<AuthProps> = ({ onAuth }) => {
             }}
           />
         </div>
-        
+
         {!isResetPassword && (
           <div className="form-control w-full mt-4">
             <label className="label">
@@ -182,8 +192,12 @@ const Auth: React.FC<AuthProps> = ({ onAuth }) => {
             </label>
             <input
               type="password"
-              placeholder={isSignUp ? 'Choose a secure password' : 'Enter your password'}
-              className={`input input-bordered w-full ${error && error.includes('Password') ? 'input-error' : ''}`}
+              placeholder={
+                isSignUp ? 'Choose a secure password' : 'Enter your password'
+              }
+              className={`input input-bordered w-full ${
+                error && error.includes('Password') ? 'input-error' : ''
+              }`}
               value={password}
               onChange={(e) => {
                 setPassword(e.target.value)
@@ -201,7 +215,9 @@ const Auth: React.FC<AuthProps> = ({ onAuth }) => {
             <input
               type="password"
               placeholder="Confirm your password"
-              className={`input input-bordered w-full ${error && error.includes('match') ? 'input-error' : ''}`}
+              className={`input input-bordered w-full ${
+                error && error.includes('match') ? 'input-error' : ''
+              }`}
               value={confirmPassword}
               onChange={(e) => {
                 setConfirmPassword(e.target.value)
@@ -217,21 +233,25 @@ const Auth: React.FC<AuthProps> = ({ onAuth }) => {
             onClick={handleAuth}
             disabled={loading || googleLoading}
           >
-            {loading 
-              ? 'Please wait...' 
-              : isResetPassword 
-                ? 'Send Reset Instructions' 
-                : isSignUp 
-                  ? 'Create Account' 
-                  : 'Sign In'}
+            {loading
+              ? 'Please wait...'
+              : isResetPassword
+              ? 'Send Reset Instructions'
+              : isSignUp
+              ? 'Create Account'
+              : 'Sign In'}
           </button>
 
           {!isResetPassword && (
             <>
-              <div className="divider text-base-content/40">or continue with</div>
+              <div className="divider text-base-content/40">
+                or continue with
+              </div>
 
               <button
-                className={`btn btn-outline w-full ${googleLoading ? 'loading' : ''}`}
+                className={`btn btn-outline w-full ${
+                  googleLoading ? 'loading' : ''
+                }`}
                 onClick={handleGoogleSignIn}
                 disabled={loading || googleLoading}
               >
@@ -268,10 +288,12 @@ const Auth: React.FC<AuthProps> = ({ onAuth }) => {
                 className="btn btn-outline btn-block"
                 onClick={() => handleModeSwitch(isSignUp ? 'login' : 'signup')}
               >
-                {isSignUp ? 'Already have an account? Sign In' : 'Need an account? Sign Up'}
+                {isSignUp
+                  ? 'Already have an account? Sign In'
+                  : 'Need an account? Sign Up'}
               </button>
             )}
-            
+
             {!isSignUp && (
               <button
                 className="btn btn-ghost btn-block"

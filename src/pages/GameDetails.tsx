@@ -23,51 +23,55 @@ const GameDetails = () => {
     mood: null,
     next_session_plan: {
       intent: null,
-      note: null
+      note: null,
     },
     is_completion_entry: false,
     completion_date: null,
-    screenshots: []
+    screenshots: [],
   })
   const [isUpdatingProgress, setIsUpdatingProgress] = useState(false)
-  const [selectedScreenshot, setSelectedScreenshot] = useState<string | null>(null)
+  const [selectedScreenshot, setSelectedScreenshot] = useState<string | null>(
+    null
+  )
   const [showEditModal, setShowEditModal] = useState(false)
 
   const fetchRawgDetails = async (gameTitle: string) => {
     try {
-      const apiKey = import.meta.env.VITE_RAWG_API_KEY;
+      const apiKey = import.meta.env.VITE_RAWG_API_KEY
       // Search for the game first
       const searchResponse = await fetch(
-        `https://api.rawg.io/api/games?search=${encodeURIComponent(gameTitle)}&key=${apiKey}`
-      );
-      const searchData = await searchResponse.json();
-      
+        `https://api.rawg.io/api/games?search=${encodeURIComponent(
+          gameTitle
+        )}&key=${apiKey}`
+      )
+      const searchData = await searchResponse.json()
+
       if (searchData.results && searchData.results.length > 0) {
-        const gameId = searchData.results[0].id;
+        const gameId = searchData.results[0].id
         // Get detailed game information
         const detailsResponse = await fetch(
           `https://api.rawg.io/api/games/${gameId}?key=${apiKey}`
-        );
-        const gameDetails = await detailsResponse.json();
-        
+        )
+        const gameDetails = await detailsResponse.json()
+
         // Get screenshots
         const screenshotsResponse = await fetch(
           `https://api.rawg.io/api/games/${gameId}/screenshots?key=${apiKey}`
-        );
-        const screenshotsData = await screenshotsResponse.json();
-        
+        )
+        const screenshotsData = await screenshotsResponse.json()
+
         setRawgDetails({
           description_raw: gameDetails.description_raw,
           metacritic: gameDetails.metacritic,
           playtime: gameDetails.playtime,
           background_image: gameDetails.background_image,
-          screenshots: screenshotsData.results || []
-        });
+          screenshots: screenshotsData.results || [],
+        })
       }
     } catch (error) {
-      console.error('Error fetching RAWG details:', error);
+      console.error('Error fetching RAWG details:', error)
     }
-  };
+  }
 
   const fetchGameAndNotes = async () => {
     try {
@@ -82,7 +86,8 @@ const GameDetails = () => {
       // Fetch game details and user-specific data
       const { data: userGameData, error: gameError } = await supabase
         .from('user_games')
-        .select(`
+        .select(
+          `
           id,
           status,
           progress,
@@ -96,7 +101,8 @@ const GameDetails = () => {
             background_image,
             description
           )
-        `)
+        `
+        )
         .eq('user_id', user_id)
         .eq('game_id', id)
         .single()
@@ -121,12 +127,11 @@ const GameDetails = () => {
         metacritic_rating: userGameData.game.metacritic_rating,
         release_date: userGameData.game.release_date,
         background_image: userGameData.game.background_image,
-        description: userGameData.game.description
+        description: userGameData.game.description,
       })
 
       if (userGameData.game) {
-        fetchRawgDetails(userGameData.game.title);
-
+        fetchRawgDetails(userGameData.game.title)
       }
 
       // Fetch game notes
@@ -134,11 +139,11 @@ const GameDetails = () => {
         .from('game_notes')
         .select('*')
         .eq('game_id', id)
+        .eq('user_id', user_id)
         .order('created_at', { ascending: false })
 
       if (notesError) throw notesError
       setNotes(notesData || [])
-
     } catch (error) {
       console.error('Error:', error)
     } finally {
@@ -150,22 +155,23 @@ const GameDetails = () => {
     fetchGameAndNotes()
   }, [id])
 
-  const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB in bytes
-  const MAX_FILES_PER_NOTE = 6; // Reasonable limit per note
+  const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB in bytes
+  const MAX_FILES_PER_NOTE = 6 // Reasonable limit per note
 
   const compressImage = async (file: File) => {
     const options = {
-      maxSizeMB: 1,              // Max file size of 1MB
-      maxWidthOrHeight: 1920,    // Max width/height of 1920px
-      useWebWorker: true,        // Use web worker for better performance
-      fileType: file.type,       // Maintain original file type
-      initialQuality: 0.8        // Initial quality (0.8 is a good balance)
+      maxSizeMB: 1, // Max file size of 1MB
+      maxWidthOrHeight: 1920, // Max width/height of 1920px
+      useWebWorker: true, // Use web worker for better performance
+      fileType: file.type, // Maintain original file type
+      initialQuality: 0.8, // Initial quality (0.8 is a good balance)
     }
 
     try {
       // Show compression progress
       const progress = document.createElement('div')
-      progress.className = 'fixed bottom-4 right-4 bg-base-200 p-4 rounded-lg shadow-lg'
+      progress.className =
+        'fixed bottom-4 right-4 bg-base-200 p-4 rounded-lg shadow-lg'
       progress.innerHTML = `Compressing ${file.name}...`
       document.body.appendChild(progress)
 
@@ -176,7 +182,9 @@ const GameDetails = () => {
       console.log('Compression results:', {
         originalSize: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
         compressedSize: `${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`,
-        ratio: `${((1 - compressedFile.size / file.size) * 100).toFixed(1)}% reduction`
+        ratio: `${((1 - compressedFile.size / file.size) * 100).toFixed(
+          1
+        )}% reduction`,
       })
 
       return compressedFile
@@ -190,7 +198,9 @@ const GameDetails = () => {
     try {
       // Validate file type
       if (!file.type.startsWith('image/')) {
-        throw new Error(`Invalid file type: ${file.name}. Only images are allowed.`);
+        throw new Error(
+          `Invalid file type: ${file.name}. Only images are allowed.`
+        )
       }
 
       // Compress image before size check
@@ -198,7 +208,7 @@ const GameDetails = () => {
 
       // Validate compressed file size
       if (compressedFile.size > MAX_FILE_SIZE) {
-        throw new Error(`File still too large after compression: ${file.name}`);
+        throw new Error(`File still too large after compression: ${file.name}`)
       }
 
       const { data: userData } = await supabase.auth.getUser()
@@ -206,7 +216,9 @@ const GameDetails = () => {
 
       // Create a unique file path
       const fileExt = file.name.split('.').pop()
-      const fileName = `${Math.random().toString(36).substring(2)}${Date.now()}.${fileExt}`
+      const fileName = `${Math.random()
+        .toString(36)
+        .substring(2)}${Date.now()}.${fileExt}`
       const filePath = `${user_id}/${id}/${fileName}`
 
       // Upload to Supabase storage
@@ -217,9 +229,9 @@ const GameDetails = () => {
       if (uploadError) throw uploadError
 
       // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('game-screenshots')
-        .getPublicUrl(filePath)
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from('game-screenshots').getPublicUrl(filePath)
 
       return publicUrl
     } catch (error) {
@@ -228,51 +240,67 @@ const GameDetails = () => {
     }
   }
 
-  const handleScreenshotUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleScreenshotUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const files = event.target.files
     if (!files || files.length === 0) return
 
     try {
       // Check total number of files
-      const currentCount = noteForm.screenshots?.length || 0;
+      const currentCount = noteForm.screenshots?.length || 0
       if (currentCount + files.length > MAX_FILES_PER_NOTE) {
-        alert(`You can only add up to ${MAX_FILES_PER_NOTE} screenshots per note. Please select fewer files.`);
-        return;
+        alert(
+          `You can only add up to ${MAX_FILES_PER_NOTE} screenshots per note. Please select fewer files.`
+        )
+        return
       }
 
       // Upload files
-      const uploadPromises = Array.from(files).map(file => uploadScreenshot(file));
-      const results = await Promise.allSettled(uploadPromises);
+      const uploadPromises = Array.from(files).map((file) =>
+        uploadScreenshot(file)
+      )
+      const results = await Promise.allSettled(uploadPromises)
 
       // Filter successful uploads and handle errors
       const successfulUrls = results
-        .filter((result): result is PromiseFulfilledResult<string> => result.status === 'fulfilled')
-        .map(result => result.value);
+        .filter(
+          (result): result is PromiseFulfilledResult<string> =>
+            result.status === 'fulfilled'
+        )
+        .map((result) => result.value)
 
       const errors = results
-        .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
-        .map(result => result.reason);
+        .filter(
+          (result): result is PromiseRejectedResult =>
+            result.status === 'rejected'
+        )
+        .map((result) => result.reason)
 
       if (errors.length > 0) {
-        alert(`Some files failed to upload:\n${errors.map(e => e.message).join('\n')}`);
+        alert(
+          `Some files failed to upload:\n${errors
+            .map((e) => e.message)
+            .join('\n')}`
+        )
       }
 
       if (successfulUrls.length > 0) {
-        setNoteForm(prev => ({
+        setNoteForm((prev) => ({
           ...prev,
-          screenshots: [...(prev.screenshots || []), ...successfulUrls]
-        }));
+          screenshots: [...(prev.screenshots || []), ...successfulUrls],
+        }))
       }
     } catch (error) {
-      console.error('Error handling screenshots:', error);
-      alert('Error uploading screenshots. Please try again.');
+      console.error('Error handling screenshots:', error)
+      alert('Error uploading screenshots. Please try again.')
     }
   }
 
   const removeScreenshot = (index: number) => {
-    setNoteForm(prev => ({
+    setNoteForm((prev) => ({
       ...prev,
-      screenshots: prev.screenshots?.filter((_, i) => i !== index) || []
+      screenshots: prev.screenshots?.filter((_, i) => i !== index) || [],
     }))
   }
 
@@ -294,10 +322,13 @@ const GameDetails = () => {
         duration: noteForm.duration || null,
         accomplishments: noteForm.accomplishments || [],
         mood: noteForm.mood || null,
-        next_session_plan: noteForm.next_session_plan || { intent: null, note: null },
+        next_session_plan: noteForm.next_session_plan || {
+          intent: null,
+          note: null,
+        },
         is_completion_entry: noteForm.is_completion_entry || false,
         completion_date: noteForm.completion_date || null,
-        screenshots: noteForm.screenshots || []
+        screenshots: noteForm.screenshots || [],
       }
 
       // Insert note
@@ -313,7 +344,7 @@ const GameDetails = () => {
           .from('user_games')
           .update({
             progress: 100,
-            status: 'Done'
+            status: 'Done',
           })
           .eq('game_id', id)
           .eq('user_id', user_id)
@@ -325,7 +356,7 @@ const GameDetails = () => {
 
       // Refresh game and notes
       fetchGameAndNotes()
-      
+
       // Reset form
       setNoteForm({
         content: '',
@@ -335,38 +366,37 @@ const GameDetails = () => {
         mood: null,
         next_session_plan: {
           intent: null,
-          note: null
+          note: null,
         },
         is_completion_entry: false,
-        completion_date: null
+        completion_date: null,
       })
       setShowAddNote(false)
-
     } catch (error) {
       console.error('Error adding note:', error)
     }
   }
 
   const deleteNote = async (noteId: string) => {
-    if (!confirm('Are you sure you want to delete this entry?')) return;
+    if (!confirm('Are you sure you want to delete this entry?')) return
 
     try {
       const { error } = await supabase
         .from('game_notes')
         .delete()
-        .eq('id', noteId);
+        .eq('id', noteId)
 
-      if (error) throw error;
+      if (error) throw error
 
       // Refresh notes
-      fetchGameAndNotes();
+      fetchGameAndNotes()
     } catch (error) {
-      console.error('Error deleting note:', error);
+      console.error('Error deleting note:', error)
     }
-  };
+  }
 
   const startEditingNote = (note: GameNote) => {
-    setEditingNote(note);
+    setEditingNote(note)
     setNoteForm({
       content: note.content,
       play_session_date: note.play_session_date,
@@ -375,30 +405,30 @@ const GameDetails = () => {
       mood: note.mood,
       next_session_plan: note.next_session_plan || { intent: null, note: null },
       is_completion_entry: note.is_completion_entry,
-      completion_date: note.completion_date
-    });
-    setShowAddNote(true);
-  };
+      completion_date: note.completion_date,
+    })
+    setShowAddNote(true)
+  }
 
   const updateNote = async () => {
-    if (!noteForm.content?.trim() || !editingNote) return;
+    if (!noteForm.content?.trim() || !editingNote) return
 
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      const user_id = userData.user?.id;
+      const { data: userData } = await supabase.auth.getUser()
+      const user_id = userData.user?.id
 
       const { error: noteError } = await supabase
         .from('game_notes')
         .update({
           ...noteForm,
-          user_id
+          user_id,
         })
-        .eq('id', editingNote.id);
+        .eq('id', editingNote.id)
 
-      if (noteError) throw noteError;
+      if (noteError) throw noteError
 
       // Refresh notes and reset form
-      fetchGameAndNotes();
+      fetchGameAndNotes()
       setNoteForm({
         content: '',
         play_session_date: null,
@@ -407,45 +437,53 @@ const GameDetails = () => {
         mood: null,
         next_session_plan: {
           intent: null,
-          note: null
+          note: null,
         },
         is_completion_entry: false,
-        completion_date: null
-      });
-      setEditingNote(null);
-      setShowAddNote(false);
+        completion_date: null,
+      })
+      setEditingNote(null)
+      setShowAddNote(false)
     } catch (error) {
-      console.error('Error updating note:', error);
+      console.error('Error updating note:', error)
     }
-  };
+  }
 
   const updateProgress = async (newProgress: number) => {
-    if (!game) return;
-    setIsUpdatingProgress(true);
+    if (!game) return
+    setIsUpdatingProgress(true)
 
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      const user_id = userData.user?.id;
+      const { data: userData } = await supabase.auth.getUser()
+      const user_id = userData.user?.id
 
       const { error } = await supabase
         .from('user_games')
         .update({
           progress: newProgress,
-          status: newProgress === 100 ? 'Done' : game.status
+          status: newProgress === 100 ? 'Done' : game.status,
         })
         .eq('game_id', game.id)
-        .eq('user_id', user_id);
+        .eq('user_id', user_id)
 
-      if (error) throw error;
+      if (error) throw error
 
       // Update local state
-      setGame(prev => prev ? { ...prev, progress: newProgress, status: newProgress === 100 ? 'Done' : prev.status } : null);
+      setGame((prev) =>
+        prev
+          ? {
+              ...prev,
+              progress: newProgress,
+              status: newProgress === 100 ? 'Done' : prev.status,
+            }
+          : null
+      )
     } catch (error) {
-      console.error('Error updating progress:', error);
+      console.error('Error updating progress:', error)
     } finally {
-      setIsUpdatingProgress(false);
+      setIsUpdatingProgress(false)
     }
-  };
+  }
 
   const getMoodEmoji = (mood: GameNote['mood']) => {
     const emojiMap = {
@@ -455,7 +493,7 @@ const GameDetails = () => {
       Confused: '🤔',
       Nostalgic: '🥹',
       Impressed: '😯',
-      Disappointed: '😕'
+      Disappointed: '😕',
     }
     return mood ? emojiMap[mood] : ''
   }
@@ -471,22 +509,22 @@ const GameDetails = () => {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     })
   }
 
   const formatDuration = (duration: number | null): string => {
-    if (!duration) return '';
-    const hours = Math.floor(duration / 3600);
-    const minutes = Math.floor((duration % 3600) / 60);
-    const seconds = duration % 60;
-    
+    if (!duration) return ''
+    const hours = Math.floor(duration / 3600)
+    const minutes = Math.floor((duration % 3600) / 60)
+    const seconds = duration % 60
+
     if (hours > 0) {
-      return `${hours}h ${minutes}m ${seconds}s`;
+      return `${hours}h ${minutes}m ${seconds}s`
     } else if (minutes > 0) {
-      return `${minutes}m ${seconds}s`;
+      return `${minutes}m ${seconds}s`
     } else {
-      return `${seconds}s`;
+      return `${seconds}s`
     }
   }
 
@@ -504,7 +542,7 @@ const GameDetails = () => {
       <div className="mb-4 sm:mb-6">
         <div className="flex justify-between items-start mb-2">
           <h1 className="text-2xl sm:text-3xl font-bold">{game.title}</h1>
-          <button 
+          <button
             onClick={() => setShowEditModal(true)}
             className="btn btn-ghost btn-sm"
           >
@@ -562,50 +600,57 @@ const GameDetails = () => {
                   {rawgDetails.metacritic && (
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">Metacritic:</span>
-                      <span className={`badge ${
-                        rawgDetails.metacritic >= 75 
-                          ? 'badge-accent bg-opacity-50' 
-                          : rawgDetails.metacritic >= 60 
-                          ? 'badge-secondary bg-opacity-50' 
-                          : 'badge-primary bg-opacity-50'
-                      }`}>
+                      <span
+                        className={`badge ${
+                          rawgDetails.metacritic >= 75
+                            ? 'badge-accent bg-opacity-50'
+                            : rawgDetails.metacritic >= 60
+                            ? 'badge-secondary bg-opacity-50'
+                            : 'badge-primary bg-opacity-50'
+                        }`}
+                      >
                         {rawgDetails.metacritic}
                       </span>
                     </div>
                   )}
-                  {rawgDetails.playtime > 0 && (
+                  {/* {rawgDetails.playtime > 0 && (
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">Average Playtime:</span>
-                      <span className="badge badge-ghost">{rawgDetails.playtime} hours</span>
+                      <span className="badge badge-ghost">
+                        {rawgDetails.playtime} hours
+                      </span>
                     </div>
-                  )}
+                  )} */}
                 </div>
-
-               
 
                 {rawgDetails.description_raw && (
                   <div>
                     <h3 className="font-semibold text-lg mb-2">About</h3>
-                    <p className="text-sm opacity-70">{rawgDetails.description_raw}</p>
+                    <p className="text-sm opacity-70">
+                      {rawgDetails.description_raw}
+                    </p>
                   </div>
                 )}
               </div>
-              {rawgDetails.screenshots && rawgDetails.screenshots.length > 0 && (
-                <div>
-                  <h3 className="font-semibold text-lg mb-2">Screenshots</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {rawgDetails.screenshots.map((screenshot) => (
-                      <img
-                        key={screenshot.id}
-                        src={screenshot.image}
-                        alt="Game Screenshot"
-                        className="rounded-lg w-full h-40 object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                        onClick={() => setSelectedScreenshot(screenshot.image)}
-                      />
-                    ))}
+              {rawgDetails.screenshots &&
+                rawgDetails.screenshots.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold text-lg mb-2">Screenshots</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {rawgDetails.screenshots.map((screenshot) => (
+                        <img
+                          key={screenshot.id}
+                          src={screenshot.image}
+                          alt="Game Screenshot"
+                          className="rounded-lg w-full h-40 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                          onClick={() =>
+                            setSelectedScreenshot(screenshot.image)
+                          }
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
             </div>
           ) : (
             <div className="animate-pulse space-y-4">
@@ -633,7 +678,10 @@ const GameDetails = () => {
               className="w-full h-auto rounded-lg"
             />
           </div>
-          <div className="modal-backdrop" onClick={() => setSelectedScreenshot(null)}></div>
+          <div
+            className="modal-backdrop"
+            onClick={() => setSelectedScreenshot(null)}
+          ></div>
         </div>
       )}
 
@@ -662,13 +710,16 @@ const GameDetails = () => {
                     <div>
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold">
-                          {new Date(note.created_at).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
+                          {new Date(note.created_at).toLocaleDateString(
+                            'en-US',
+                            {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            }
+                          )}
                         </h3>
                       </div>
                       <div className="flex gap-2 mt-1">
@@ -702,7 +753,7 @@ const GameDetails = () => {
                             hours_played: note.hours_played,
                             is_completion_entry: note.is_completion_entry,
                             completion_date: note.completion_date,
-                            screenshots: note.screenshots || []
+                            screenshots: note.screenshots || [],
                           })
                           setShowAddNote(true)
                         }}
@@ -751,7 +802,9 @@ const GameDetails = () => {
               {/* Core Journal Entry */}
               <div className="space-y-2">
                 <label className="label">
-                  <span className="label-text font-medium text-lg">📝 What happened in this session?</span>
+                  <span className="label-text font-medium text-lg">
+                    📝 What happened in this session?
+                  </span>
                   <span className="label-text-alt opacity-70">Required</span>
                 </label>
                 <textarea
@@ -767,13 +820,18 @@ const GameDetails = () => {
                     setNoteForm({ ...noteForm, content: e.target.value })
                   }
                 ></textarea>
-                <p className="text-sm opacity-70 mt-1">Feel free to write as much or as little as you'd like. This is your gaming journal!</p>
+                <p className="text-sm opacity-70 mt-1">
+                  Feel free to write as much or as little as you'd like. This is
+                  your gaming journal!
+                </p>
               </div>
 
               {/* Screenshots */}
               <div className="space-y-2">
                 <label className="label">
-                  <span className="label-text font-medium text-lg">📸 Add Screenshots</span>
+                  <span className="label-text font-medium text-lg">
+                    📸 Add Screenshots
+                  </span>
                   <span className="label-text-alt opacity-70">Optional</span>
                 </label>
                 <input
@@ -794,7 +852,8 @@ const GameDetails = () => {
                         />
                         <button
                           onClick={() => removeScreenshot(index)}
-                          className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                          className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
                           ✕
                         </button>
                       </div>
@@ -806,11 +865,13 @@ const GameDetails = () => {
               {/* Session Context */}
               <div className="bg-base-200 rounded-lg p-4 space-y-6">
                 <h3 className="font-medium text-base">Session Details</h3>
-                
+
                 {/* Date & Time */}
                 <div>
                   <label className="label">
-                    <span className="label-text font-medium">📅 When did you play?</span>
+                    <span className="label-text font-medium">
+                      📅 When did you play?
+                    </span>
                     <span className="label-text-alt opacity-70">Required</span>
                   </label>
                   <input
@@ -821,7 +882,7 @@ const GameDetails = () => {
                     onChange={(e) =>
                       setNoteForm({
                         ...noteForm,
-                        play_session_date: e.target.value
+                        play_session_date: e.target.value,
                       })
                     }
                   />
@@ -830,7 +891,9 @@ const GameDetails = () => {
                 {/* Duration */}
                 <div>
                   <label className="label">
-                    <span className="label-text font-medium">⏳ How long did you play?</span>
+                    <span className="label-text font-medium">
+                      ⏳ How long did you play?
+                    </span>
                     <span className="label-text-alt opacity-70">Optional</span>
                   </label>
                   <div className="flex gap-4 items-center">
@@ -844,20 +907,26 @@ const GameDetails = () => {
                         onChange={(e) =>
                           setNoteForm({
                             ...noteForm,
-                            duration: e.target.value ? parseInt(e.target.value) : null
+                            duration: e.target.value
+                              ? parseInt(e.target.value)
+                              : null,
                           })
                         }
                       />
                     </div>
                     <span className="text-sm opacity-70">minutes</span>
                   </div>
-                  <p className="text-xs opacity-70 mt-1">Track your gaming sessions to understand your habits</p>
+                  <p className="text-xs opacity-70 mt-1">
+                    Track your gaming sessions to understand your habits
+                  </p>
                 </div>
 
                 {/* Accomplishments */}
                 <div>
                   <label className="label">
-                    <span className="label-text font-medium">🏆 What did you accomplish?</span>
+                    <span className="label-text font-medium">
+                      🏆 What did you accomplish?
+                    </span>
                     <span className="label-text-alt opacity-70">Optional</span>
                   </label>
                   <div className="grid grid-cols-2 gap-3">
@@ -870,7 +939,7 @@ const GameDetails = () => {
                       'Grinding',
                       'Boss Fight',
                       'Achievement Hunting',
-                      'Learning Game Mechanics'
+                      'Learning Game Mechanics',
                     ].map((accomplishment) => (
                       <label
                         key={accomplishment}
@@ -879,15 +948,20 @@ const GameDetails = () => {
                         <input
                           type="checkbox"
                           className="checkbox checkbox-sm"
-                          checked={noteForm.accomplishments?.includes(accomplishment)}
+                          checked={noteForm.accomplishments?.includes(
+                            accomplishment
+                          )}
                           onChange={(e) => {
-                            const currentAccomplishments = noteForm.accomplishments || [];
+                            const currentAccomplishments =
+                              noteForm.accomplishments || []
                             setNoteForm({
                               ...noteForm,
                               accomplishments: e.target.checked
                                 ? [...currentAccomplishments, accomplishment]
-                                : currentAccomplishments.filter(a => a !== accomplishment)
-                            });
+                                : currentAccomplishments.filter(
+                                    (a) => a !== accomplishment
+                                  ),
+                            })
                           }}
                         />
                         <span className="text-sm">{accomplishment}</span>
@@ -904,7 +978,9 @@ const GameDetails = () => {
                 {/* Mood & Enjoyment */}
                 <div>
                   <label className="label">
-                    <span className="label-text font-medium">🎭 How did this session make you feel?</span>
+                    <span className="label-text font-medium">
+                      🎭 How did this session make you feel?
+                    </span>
                   </label>
                   <div className="grid grid-cols-4 gap-2">
                     {[
@@ -915,24 +991,34 @@ const GameDetails = () => {
                       { value: 'Mixed', emoji: '🤔', enjoyment: 'medium' },
                       { value: 'Frustrating', emoji: '😤', enjoyment: 'low' },
                       { value: 'Meh', emoji: '😕', enjoyment: 'low' },
-                      { value: 'Regret', emoji: '😫', enjoyment: 'low' }
+                      { value: 'Regret', emoji: '😫', enjoyment: 'low' },
                     ].map(({ value, emoji, enjoyment }) => (
                       <label
                         key={value}
                         className={`flex flex-col items-center gap-1 p-2 rounded-lg cursor-pointer transition-all hover:bg-base-300
-                          ${noteForm.mood === value ? `bg-base-300 ring-2 ${{
-                            high: 'ring-success',
-                            medium: 'ring-primary',
-                            low: 'ring-error'
-                          }[enjoyment]}` : ''}`}
+                          ${
+                            noteForm.mood === value
+                              ? `bg-base-300 ring-2 ${
+                                  {
+                                    high: 'ring-success',
+                                    medium: 'ring-primary',
+                                    low: 'ring-error',
+                                  }[enjoyment]
+                                }`
+                              : ''
+                          }`}
                         onClick={() =>
                           setNoteForm({
                             ...noteForm,
-                            mood: value as GameNote['mood']
+                            mood: value as GameNote['mood'],
                           })
                         }
                       >
-                        <span className="text-2xl" role="img" aria-label={value}>
+                        <span
+                          className="text-2xl"
+                          role="img"
+                          aria-label={value}
+                        >
                           {emoji}
                         </span>
                         <span className="text-xs text-center">{value}</span>
@@ -944,10 +1030,12 @@ const GameDetails = () => {
                 {/* Next Time Plans - Optional */}
                 <div className="space-y-4">
                   <label className="label">
-                    <span className="label-text font-medium">🎯 Next time, I want to...</span>
+                    <span className="label-text font-medium">
+                      🎯 Next time, I want to...
+                    </span>
                     <span className="label-text-alt opacity-70">Optional</span>
                   </label>
-                  
+
                   {/* Quick Options */}
                   <div className="flex flex-wrap gap-2">
                     {[
@@ -957,19 +1045,23 @@ const GameDetails = () => {
                       'Beat That Boss',
                       'Grind Items/Levels',
                       'Try Different Character',
-                      'Complete Side Content'
+                      'Complete Side Content',
                     ].map((intent) => (
                       <button
                         key={intent}
                         type="button"
-                        className={`btn btn-sm ${noteForm.next_session_plan?.intent === intent ? 'btn-primary' : 'btn-ghost'}`}
+                        className={`btn btn-sm ${
+                          noteForm.next_session_plan?.intent === intent
+                            ? 'btn-primary'
+                            : 'btn-ghost'
+                        }`}
                         onClick={() =>
                           setNoteForm({
                             ...noteForm,
                             next_session_plan: {
                               ...noteForm.next_session_plan,
-                              intent
-                            }
+                              intent,
+                            },
                           })
                         }
                       >
@@ -989,8 +1081,8 @@ const GameDetails = () => {
                           ...noteForm,
                           next_session_plan: {
                             ...noteForm.next_session_plan,
-                            note: e.target.value
-                          }
+                            note: e.target.value,
+                          },
                         })
                       }
                     ></textarea>
@@ -1001,18 +1093,22 @@ const GameDetails = () => {
               {/* Completion Entry */}
               <div className="form-control">
                 <label className="label cursor-pointer">
-                  <span className="label-text">Is this a completion entry?</span>
+                  <span className="label-text">
+                    Is this a completion entry?
+                  </span>
                   <input
                     type="checkbox"
                     className="toggle toggle-primary"
                     checked={noteForm.is_completion_entry || false}
                     onChange={(e) => {
-                      const isCompletion = e.target.checked;
+                      const isCompletion = e.target.checked
                       setNoteForm((prev) => ({
                         ...prev,
                         is_completion_entry: isCompletion,
-                        completion_date: isCompletion ? new Date().toISOString().split('T')[0] : null
-                      }));
+                        completion_date: isCompletion
+                          ? new Date().toISOString().split('T')[0]
+                          : null,
+                      }))
                     }}
                   />
                 </label>
@@ -1031,13 +1127,13 @@ const GameDetails = () => {
                       mood: null,
                       next_session_plan: {
                         intent: null,
-                        note: null
+                        note: null,
                       },
                       is_completion_entry: false,
-                      completion_date: null
-                    });
-                    setShowAddNote(false);
-                    setEditingNote(null);
+                      completion_date: null,
+                    })
+                    setShowAddNote(false)
+                    setEditingNote(null)
                   }}
                 >
                   Cancel
@@ -1045,7 +1141,9 @@ const GameDetails = () => {
                 <button
                   className="btn btn-primary"
                   onClick={editingNote ? updateNote : addNote}
-                  disabled={!noteForm.content?.trim() || !noteForm.play_session_date}
+                  disabled={
+                    !noteForm.content?.trim() || !noteForm.play_session_date
+                  }
                 >
                   {editingNote ? 'Update' : 'Add'} Note
                 </button>
