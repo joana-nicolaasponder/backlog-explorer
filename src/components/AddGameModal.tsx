@@ -4,6 +4,14 @@ import GameSearch from './GameSearch'
 import { RAWGGame } from '../types/rawg'
 import { mapRAWGGameToIds } from '../services/rawgMappings'
 
+interface Mood {
+  id: string
+  name: string
+  category: 'primary' | 'secondary'
+  description: string
+  created_at: string
+}
+
 interface GameFormData {
   title: string
   platforms: string[]
@@ -11,6 +19,7 @@ interface GameFormData {
   status: string
   progress: number
   image: string
+  moods: string[]
   rawg_id?: number
   rawg_slug?: string
   metacritic_rating?: number
@@ -34,9 +43,11 @@ const AddGameModal: React.FC<AddGameModalProps> = ({ onGameAdded, isOnboarding =
     status: 'Not Started',
     progress: 0,
     image: '',
+    moods: [],
   })
   const [platformOptions, setPlatformOptions] = useState<string[]>([])
   const [genreOptions, setGenreOptions] = useState<string[]>([])
+  const [availableMoods, setAvailableMoods] = useState<Mood[]>([])
   const [selectedGame, setSelectedGame] = useState<RAWGGame | null>(null)
   const [statusOptions] = useState<string[]>([
     'Endless',
@@ -54,7 +65,22 @@ const AddGameModal: React.FC<AddGameModalProps> = ({ onGameAdded, isOnboarding =
 
   useEffect(() => {
     fetchOptions()
+    fetchMoods()
   }, []) // Run once when component mounts
+
+  const fetchMoods = async () => {
+    try {
+      const { data: moods, error } = await supabase
+        .from('moods')
+        .select('*')
+        .order('name')
+
+      if (error) throw error
+      setAvailableMoods(moods)
+    } catch (error) {
+      console.error('Error fetching moods:', error)
+    }
+  }
 
   const fetchOptions = async () => {
     try {
@@ -110,6 +136,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({ onGameAdded, isOnboarding =
         genres: game.genres.map(g => g.name),
         status: existingUserGame.status,
         progress: existingUserGame.progress,
+        moods: [],
         image: game.background_image || '',
         rawg_id: game.id,
         rawg_slug: game.slug,
@@ -130,6 +157,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({ onGameAdded, isOnboarding =
         genres: game.genres.map(g => g.name), // Use RAWG genres directly
         status: 'Not Started',
         progress: 0,
+        moods: [],
         image: game.background_image || '',
         rawg_id: game.id,
         rawg_slug: game.slug,
@@ -248,13 +276,35 @@ const AddGameModal: React.FC<AddGameModalProps> = ({ onGameAdded, isOnboarding =
           });
       }
 
+      // Insert moods if any are selected
+      if (formData.moods.length > 0) {
+        const moodData = formData.moods.map(moodId => ({
+          user_id: user.id,
+          game_id: gameId,
+          mood_id: moodId,
+          weight: 1,
+          created_at: new Date().toISOString()
+        }))
+
+        const { error: moodError } = await supabase
+          .from('game_moods')
+          .insert(moodData)
+          .throwOnError()
+
+        if (moodError) {
+          console.error('Failed to insert moods:', moodError)
+          throw moodError
+        }
+      }
+
       setFormData({
         title: '',
         platforms: [],
         genres: [],
         status: 'Not Started',
         progress: 0,
-        image: ''
+        image: '',
+        moods: []
       });
 
       onGameAdded();
@@ -283,7 +333,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({ onGameAdded, isOnboarding =
         <form onSubmit={handleSubmit}>
           <div className="form-control mb-4">
             <label className="label">
-              <span className="label-text">Title</span>
+              <span className="label-text text-base-content">Title</span>
             </label>
             <input
               type="text"
@@ -295,7 +345,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({ onGameAdded, isOnboarding =
           </div>
 
           <div className="mb-6">
-            <label className="block text-sm font-medium mb-2 text-white">
+            <label className="block text-sm font-medium mb-2 text-base-content">
               Available Platforms <span className="text-red-500">*</span>
             </label>
             <div className="flex flex-wrap gap-2">
@@ -325,7 +375,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({ onGameAdded, isOnboarding =
           </div>
 
           <div className="mb-6">
-            <label className="block text-sm font-medium mb-2 text-white">
+            <label className="block text-sm font-medium mb-2 text-base-content">
               Genres
             </label>
             <div className="flex flex-wrap gap-2">
@@ -340,9 +390,86 @@ const AddGameModal: React.FC<AddGameModalProps> = ({ onGameAdded, isOnboarding =
             </div>
           </div>
 
+          <div className="mb-6">
+            <label className="block text-lg font-medium mb-4 text-base-content">
+              How would you describe this game?
+            </label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Primary Moods */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-base-content/70 mb-2">Primary Feelings</h3>
+                <div className="flex flex-wrap gap-2">
+                  {availableMoods
+                    .filter(mood => mood.category === 'primary')
+                    .map((mood) => (
+                      <label
+                        key={mood.id}
+                        className={`
+                          btn btn-sm normal-case px-4
+                          ${formData.moods.includes(mood.id) 
+                            ? 'bg-primary text-primary-content hover:bg-primary-focus border-primary'
+                            : 'btn-ghost hover:bg-base-200 border border-base-300'}
+                          transition-all duration-200
+                        `}
+                        title={mood.description}
+                      >
+                        <input
+                          type="checkbox"
+                          className="hidden"
+                          checked={formData.moods.includes(mood.id)}
+                          onChange={(e) => {
+                            const newMoods = e.target.checked
+                              ? [...formData.moods, mood.id]
+                              : formData.moods.filter(id => id !== mood.id)
+                            setFormData({ ...formData, moods: newMoods })
+                          }}
+                        />
+                        {mood.name}
+                      </label>
+                    ))}
+                </div>
+              </div>
+
+              {/* Secondary Moods */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-base-content/70 mb-2">Additional Traits</h3>
+                <div className="flex flex-wrap gap-2">
+                  {availableMoods
+                    .filter(mood => mood.category === 'secondary')
+                    .map((mood) => (
+                      <label
+                        key={mood.id}
+                        className={`
+                          btn btn-sm normal-case px-4
+                          ${formData.moods.includes(mood.id)
+                            ? 'bg-secondary text-secondary-content hover:bg-secondary-focus border-secondary'
+                            : 'btn-ghost hover:bg-base-200 border border-base-300'}
+                          transition-all duration-200
+                        `}
+                        title={mood.description}
+                      >
+                        <input
+                          type="checkbox"
+                          className="hidden"
+                          checked={formData.moods.includes(mood.id)}
+                          onChange={(e) => {
+                            const newMoods = e.target.checked
+                              ? [...formData.moods, mood.id]
+                              : formData.moods.filter(id => id !== mood.id)
+                            setFormData({ ...formData, moods: newMoods })
+                          }}
+                        />
+                        {mood.name}
+                      </label>
+                    ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="form-control mb-4">
             <label className="label">
-              <span className="label-text">Status</span>
+              <span className="label-text text-base-content">Status</span>
             </label>
             <select
               className="select select-bordered"
@@ -359,7 +486,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({ onGameAdded, isOnboarding =
 
           <div className="form-control mb-4">
             <label className="label">
-              <span className="label-text">Progress</span>
+              <span className="label-text text-base-content">Progress</span>
             </label>
             <input
               type="number"
@@ -373,7 +500,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({ onGameAdded, isOnboarding =
 
           <div className="form-control mb-4">
             <label className="label">
-              <span className="label-text">Image URL</span>
+              <span className="label-text text-base-content">Image URL</span>
             </label>
             <input
               type="text"

@@ -116,7 +116,7 @@ const HomePage = () => {
       <OnboardingFlow
         onComplete={() => {
           setShowOnboarding(false)
-          navigate('/library')
+          navigate('/app/library')
         }}
       />
     )
@@ -179,7 +179,7 @@ const HomePage = () => {
                 <div 
                   key={game.id}
                   className="card bg-base-100 shadow-xl hover:shadow-2xl transition-shadow cursor-pointer"
-                  onClick={() => navigate(`/game/${game.id}`)}
+                  onClick={() => navigate(`/app/game/${game.id}`)}
                 >
                   <figure>
                     <img

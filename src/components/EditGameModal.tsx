@@ -4,6 +4,14 @@ import { Game } from '../types'
 import { getGameDetails } from '../services/rawg'
 import { RAWGPlatform, RAWGGenre } from '../types/rawg'
 
+interface Mood {
+  id: string
+  name: string
+  category: 'primary' | 'secondary'
+  description: string
+  created_at: string
+}
+
 interface Game {
   id: string
   title: string
@@ -16,6 +24,7 @@ interface Game {
 
 interface EditGameModalProps {
   game: Game
+  userId: string
   onGameUpdated: () => void
   showModal: boolean
   setShowModal: (show: boolean) => void
@@ -23,6 +32,7 @@ interface EditGameModalProps {
 
 const EditGameModal: React.FC<EditGameModalProps> = ({
   game,
+  userId,
   onGameUpdated,
   showModal,
   setShowModal,
@@ -33,7 +43,10 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     title: game.title || '',
     genres: game.genres || [],
     image: game.image,
+    moods: game.moods || []
   })
+  const [availableMoods, setAvailableMoods] = useState<Mood[]>([])
+  const [selectedMoods, setSelectedMoods] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [statusOptions] = useState<string[]>([
@@ -48,6 +61,83 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     'Currently Playing',
     'Done',
   ])
+
+  // Load available moods from Supabase
+  useEffect(() => {
+    const loadMoods = async () => {
+      try {
+        console.log('Loading moods...')
+        // Get the current session
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+        
+        if (sessionError) {
+          console.error('Session error:', sessionError)
+          return
+        }
+
+        if (!session) {
+          console.warn('No active session')
+          return
+        }
+
+        console.log('Got session, fetching moods...', session)
+        const { data: moods, error: moodsError } = await supabase
+          .from('moods')
+          .select('*')
+          .throwOnError()
+
+        if (moodsError) {
+          console.error('Supabase moods error:', moodsError)
+          throw moodsError
+        }
+
+        console.log('Raw moods response:', moods)
+        
+        if (!moods) {
+          console.warn('No moods data received')
+          return
+        }
+
+        // Sort moods after receiving them
+        const sortedMoods = [...moods].sort((a, b) => {
+          // Sort by category (primary first)
+          if (a.category === 'primary' && b.category !== 'primary') return -1
+          if (a.category !== 'primary' && b.category === 'primary') return 1
+          // Then by name
+          return a.name.localeCompare(b.name)
+        })
+
+        console.log('Sorted moods:', sortedMoods)
+        setAvailableMoods(sortedMoods)
+      } catch (error) {
+        console.error('Error in loadMoods:', error)
+      }
+    }
+
+    loadMoods()
+  }, [])
+
+  // Load game's existing moods
+  useEffect(() => {
+    const loadGameMoods = async () => {
+      try {
+        const { data: gameMoods, error } = await supabase
+          .from('game_moods')
+          .select('mood_id')
+          .eq('game_id', game.id)
+
+        if (error) throw error
+        if (gameMoods) {
+          const moodIds = gameMoods.map(gm => gm.mood_id)
+          setSelectedMoods(moodIds)
+        }
+      } catch (error) {
+        console.error('Error loading game moods:', error)
+      }
+    }
+
+    if (game.id) loadGameMoods()
+  }, [game.id])
 
   useEffect(() => {
     const loadRawgData = async () => {
@@ -79,10 +169,16 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     setError(null)
 
     try {
-      const { data: userData } = await supabase.auth.getUser()
-      if (!userData.user) throw new Error('No user found')
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError) throw userError
+      if (!user) throw new Error('No user found')
+      
+      console.log('1. User authenticated:', user.id)
+      console.log('2. Game ID:', game.id)
+      console.log('3. Selected moods:', selectedMoods)
 
-      // Update user_games entry only
+      // Step 1: Update user_games
       const { error: updateError } = await supabase
         .from('user_games')
         .update({
@@ -90,9 +186,50 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           progress: formData.progress,
         })
         .eq('game_id', game.id)
-        .eq('user_id', userData.user.id)
+        .eq('user_id', user.id)
 
-      if (updateError) throw updateError
+      if (updateError) {
+        console.error('Failed to update user_games:', updateError)
+        throw updateError
+      }
+      console.log('4. Updated user_games successfully')
+
+      // Step 2: Delete existing moods
+      const { error: deleteError } = await supabase
+        .from('game_moods')
+        .delete()
+        .eq('game_id', game.id)
+        .throwOnError()
+
+      if (deleteError) {
+        console.error('Failed to delete existing moods:', deleteError)
+        throw deleteError
+      }
+      console.log('5. Deleted existing moods successfully')
+
+      // Step 3: Insert new moods if any are selected
+      if (selectedMoods.length > 0) {
+        const moodData = selectedMoods.map(moodId => ({
+          user_id: userId,
+          game_id: game.id,
+          mood_id: moodId,
+          weight: 1,
+          created_at: new Date().toISOString()
+        }))
+
+        const { error: insertError } = await supabase
+          .from('game_moods')
+          .insert(moodData)
+          .throwOnError()
+
+        if (insertError) {
+          console.error('Failed to insert new moods:', insertError)
+          throw insertError
+        }
+        console.log('6. Inserted new moods successfully')
+      } else {
+        console.log('6. No new moods to insert')
+      }
 
       onGameUpdated()
       setShowModal(false)
@@ -182,6 +319,87 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
               min="0"
               max="100"
             />
+          </div>
+
+          {/* Mood Selection */}
+          <div className="form-control mb-6">
+            <label className="label">
+              <span className="label-text font-semibold">Primary Moods</span>
+              <span className="label-text-alt">Choose 1-2 primary moods</span>
+            </label>
+            <div className="flex flex-wrap gap-2 mb-4">
+              {availableMoods
+                .filter(mood => mood.category === 'primary')
+                .map(mood => (
+                  <div
+                    key={mood.id}
+                    className="tooltip"
+                    data-tip={mood.description}
+                  >
+                    <label className="cursor-pointer flex items-center">
+                      <input
+                        type="checkbox"
+                        className="checkbox checkbox-primary checkbox-sm mr-2"
+                        checked={selectedMoods.includes(mood.id)}
+                        onChange={(e) => {
+                          const primarySelected = selectedMoods.filter(id => 
+                            availableMoods.find(m => m.id === id)?.category === 'primary'
+                          )
+                          if (e.target.checked && primarySelected.length >= 2) {
+                            // Already have 2 primary moods
+                            return
+                          }
+                          setSelectedMoods(prev =>
+                            e.target.checked
+                              ? [...prev, mood.id]
+                              : prev.filter(id => id !== mood.id)
+                          )
+                        }}
+                      />
+                      <span className="text-sm">{mood.name}</span>
+                    </label>
+                  </div>
+                ))}
+            </div>
+
+            <label className="label mt-4">
+              <span className="label-text font-semibold">Secondary Moods</span>
+              <span className="label-text-alt">Choose up to 3 secondary moods</span>
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {availableMoods
+                .filter(mood => mood.category === 'secondary')
+                .map(mood => (
+                  <div
+                    key={mood.id}
+                    className="tooltip"
+                    data-tip={mood.description}
+                  >
+                    <label className="cursor-pointer flex items-center">
+                      <input
+                        type="checkbox"
+                        className="checkbox checkbox-secondary checkbox-sm mr-2"
+                        checked={selectedMoods.includes(mood.id)}
+                        onChange={(e) => {
+                          const secondarySelected = selectedMoods.filter(id => 
+                            availableMoods.find(m => m.id === id)?.category === 'secondary'
+                          )
+                          if (e.target.checked && secondarySelected.length >= 3) {
+                            // Already have 3 secondary moods
+                            return
+                          }
+                          setSelectedMoods(prev =>
+                            e.target.checked
+                              ? [...prev, mood.id]
+                              : prev.filter(id => id !== mood.id)
+                          )
+                        }}
+                      />
+                      <span className="text-sm">{mood.name}</span>
+                    </label>
+                  </div>
+                ))}
+            </div>
           </div>
 
           <div className="modal-action">
