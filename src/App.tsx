@@ -12,6 +12,7 @@ import SideBar from './components/SideBar'
 import AddGameModal from './components/AddGameModal'
 import LandingPage from './pages/LandingPage'
 import FeedbackPage from './pages/FeedbackPage'
+import AuthCallback from './pages/AuthCallback'
 
 const ResetPassword = () => {
   const [newPassword, setNewPassword] = useState('')
@@ -68,19 +69,87 @@ const ResetPassword = () => {
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const navigate = useNavigate()
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setLoading(false)
+    let mounted = true
+
+    const checkAccess = async () => {
+      try {
+        // Get the current session
+        const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession()
+        
+        if (sessionError) throw sessionError
+        
+        if (!currentSession?.user?.email) {
+          // console.log('No valid session found')
+          if (mounted) {
+            setSession(null)
+            setLoading(false)
+          }
+          return
+        }
+
+        // Check if the email is in the allowlist
+        const { data: allowedUser, error: allowlistError } = await supabase
+          .from('allowed_emails')
+          .select('email')
+          .eq('email', currentSession.user.email)
+
+        if (allowlistError) {
+          console.error('Error checking allowlist:', allowlistError)
+          throw allowlistError
+        }
+
+        if (!allowedUser || allowedUser.length === 0) {
+          // console.log('Email not in allowlist:', currentSession.user.email)
+          await supabase.auth.signOut()
+          if (mounted) {
+            setSession(null)
+            setLoading(false)
+          }
+          navigate('/login', {
+            state: { error: 'You are not authorized to access this application. Please contact the administrator.' }
+          })
+          return
+        }
+
+        // User is allowed, update the session
+        if (mounted) {
+          // console.log('Access granted for:', currentSession.user.email)
+          setSession(currentSession)
+          setLoading(false)
+        }
+      } catch (error) {
+        console.error('Protected route error:', error)
+        if (mounted) {
+          setSession(null)
+          setLoading(false)
+        }
+        navigate('/login')
+      }
+    }
+
+    // Initial check
+    checkAccess()
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+      // console.log('Auth state changed:', event, newSession?.user?.email)
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        checkAccess()
+      } else if (event === 'SIGNED_OUT') {
+        if (mounted) {
+          setSession(null)
+          setLoading(false)
+        }
+      }
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-      setLoading(false)
-    })
-
-    return () => subscription.unsubscribe()
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
   }, [])
 
   if (loading) {
@@ -141,6 +210,7 @@ const App: React.FC = () => {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Auth onAuth={setSession} />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/auth-callback" element={<AuthCallback />} />
         
         {/* Protected Routes */}
         <Route path="/app" element={
