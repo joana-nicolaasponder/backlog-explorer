@@ -102,7 +102,7 @@ const GameTimer: React.FC<GameTimerProps> = ({ gameId }) => {
       setShowNotes(false)
       
       // Navigate to game details page
-      navigate(`/game/${game.id}`)
+      navigate(`/app/game/${game.id}`)
     } catch (error) {
       console.error('Error saving play session:', error)
     } finally {
