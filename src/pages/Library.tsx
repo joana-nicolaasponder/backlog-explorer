@@ -23,11 +23,6 @@ const Library = () => {
     const getCurrentUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        console.log(`Current user in Library at ${new Date().toLocaleString()}:`, {
-          id: user.id,
-          email: user.email,
-          lastSignIn: user.last_sign_in_at
-        })
         setUserId(user.id)
       }
     }
@@ -37,11 +32,11 @@ const Library = () => {
   useEffect(() => {
     const fetchOptions = async () => {
       if (!userId) {
-        console.log('No userId available yet')
+        // console.log('No userId available yet')
         return
       }
 
-      console.log('Fetching options for userId:', userId)
+      // console.log('Fetching options for userId:', userId)
 
       try {
         // Set predefined status options

@@ -126,13 +126,13 @@ const GameJournal: React.FC<GameJournalProps> = ({
       document.body.removeChild(progress)
 
       // Log compression results
-      console.log('Compression results:', {
-        originalSize: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
-        compressedSize: `${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`,
-        ratio: `${((1 - compressedFile.size / file.size) * 100).toFixed(
-          1
-        )}% reduction`,
-      })
+      // console.log('Compression results:', {
+      //   originalSize: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
+      //   compressedSize: `${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`,
+      //   ratio: `${((1 - compressedFile.size / file.size) * 100).toFixed(
+      //     1
+      //   )}% reduction`,
+      // })
 
       return compressedFile
     } catch (error) {

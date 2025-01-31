@@ -66,7 +66,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
   useEffect(() => {
     const loadMoods = async () => {
       try {
-        console.log('Loading moods...')
+        // console.log('Loading moods...')
         // Get the current session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession()
         
@@ -80,7 +80,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           return
         }
 
-        console.log('Got session, fetching moods...', session)
+        // console.log('Got session, fetching moods...', session)
         const { data: moods, error: moodsError } = await supabase
           .from('moods')
           .select('*')
@@ -91,7 +91,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           throw moodsError
         }
 
-        console.log('Raw moods response:', moods)
+        // console.log('Raw moods response:', moods)
         
         if (!moods) {
           console.warn('No moods data received')
@@ -107,7 +107,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           return a.name.localeCompare(b.name)
         })
 
-        console.log('Sorted moods:', sortedMoods)
+        // console.log('Sorted moods:', sortedMoods)
         setAvailableMoods(sortedMoods)
       } catch (error) {
         console.error('Error in loadMoods:', error)
@@ -143,10 +143,10 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     const loadRawgData = async () => {
       if (game.rawg_id) {
         try {
-          console.log('Loading RAWG data for game:', game.rawg_id)
+          // console.log('Loading RAWG data for game:', game.rawg_id)
           const gameDetails = await getGameDetails(Number(game.rawg_id))
           if (gameDetails) {
-            console.log('RAWG data loaded:', gameDetails)
+            // console.log('RAWG data loaded:', gameDetails)
             // Update form data with RAWG data while preserving user's status and progress
             setFormData((prev) => ({
               ...prev,
@@ -174,9 +174,9 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
       if (userError) throw userError
       if (!user) throw new Error('No user found')
       
-      console.log('1. User authenticated:', user.id)
-      console.log('2. Game ID:', game.id)
-      console.log('3. Selected moods:', selectedMoods)
+      // console.log('1. User authenticated:', user.id)
+      // console.log('2. Game ID:', game.id)
+      // console.log('3. Selected moods:', selectedMoods)
 
       // Step 1: Update user_games
       const { error: updateError } = await supabase
@@ -193,7 +193,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
         console.error('Failed to update user_games:', updateError)
         throw updateError
       }
-      console.log('4. Updated user_games successfully')
+      // console.log('4. Updated user_games successfully')
 
       // Step 2: Delete existing moods
       const { error: deleteError } = await supabase
@@ -206,7 +206,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
         console.error('Failed to delete existing moods:', deleteError)
         throw deleteError
       }
-      console.log('5. Deleted existing moods successfully')
+      // console.log('5. Deleted existing moods successfully')
 
       // Step 3: Insert new moods if any are selected
       if (selectedMoods.length > 0) {
@@ -227,9 +227,9 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           console.error('Failed to insert new moods:', insertError)
           throw insertError
         }
-        console.log('6. Inserted new moods successfully')
+        // console.log('6. Inserted new moods successfully')
       } else {
-        console.log('6. No new moods to insert')
+        // console.log('6. No new moods to insert')
       }
 
       onGameUpdated()

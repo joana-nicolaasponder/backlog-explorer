@@ -27,7 +27,6 @@ const GameTimer: React.FC<GameTimerProps> = ({ gameId }) => {
         .single()
 
       if (error) {
-        console.error('Error fetching game:', error)
         return
       }
 
