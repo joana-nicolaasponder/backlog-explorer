@@ -184,6 +184,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
         .update({
           status: formData.status,
           progress: formData.progress,
+          updated_at: new Date().toISOString()
         })
         .eq('game_id', game.id)
         .eq('user_id', user.id)
