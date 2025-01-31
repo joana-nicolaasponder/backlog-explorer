@@ -304,7 +304,11 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                     { value: 'Done', icon: '✅', desc: 'Completed main story' },
                     { value: 'DNF', icon: '⏹️', desc: 'Did not finish' },
                     { value: 'Endless', icon: '♾️', desc: 'No definite end' },
-                    { value: 'Satisfied', icon: '🌟', desc: 'Happy with progress' }
+                    { value: 'Satisfied', icon: '🌟', desc: 'Happy with progress' },
+                    { value: 'Try Again', icon: '🔄', desc: 'Give it another shot' },
+                    { value: 'Started', icon: '🎯', desc: 'Just began' },
+                    { value: 'Owned', icon: '💫', desc: 'In collection' },
+                    { value: 'Come back!', icon: '⏰', desc: 'Return later' }
                   ].map((status) => (
                     <label
                       key={status.value}
