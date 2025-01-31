@@ -31,17 +31,62 @@ export interface Game {
   updated_at: string;
 }
 
+export type SessionAccomplishment =
+  | 'Story Progress'
+  | 'Side Quest'
+  | 'Exploration'
+  | 'Challenge Completed'
+  | 'Just Messing Around'
+  | 'Grinding'
+  | 'Boss Fight'
+  | 'Achievement Hunting'
+  | 'Learning Game Mechanics';
+
+export type SessionMood =
+  | 'Amazing'
+  | 'Great'
+  | 'Good'
+  | 'Relaxing'
+  | 'Mixed'
+  | 'Frustrating'
+  | 'Meh'
+  | 'Regret';
+  | 'Impressed'
+  | 'Disappointed';
+
+export type SessionIntent =
+  | 'Continue Story'
+  | 'Try Different Build'
+  | 'Explore New Area'
+  | 'Beat That Boss'
+  | 'Grind Items/Levels'
+  | 'Try Different Character'
+  | 'Complete Side Content';
+
 export interface GameNote {
+  // Required fields
   id: string;
   game_id: string;
   user_id: string;
   content: string;
-  mood: 'Excited' | 'Satisfied' | 'Frustrated' | 'Confused' | 'Nostalgic' | 'Impressed' | 'Disappointed' | null;
-  rating: number | null;
+  created_at: string;
+
+  // Session Context
   play_session_date: string | null;
-  hours_played: number | null;
+  duration: number | null; // in minutes
+  accomplishments: string[];
+  
+  // Reflection & Future Intent
+  mood: SessionMood | null;
+  next_session_plan: {
+    intent: string | null;
+    note: string | null;
+  };
+  
+  // Media
+  screenshots: string[];
+  
+  // Metadata
   is_completion_entry: boolean;
   completion_date: string | null;
-  created_at: string;
-  duration?: number;
 }

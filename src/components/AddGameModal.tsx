@@ -68,6 +68,8 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
   ])
   const [isLoading, setIsLoading] = useState(false)
   const [isSearching, setIsSearching] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [existingGameMessage, setExistingGameMessage] = useState<string | null>(null)
 
   useEffect(() => {
     fetchOptions()
@@ -116,42 +118,50 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
     setSelectedGame(game)
 
     // Check if user already has this game
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('No user found')
+
+    // First check if the game exists
+    const { data: existingGame } = await supabase
+      .from('games')
+      .select('id')
+      .eq('rawg_id', game.id)
+      .single()
+
+    // Then check if user has this game
     const { data: existingUserGame } = await supabase
       .from('user_games')
-      .select(
-        `
+      .select(`
         id,
         status,
         progress,
-        game:games (
-          id,
-          title,
-          rawg_id,
-          background_image,
-          platforms (id, name),
-          genres (id, name)
-        )
-      `
-      )
-      .eq('game:games.rawg_id', game.id)
+        game_id
+      `)
+      .eq('game_id', existingGame?.id)
+      .eq('user_id', user.id)
       .single()
 
     if (existingUserGame) {
-      // If user already has this game, populate form with existing data
+      // If user already has this game, show a message
+      setExistingGameMessage(
+        `You already have ${game.name} in your library with status: ${existingUserGame.status}`
+      )
+      // Clear the form and selected game
+      setSelectedGame(null)
       setFormData({
-        title: game.name,
-        platforms: existingUserGame.game.platforms?.map((p) => p.name) || [],
-        genres: game.genres.map((g) => g.name),
-        status: existingUserGame.status,
-        progress: existingUserGame.progress,
+        title: '',
+        platforms: [],
+        genres: [],
+        status: '',
+        progress: 0,
         moods: [],
-        image: game.background_image || '',
-        rawg_id: game.id,
-        rawg_slug: game.slug,
-        metacritic_rating: game.metacritic || undefined,
-        release_date: game.released || undefined,
-        background_image: game.background_image || undefined,
-        description: game.description || undefined,
+        image: '',
+        rawg_id: undefined,
+        rawg_slug: undefined,
+        metacritic_rating: undefined,
+        release_date: undefined,
+        background_image: undefined,
+        description: undefined,
       })
     } else {
       // Get available platforms from RAWG
@@ -181,6 +191,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
   }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    setExistingGameMessage(null) // Clear any existing message
     e.preventDefault()
     setIsLoading(true)
 
@@ -224,36 +235,41 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
         if (!newGame) throw new Error('Failed to create game')
         gameId = newGame.id
 
-        // Set up platform and genre relationships for the new game
-        if (formData.platforms.length > 0) {
-          const { data: platformIds } = await supabase
-            .from('platforms')
-            .select('id')
-            .in('name', formData.platforms)
+        // Set up platform mappings from RAWG
+        if (selectedGame && selectedGame.platforms) {
+          for (const platform of selectedGame.platforms) {
+            const { data: existingMapping } = await supabase
+              .from('rawg_platform_mappings')
+              .select('platform_id')
+              .eq('rawg_id', platform.platform.id)
+              .single()
 
-          if (platformIds && platformIds.length > 0) {
-            await supabase.from('game_platforms').insert(
-              platformIds.map((platform) => ({
+            if (existingMapping) {
+              await supabase.from('game_platforms').insert({
                 game_id: gameId,
-                platform_id: platform.id,
-              }))
-            )
+                platform_id: existingMapping.platform_id,
+                created_at: new Date().toISOString()
+              })
+            }
           }
         }
 
-        if (formData.genres.length > 0) {
-          const { data: genreIds } = await supabase
-            .from('genres')
-            .select('id')
-            .in('name', formData.genres)
+        // Set up genre mappings from RAWG
+        if (selectedGame && selectedGame.genres) {
+          for (const genre of selectedGame.genres) {
+            const { data: existingMapping } = await supabase
+              .from('rawg_genre_mappings')
+              .select('genre_id')
+              .eq('rawg_id', genre.id)
+              .single()
 
-          if (genreIds && genreIds.length > 0) {
-            await supabase.from('game_genres').insert(
-              genreIds.map((genre) => ({
+            if (existingMapping) {
+              await supabase.from('game_genres').insert({
                 game_id: gameId,
-                genre_id: genre.id,
-              }))
-            )
+                genre_id: existingMapping.genre_id,
+                created_at: new Date().toISOString()
+              })
+            }
           }
         }
       }
@@ -333,13 +349,25 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
       <div className="modal-box max-w-3xl relative bg-base-100">
         <button
           className="btn btn-sm btn-circle absolute right-2 top-2"
-          onClick={() => setShowModal(false)}
+          onClick={() => {
+            setShowModal(false)
+            setExistingGameMessage(null)
+          }}
         >
           ✕
         </button>
         <h3 className="font-bold text-xl mb-6 text-base-content">
           Add New Game
         </h3>
+
+        {existingGameMessage && (
+          <div className="alert bg-base-200 text-base-content border-2 border-base-300 mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-base-content shrink-0 w-6 h-6">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span>{existingGameMessage}</span>
+          </div>
+        )}
 
         {isSearching ? (
           <div className="mb-8">
@@ -348,7 +376,10 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
         ) : (
           <button
             type="button"
-            onClick={() => setIsSearching(true)}
+            onClick={() => {
+              setIsSearching(true)
+              setExistingGameMessage(null)
+            }}
             className="btn btn-ghost btn-sm mb-8 gap-2"
           >
             <span className="text-lg">⬅️</span>
