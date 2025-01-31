@@ -598,7 +598,7 @@ const GameDetails = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               <div className="space-y-4">
                 <div className="flex flex-wrap gap-4">
-                  {rawgDetails.metacritic && (
+                  {/* {rawgDetails.metacritic && (
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">Metacritic:</span>
                       <span
@@ -613,7 +613,7 @@ const GameDetails = () => {
                         {rawgDetails.metacritic}
                       </span>
                     </div>
-                  )}
+                  )} */}
                   {/* {rawgDetails.playtime > 0 && (
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">Average Playtime:</span>
