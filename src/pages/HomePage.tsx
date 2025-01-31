@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import supabase from '../supabaseClient'
-import GameTimer from '../components/GameTimer'
 import OnboardingFlow from '../components/OnboardingFlow'
 
 interface Game {
@@ -24,7 +23,6 @@ interface Game {
 const HomePage = () => {
   const navigate = useNavigate()
   const [currentGames, setCurrentGames] = useState<Game[]>([])
-  const [selectedGame, setSelectedGame] = useState<Game | null>(null)
   const [loading, setLoading] = useState(true)
   const [showOnboarding, setShowOnboarding] = useState(false)
 
@@ -89,10 +87,6 @@ const HomePage = () => {
         })) || []
 
         setCurrentGames(formattedGames)
-        // Only set selected game if none is selected yet
-        if (!selectedGame && formattedGames.length > 0) {
-          setSelectedGame(formattedGames[0])
-        }
       } catch (error) {
         console.error('Error fetching current games:', error)
       } finally {
@@ -141,37 +135,6 @@ const HomePage = () => {
         ) : (
           <>
             <div className="mb-8">
-              <div className="card bg-base-100 shadow-xl">
-                <div className="card-body">
-                  <div className="flex flex-col md:flex-row gap-4 items-center mb-4">
-                    <div className="form-control flex-1 w-full">
-                      <label className="label">
-                        <span className="label-text">Select a game to track</span>
-                      </label>
-                      <select
-                        className="select select-bordered w-full"
-                        value={selectedGame?.id || ''}
-                        onChange={(e) => {
-                          const game = currentGames.find(g => g.id === e.target.value)
-                          setSelectedGame(game || null)
-                        }}
-                      >
-                        {currentGames.map((game) => (
-                          <option key={game.id} value={game.id}>
-                            {game.title}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {selectedGame && (
-                    <GameTimer 
-                      gameId={selectedGame.id}
-                    />
-                  )}
-                </div>
-              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
