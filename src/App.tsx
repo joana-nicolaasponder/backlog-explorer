@@ -12,7 +12,6 @@ import SideBar from './components/SideBar'
 import AddGameModal from './components/AddGameModal'
 import LandingPage from './pages/LandingPage'
 import FeedbackPage from './pages/FeedbackPage'
-import AuthCallback from './pages/AuthCallback'
 
 const ResetPassword = () => {
   const [newPassword, setNewPassword] = useState('')
@@ -210,7 +209,6 @@ const App: React.FC = () => {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Auth onAuth={setSession} />} />
         <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/auth-callback" element={<AuthCallback />} />
         
         {/* Protected Routes */}
         <Route path="/app" element={
