@@ -604,19 +604,15 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
                 <div className="join join-vertical w-full">
                   {[
                     { value: 'Wishlist', icon: '🎮', desc: 'Want to play' },
-                    {
-                      value: 'Currently Playing',
-                      icon: '▶️',
-                      desc: 'In progress',
-                    },
+                    { value: 'Currently Playing', icon: '▶️', desc: 'In progress' },
                     { value: 'Done', icon: '✅', desc: 'Completed main story' },
                     { value: 'DNF', icon: '⏹️', desc: 'Did not finish' },
                     { value: 'Endless', icon: '♾️', desc: 'No definite end' },
-                    {
-                      value: 'Satisfied',
-                      icon: '🌟',
-                      desc: 'Happy with progress',
-                    },
+                    { value: 'Satisfied', icon: '🌟', desc: 'Happy with progress' },
+                    { value: 'Try Again', icon: '🔄', desc: 'Give it another shot' },
+                    { value: 'Started', icon: '🎯', desc: 'Just began' },
+                    { value: 'Owned', icon: '💫', desc: 'In collection' },
+                    { value: 'Come back!', icon: '⏰', desc: 'Return later' },
                   ].map((status) => (
                     <label
                       key={status.value}
