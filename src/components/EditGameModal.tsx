@@ -245,14 +245,14 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
 
   return (
     <div className={`modal ${showModal ? 'modal-open' : ''}`}>
-      <div className="modal-box max-w-2xl relative">
+      <div className="modal-box max-w-3xl relative bg-base-100">
         <button
           className="btn btn-sm btn-circle absolute right-2 top-2"
           onClick={() => setShowModal(false)}
         >
           ✕
         </button>
-        <h3 className="font-bold text-lg mb-4">Edit Game Progress</h3>
+        <h3 className="font-bold text-xl mb-6 text-base-content">Edit Game Progress</h3>
 
         {error && (
           <div className="alert alert-error mb-4">
@@ -260,166 +260,254 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
-          {/* Read-only game info */}
-          <div className="mb-6">
-            <div className="flex items-center gap-4">
-              <img 
-                src={formData.image || '/default-image.jpg'} 
-                alt={formData.title} 
-                className="w-24 h-24 object-cover rounded"
-              />
-              <div>
-                <h4 className="text-lg font-semibold">{formData.title}</h4>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {formData.genres.map((genre) => (
-                    <span
-                      key={genre}
-                      className="px-2 py-1 text-sm bg-zinc-700 text-white rounded"
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Game Details Section */}
+          <div className="card bg-base-200 shadow-sm p-6 space-y-4">
+            <h2 className="card-title text-base-content text-lg">Game Details</h2>
+
+            {formData.image && (
+              <div className="relative aspect-video w-full rounded-lg overflow-hidden bg-base-300">
+                <img
+                  src={formData.image}
+                  alt={formData.title}
+                  className="object-cover w-full h-full"
+                />
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <h4 className="text-lg font-medium text-base-content">{formData.title}</h4>
+              <div className="flex flex-wrap gap-2">
+                {formData.genres.map((genre) => (
+                  <span
+                    key={genre}
+                    className="badge badge-secondary badge-lg font-medium"
+                  >
+                    {genre}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Game Progress Section */}
+          <div className="card bg-base-200 shadow-sm p-6 space-y-6">
+            <h2 className="card-title text-base-content text-lg">Game Progress</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <label className="text-sm font-medium text-base-content">Status</label>
+                <div className="join join-vertical w-full">
+                  {[
+                    { value: 'Wishlist', icon: '🎮', desc: 'Want to play' },
+                    { value: 'Currently Playing', icon: '▶️', desc: 'In progress' },
+                    { value: 'Done', icon: '✅', desc: 'Completed main story' },
+                    { value: 'DNF', icon: '⏹️', desc: 'Did not finish' },
+                    { value: 'Endless', icon: '♾️', desc: 'No definite end' },
+                    { value: 'Satisfied', icon: '🌟', desc: 'Happy with progress' }
+                  ].map((status) => (
+                    <label
+                      key={status.value}
+                      className={`
+                        btn btn-sm justify-start gap-2 normal-case
+                        ${formData.status === status.value ? 'btn-primary' : 'btn-ghost'}
+                      `}
                     >
-                      {genre}
-                    </span>
+                      <input
+                        type="radio"
+                        name="status"
+                        className="hidden"
+                        checked={formData.status === status.value}
+                        onChange={() => setFormData({ ...formData, status: status.value })}
+                      />
+                      <span className="text-lg">{status.icon}</span>
+                      <span>{status.value}</span>
+                      <span className="text-xs opacity-70">{status.desc}</span>
+                    </label>
                   ))}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <label className="text-sm font-medium text-base-content">Completion</label>
+                  <span className="badge badge-primary">{formData.progress}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={formData.progress}
+                  className="range range-primary"
+                  step="5"
+                  onChange={(e) => setFormData({ ...formData, progress: parseInt(e.target.value) })}
+                />
+                <div className="w-full flex justify-between text-xs text-base-content/60">
+                  <span>Just Started</span>
+                  <span>Halfway</span>
+                  <span>Almost Done</span>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Editable user data */}
-          <div className="form-control mb-4">
-            <label className="label">
-              <span className="label-text">Status</span>
-            </label>
-            <select
-              className="select select-bordered w-full"
-              value={formData.status}
-              onChange={(e) =>
-                setFormData({ ...formData, status: e.target.value })
-              }
-            >
-              {statusOptions.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="form-control mb-6">
-            <label className="label">
-              <span className="label-text">Progress (%)</span>
-            </label>
-            <input
-              type="number"
-              className="input input-bordered w-full"
-              value={formData.progress}
-              onChange={(e) =>
-                setFormData({ ...formData, progress: Number(e.target.value) })
-              }
-              min="0"
-              max="100"
-            />
-          </div>
-
           {/* Mood Selection */}
-          <div className="form-control mb-6">
-            <label className="label">
-              <span className="label-text font-semibold">Primary Moods</span>
-              <span className="label-text-alt">Choose 1-2 primary moods</span>
-            </label>
-            <div className="flex flex-wrap gap-2 mb-4">
-              {availableMoods
-                .filter(mood => mood.category === 'primary')
-                .map(mood => (
-                  <div
-                    key={mood.id}
-                    className="tooltip"
-                    data-tip={mood.description}
-                  >
-                    <label className="cursor-pointer flex items-center">
-                      <input
-                        type="checkbox"
-                        className="checkbox checkbox-primary checkbox-sm mr-2"
-                        checked={selectedMoods.includes(mood.id)}
-                        onChange={(e) => {
-                          const primarySelected = selectedMoods.filter(id => 
-                            availableMoods.find(m => m.id === id)?.category === 'primary'
-                          )
-                          if (e.target.checked && primarySelected.length >= 2) {
-                            // Already have 2 primary moods
-                            return
-                          }
-                          setSelectedMoods(prev =>
-                            e.target.checked
-                              ? [...prev, mood.id]
-                              : prev.filter(id => id !== mood.id)
-                          )
-                        }}
-                      />
-                      <span className="text-sm">{mood.name}</span>
-                    </label>
-                  </div>
-                ))}
-            </div>
+          <div className="card bg-base-200 shadow-sm p-6 space-y-6">
+            <h2 className="card-title text-base-content text-lg">Game Moods</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Primary Moods */}
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-sm font-medium text-base-content/70">Primary Moods</h3>
+                  <span className="text-xs text-base-content/60">
+                    {selectedMoods.filter(id => 
+                      availableMoods.find(m => m.id === id)?.category === 'primary'
+                    ).length} / 2 max
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {availableMoods
+                    .filter(mood => mood.category === 'primary')
+                    .map((mood) => {
+                      const isSelected = selectedMoods.includes(mood.id)
+                      const primaryCount = selectedMoods.filter(id => 
+                        availableMoods.find(m => m.id === id)?.category === 'primary'
+                      ).length
+                      const disabled = !isSelected && primaryCount >= 2
 
-            <label className="label mt-4">
-              <span className="label-text font-semibold">Secondary Moods</span>
-              <span className="label-text-alt">Choose up to 3 secondary moods</span>
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {availableMoods
-                .filter(mood => mood.category === 'secondary')
-                .map(mood => (
-                  <div
-                    key={mood.id}
-                    className="tooltip"
-                    data-tip={mood.description}
-                  >
-                    <label className="cursor-pointer flex items-center">
-                      <input
-                        type="checkbox"
-                        className="checkbox checkbox-secondary checkbox-sm mr-2"
-                        checked={selectedMoods.includes(mood.id)}
-                        onChange={(e) => {
-                          const secondarySelected = selectedMoods.filter(id => 
-                            availableMoods.find(m => m.id === id)?.category === 'secondary'
-                          )
-                          if (e.target.checked && secondarySelected.length >= 3) {
-                            // Already have 3 secondary moods
-                            return
-                          }
-                          setSelectedMoods(prev =>
-                            e.target.checked
-                              ? [...prev, mood.id]
-                              : prev.filter(id => id !== mood.id)
-                          )
-                        }}
-                      />
-                      <span className="text-sm">{mood.name}</span>
-                    </label>
-                  </div>
-                ))}
+                      return (
+                        <label
+                          key={mood.id}
+                          className={`
+                            tooltip
+                            before:!bg-base-300 before:!text-base-content
+                            before:!shadow-lg before:!rounded-lg
+                          `}
+                          data-tip={mood.description}
+                        >
+                          <span
+                            className={`
+                              btn btn-sm normal-case px-4
+                              ${isSelected 
+                                ? 'bg-primary text-primary-content hover:bg-primary-focus border-primary'
+                                : disabled
+                                  ? 'btn-disabled opacity-50'
+                                  : 'btn-ghost hover:bg-base-200 border border-base-300'}
+                              transition-all duration-200
+                            `}
+                          >
+                            <input
+                              type="checkbox"
+                              className="hidden"
+                              checked={isSelected}
+                              disabled={disabled}
+                              onChange={(e) => {
+                                setSelectedMoods(prev =>
+                                  e.target.checked
+                                    ? [...prev, mood.id]
+                                    : prev.filter(id => id !== mood.id)
+                                )
+                              }}
+                            />
+                            {mood.name}
+                          </span>
+                        </label>
+                      )
+                    })}
+                </div>
+              </div>
+
+              {/* Secondary Moods */}
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-sm font-medium text-base-content/70">Secondary Moods</h3>
+                  <span className="text-xs text-base-content/60">
+                    {selectedMoods.filter(id => 
+                      availableMoods.find(m => m.id === id)?.category === 'secondary'
+                    ).length} / 3 max
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {availableMoods
+                    .filter(mood => mood.category === 'secondary')
+                    .map((mood) => {
+                      const isSelected = selectedMoods.includes(mood.id)
+                      const secondaryCount = selectedMoods.filter(id => 
+                        availableMoods.find(m => m.id === id)?.category === 'secondary'
+                      ).length
+                      const disabled = !isSelected && secondaryCount >= 3
+
+                      return (
+                        <label
+                          key={mood.id}
+                          className={`
+                            tooltip
+                            before:!bg-base-300 before:!text-base-content
+                            before:!shadow-lg before:!rounded-lg
+                          `}
+                          data-tip={mood.description}
+                        >
+                          <span
+                            className={`
+                              btn btn-sm normal-case px-4
+                              ${isSelected
+                                ? 'bg-secondary text-secondary-content hover:bg-secondary-focus border-secondary'
+                                : disabled
+                                  ? 'btn-disabled opacity-50'
+                                  : 'btn-ghost hover:bg-base-200 border border-base-300'}
+                              transition-all duration-200
+                            `}
+                          >
+                            <input
+                              type="checkbox"
+                              className="hidden"
+                              checked={isSelected}
+                              disabled={disabled}
+                              onChange={(e) => {
+                                setSelectedMoods(prev =>
+                                  e.target.checked
+                                    ? [...prev, mood.id]
+                                    : prev.filter(id => id !== mood.id)
+                                )
+                              }}
+                            />
+                            {mood.name}
+                          </span>
+                        </label>
+                      )
+                    })}
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="modal-action">
+          <div className="modal-action gap-2">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setShowModal(false)}
+            >
+              Cancel
+            </button>
             <button
               type="submit"
               className="btn btn-primary"
               disabled={isLoading}
             >
-              {isLoading ? 'Saving...' : 'Save Changes'}
-            </button>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => setShowModal(false)}
-            >
-              Cancel
+              {isLoading ? (
+                <>
+                  <span className="loading loading-spinner loading-sm"></span>
+                  Saving...
+                </>
+              ) : (
+                'Save Changes'
+              )}
             </button>
           </div>
         </form>
       </div>
+      <div className="modal-backdrop" onClick={() => setShowModal(false)}></div>
     </div>
   )
 }

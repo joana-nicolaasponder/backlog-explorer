@@ -377,8 +377,8 @@ const GameDetails = () => {
           </button>
         </div>
         <div className="flex flex-wrap gap-2 sm:gap-4 text-sm">
-          <span className="badge badge-primary">{game.rawg_id}</span>
-          <span className="badge badge-secondary">{game.metacritic_rating}</span>
+          {/* <span className="badge badge-primary">{game.rawg_id}</span>
+          <span className="badge badge-secondary">{game.metacritic_rating}</span> */}
           <span className="badge badge-accent">{game.status}</span>
         </div>
       </div>
