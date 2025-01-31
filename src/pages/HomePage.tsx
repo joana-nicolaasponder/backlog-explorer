@@ -25,15 +25,22 @@ const HomePage = () => {
   const [currentGames, setCurrentGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(true)
   const [showOnboarding, setShowOnboarding] = useState(false)
+  const [userName, setUserName] = useState<string>('')
 
   useEffect(() => {
     const fetchCurrentGames = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser()
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
         if (!user) {
           navigate('/login')
           return
         }
+
+        // Get user's name from metadata
+        const firstName = user.user_metadata?.full_name?.split(' ')[0] || ''
+        setUserName(firstName)
 
         // First check if user has any games at all
         const { count: totalGames } = await supabase
@@ -47,7 +54,8 @@ const HomePage = () => {
         // Then get currently playing games for display
         const { data: games, error } = await supabase
           .from('user_games')
-          .select(`
+          .select(
+            `
             id,
             status,
             progress,
@@ -66,25 +74,27 @@ const HomePage = () => {
                 )
               )
             )
-          `)
+          `
+          )
           .eq('user_id', user.id)
           .eq('status', 'Currently Playing')
 
         if (error) throw error
 
         // Transform the data to match the expected format
-        const formattedGames = games?.map(userGame => ({
-          id: userGame.game.id,
-          title: userGame.game.title,
-          image: userGame.game.background_image,
-          progress: userGame.progress,
-          game_platforms: userGame.game.game_platforms.map(gp => ({
-            platforms: { name: gp.platforms.name }
-          })),
-          game_genres: userGame.game.game_genres.map(gg => ({
-            genres: { name: gg.genres.name }
-          }))
-        })) || []
+        const formattedGames =
+          games?.map((userGame) => ({
+            id: userGame.game.id,
+            title: userGame.game.title,
+            image: userGame.game.background_image,
+            progress: userGame.progress,
+            game_platforms: userGame.game.game_platforms.map((gp) => ({
+              platforms: { name: gp.platforms.name },
+            })),
+            game_genres: userGame.game.game_genres.map((gg) => ({
+              genres: { name: gg.genres.name },
+            })),
+          })) || []
 
         setCurrentGames(formattedGames)
       } catch (error) {
@@ -118,14 +128,18 @@ const HomePage = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-4xl font-bold mb-8">Welcome Back!</h1>
-      
+      <h1 className="text-4xl font-bold mb-8">
+        {userName ? `Welcome back, ${userName}! 👋🏼` : 'Welcome Back! 👋🏼'}
+      </h1>
+
       <div className="mb-12">
         <h2 className="text-2xl font-semibold mb-4">Currently Playing</h2>
         {currentGames.length === 0 ? (
           <div className="text-center py-8 bg-base-200 rounded-lg">
-            <p className="text-lg mb-4">You're not playing any games right now.</p>
-            <button 
+            <p className="text-lg mb-4">
+              You're not playing any games right now.
+            </p>
+            <button
               className="btn btn-primary"
               onClick={() => navigate('/library')}
             >
@@ -134,12 +148,11 @@ const HomePage = () => {
           </div>
         ) : (
           <>
-            <div className="mb-8">
-            </div>
+            <div className="mb-8"></div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {currentGames.map((game) => (
-                <div 
+                <div
                   key={game.id}
                   className="card bg-base-100 shadow-xl hover:shadow-2xl transition-shadow cursor-pointer"
                   onClick={() => navigate(`/app/game/${game.id}`)}
@@ -168,8 +181,8 @@ const HomePage = () => {
                       ))}
                     </div>
                     <div className="w-full bg-base-200 rounded-full overflow-hidden">
-                      <div 
-                        className="bg-primary rounded-full h-2 transition-all duration-300" 
+                      <div
+                        className="bg-primary rounded-full h-2 transition-all duration-300"
                         style={{ width: `${game.progress || 0}%` }}
                       />
                     </div>

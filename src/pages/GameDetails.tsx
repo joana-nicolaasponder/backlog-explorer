@@ -179,13 +179,13 @@ const GameDetails = () => {
       document.body.removeChild(progress)
 
       // Log compression results
-      console.log('Compression results:', {
-        originalSize: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
-        compressedSize: `${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`,
-        ratio: `${((1 - compressedFile.size / file.size) * 100).toFixed(
-          1
-        )}% reduction`,
-      })
+      // console.log('Compression results:', {
+      //   originalSize: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
+      //   compressedSize: `${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`,
+      //   ratio: `${((1 - compressedFile.size / file.size) * 100).toFixed(
+      //     1
+      //   )}% reduction`,
+      // })
 
       return compressedFile
     } catch (error) {
@@ -513,16 +513,17 @@ const GameDetails = () => {
     })
   }
 
-  const formatDuration = (duration: number | null): string => {
-    if (!duration) return ''
-    const hours = Math.floor(duration / 3600)
-    const minutes = Math.floor((duration % 3600) / 60)
-    const seconds = duration % 60
+  const formatDuration = (minutes: number | null): string => {
+    if (!minutes) return ''
+    const totalSeconds = minutes * 60
+    const hours = Math.floor(totalSeconds / 3600)
+    const remainingMinutes = Math.floor((totalSeconds % 3600) / 60)
+    const seconds = totalSeconds % 60
 
     if (hours > 0) {
-      return `${hours}h ${minutes}m ${seconds}s`
-    } else if (minutes > 0) {
-      return `${minutes}m ${seconds}s`
+      return `${hours}h ${remainingMinutes}m ${seconds}s`
+    } else if (remainingMinutes > 0) {
+      return `${remainingMinutes}m ${seconds}s`
     } else {
       return `${seconds}s`
     }

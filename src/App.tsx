@@ -11,6 +11,7 @@ import HomePage from './pages/HomePage'
 import SideBar from './components/SideBar'
 import AddGameModal from './components/AddGameModal'
 import LandingPage from './pages/LandingPage'
+import FeedbackPage from './pages/FeedbackPage'
 
 const ResetPassword = () => {
   const [newPassword, setNewPassword] = useState('')
@@ -199,6 +200,23 @@ const App: React.FC = () => {
               <SideBar onLogout={handleLogout} onAddGame={() => setShowAddGame(true)} />
               <main className="flex-1 overflow-auto pt-16 lg:pt-0">
                 <Explore />
+                {showAddGame && (
+                  <AddGameModal 
+                    onGameAdded={handleGameAdded}
+                    showModal={showAddGame}
+                    setShowModal={setShowAddGame}
+                  />
+                )}
+              </main>
+            </div>
+          </ProtectedRoute>
+        } />
+        <Route path="/app/feedback" element={
+          <ProtectedRoute>
+            <div className="flex min-h-screen bg-base-200">
+              <SideBar onLogout={handleLogout} onAddGame={() => setShowAddGame(true)} />
+              <main className="flex-1 overflow-auto pt-16 lg:pt-0">
+                <FeedbackPage />
                 {showAddGame && (
                   <AddGameModal 
                     onGameAdded={handleGameAdded}
