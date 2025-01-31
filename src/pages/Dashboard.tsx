@@ -157,7 +157,7 @@ const Dashboard = () => {
           </div>
           <div 
             className="card bg-base-100 shadow-xl hover:bg-base-200 cursor-pointer transition-colors"
-            onClick={() => navigate('/library', { state: { filterStatus: 'Currently Playing' } })}
+            onClick={() => navigate('/app/library', { state: { filterStatus: 'Currently Playing' } })}
           >
             <div className="card-body">
               <h2 className="card-title">Currently Playing</h2>
@@ -169,7 +169,7 @@ const Dashboard = () => {
           </div>
           <div 
             className="card bg-base-100 shadow-xl hover:bg-base-200 cursor-pointer transition-colors"
-            onClick={() => navigate('/library', { state: { filterStatus: ['Endless', 'Done', 'Satisfied', 'DNF'] } })}
+            onClick={() => navigate('/app/library', { state: { filterStatus: ['Endless', 'Done', 'Satisfied', 'DNF'] } })}
           >
             <div className="card-body">
               <h2 className="card-title">Completed Games</h2>

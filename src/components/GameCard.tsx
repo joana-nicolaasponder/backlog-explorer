@@ -145,6 +145,7 @@ const GameCard = ({ games, userId, onRefresh }: GameCardProps) => {
       {showEditModal && selectedGame && (
         <EditGameModal
           game={selectedGame}
+          userId={userId}
           onGameUpdated={() => {
             onRefresh()
             window.location.reload()
@@ -159,7 +160,7 @@ const GameCard = ({ games, userId, onRefresh }: GameCardProps) => {
           <div
             key={game.id}
             className="card bg-base-100 shadow-xl cursor-pointer hover:shadow-2xl transition-shadow duration-200"
-            onClick={() => navigate(`/game/${game.id}`)}
+            onClick={() => navigate(`/app/game/${game.id}`)}
           >
             <figure>
               <img
