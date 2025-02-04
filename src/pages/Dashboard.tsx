@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import supabase from '../supabaseClient'
+import { UserGameResponse } from '../types'
 
 interface GameStats {
   totalLibrary: number
@@ -70,7 +71,7 @@ const Dashboard = () => {
               )
             )
           `)
-          .eq('user_id', user.id)
+          .eq('user_id', user.id) as { data: UserGameResponse[] | null, error: Error | null }
 
         /* Keeping this commented for future use - completion tracking
         const currentYear = new Date().getFullYear()
@@ -110,7 +111,7 @@ const Dashboard = () => {
 
         // Count genre occurrences
         const genreCounts = userGames.reduce((acc: { [key: string]: number }, userGame) => {
-          userGame.game.game_genres.forEach((gg: any) => {
+          userGame.game.game_genres.forEach((gg) => {
             const genreName = gg.genres.name
             acc[genreName] = (acc[genreName] || 0) + 1
           })
@@ -119,7 +120,7 @@ const Dashboard = () => {
 
         // Count platform occurrences
         const platformCounts = userGames.reduce((acc: { [key: string]: number }, userGame) => {
-          userGame.game.game_platforms.forEach((gp: any) => {
+          userGame.game.game_platforms.forEach((gp) => {
             const platformName = gp.platforms.name
             acc[platformName] = (acc[platformName] || 0) + 1
           })
@@ -128,7 +129,7 @@ const Dashboard = () => {
 
         // Count mood occurrences
         const moodCounts = userGames.reduce((acc: { [key: string]: number }, userGame) => {
-          userGame.game.game_moods?.forEach((gm: any) => {
+          userGame.game.game_moods?.forEach((gm) => {
             const moodName = gm.moods.name
             acc[moodName] = (acc[moodName] || 0) + 1
           })
