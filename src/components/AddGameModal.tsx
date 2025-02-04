@@ -4,13 +4,7 @@ import GameSearch from './GameSearch'
 import { RAWGGame } from '../types/rawg'
 import { mapRAWGGameToIds } from '../services/rawgMappings'
 
-interface Mood {
-  id: string
-  name: string
-  category: 'primary' | 'secondary'
-  description: string
-  created_at: string
-}
+import { Mood } from '../types'
 
 interface GameFormData {
   title: string

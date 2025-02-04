@@ -21,12 +21,14 @@ const LandingPage = () => {
 
       setStatus('success')
       setEmail('')
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error:', error)
       setStatus('error')
-      setErrorMessage(error.message === 'duplicate key value violates unique constraint "waitlist_email_key"' 
-        ? 'This email is already on the waitlist!'
-        : 'Something went wrong. Please try again.')
+      if (error instanceof Error && error.message === 'duplicate key value violates unique constraint "waitlist_email_key"') {
+        setErrorMessage('This email is already on the waitlist!')
+      } else {
+        setErrorMessage('Something went wrong. Please try again.')
+      }
     }
   }
 

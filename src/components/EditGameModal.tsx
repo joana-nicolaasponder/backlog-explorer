@@ -4,26 +4,14 @@ import { Game } from '../types'
 import { getGameDetails } from '../services/rawg'
 import { RAWGPlatform, RAWGGenre } from '../types/rawg'
 
-interface Mood {
-  id: string
-  name: string
-  category: 'primary' | 'secondary'
-  description: string
-  created_at: string
-}
+import { Mood } from '../types'
 
-interface Game {
-  id: string
-  title: string
-  status: string
-  progress: number
+interface EditableGame extends Omit<Game, 'game_genres' | 'game_platforms' | 'game_moods' | 'platform' | 'genre' | 'user_id' | 'created_at' | 'updated_at'> {
   genres: string[]
-  image: string
-  rawg_id?: string
 }
 
 interface EditGameModalProps {
-  game: Game
+  game: EditableGame
   userId: string
   onGameUpdated: () => void
   showModal: boolean
