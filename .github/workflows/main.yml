@@ -156,7 +156,7 @@ jobs:
 
   validate-database:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/deploy'
+    if: github.ref == 'refs/heads/deploy' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
     needs: [build]
     steps:
       - uses: actions/checkout@v3
