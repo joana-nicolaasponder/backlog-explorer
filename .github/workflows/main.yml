@@ -156,7 +156,14 @@ jobs:
 
   validate-database:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/deploy' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    if: |
+      github.ref == 'refs/heads/deploy' ||
+      github.ref == 'refs/heads/main' ||
+      github.ref == 'refs/heads/develop' ||
+      (github.event_name == 'pull_request' && 
+        (github.base_ref == 'deploy' || 
+         github.base_ref == 'main' || 
+         github.base_ref == 'develop'))
     needs: [lint]
     steps:
       - uses: actions/checkout@v3
@@ -172,10 +179,12 @@ jobs:
         
       - name: Validate Database Environments
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_SERVICE_KEY: ${{ secrets.VITE_SUPABASE_SERVICE_KEY }}
           DEV_SUPABASE_URL: ${{ secrets.DEV_SUPABASE_URL }}
           DEV_SUPABASE_SERVICE_KEY: ${{ secrets.DEV_SUPABASE_SERVICE_KEY }}
+          PROD_SUPABASE_URL: ${{ secrets.PROD_SUPABASE_URL }}
+          PROD_SUPABASE_SERVICE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_KEY }}
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_BASE_REF: ${{ github.base_ref }}
         run: node scripts/validate-environments.js
 
   pr-reminder:
