@@ -75,7 +75,7 @@ const Auth: React.FC<AuthProps> = ({ onAuth }) => {
           'Sign-up successful! Please check your email to confirm your account.'
         )
       } else {
-        console.log('Attempting password sign in...');
+
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password

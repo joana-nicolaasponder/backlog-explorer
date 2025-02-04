@@ -33,11 +33,8 @@ const Library = () => {
   useEffect(() => {
     const fetchOptions = async () => {
       if (!userId) {
-        // console.log('No userId available yet')
         return
       }
-
-      // console.log('Fetching options for userId:', userId)
 
       try {
         // Set predefined status options

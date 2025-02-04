@@ -260,7 +260,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
             game_id: gameId,
             platform_id: platformId
           }).select();
-          console.log('Added platform:', { data, error });
+          if (error) throw error;
         }
 
         // Add genres
@@ -269,7 +269,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
             game_id: gameId,
             genre_id: genreId
           }).select();
-          console.log('Added genre:', { data, error });
+          if (error) throw error;
         }
       }
 
