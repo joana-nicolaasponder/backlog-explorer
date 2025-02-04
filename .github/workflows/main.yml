@@ -2,7 +2,7 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, develop, deploy, 'feature/*' ]
+    branches: [ main, develop, deploy, 'feature/*', 'bugfix/*' ]
     tags:
       - 'v*'
   pull_request:
@@ -27,9 +27,9 @@ jobs:
             exit 1
           fi
           
-          # Ensure feature branches are properly named
-          if [[ "$TARGET_BRANCH" == "develop" && ! "$SOURCE_BRANCH" =~ ^feature/ ]]; then
-            echo "❌ Feature branches should start with 'feature/'. Current branch: $SOURCE_BRANCH"
+          # Ensure feature and bugfix branches are properly named
+          if [[ "$TARGET_BRANCH" == "develop" && ! "$SOURCE_BRANCH" =~ ^(feature|bugfix)/ ]]; then
+            echo "❌ Branches targeting develop should start with 'feature/' or 'bugfix/'. Current branch: $SOURCE_BRANCH"
             exit 1
           fi
 
