@@ -1,0 +1,81 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [ main, develop, deploy ]
+  pull_request:
+    branches: [ main, develop, deploy ]
+
+jobs:
+  branch-check:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Check branch names
+        run: |
+          # Fail if trying to merge directly to main/deploy without going through develop
+          if [[ "${{ github.base_ref }}" == "main" || "${{ github.base_ref }}" == "deploy" ]] && [[ "${{ github.head_ref }}" != "develop" ]]; then
+            echo "❌ Cannot merge directly to ${{ github.base_ref }}. Please merge through develop first."
+            exit 1
+          fi
+          
+          # Ensure feature branches are properly named
+          if [[ "${{ github.base_ref }}" == "develop" && ! "${{ github.head_ref }}" =~ ^feature/ ]]; then
+            echo "❌ Feature branches should start with 'feature/'. Current branch: ${{ github.head_ref }}"
+            exit 1
+          fi
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build project
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_RAWG_API_KEY: ${{ secrets.VITE_RAWG_API_KEY }}
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+      
+      - name: Run tests
+        run: npm test
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run ESLint
+        run: npm run lint
+        
+  review-reminder:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Remind about review checklist
+        run: |
+          echo "🔍 Review Checklist Reminder:"
+          echo "- Have you tested in the development environment?"
+          echo "- Have you updated documentation if needed?"
+          echo "- Have you checked for security implications?"
+          echo "- Have you tested database changes in development first?"
+          echo "See pull request template for complete checklist."
