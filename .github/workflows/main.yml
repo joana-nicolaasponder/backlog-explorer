@@ -28,7 +28,7 @@ jobs:
           fi
           
           # Ensure feature and bugfix branches are properly named
-          if [[ "$TARGET_BRANCH" == "develop" && ! "$SOURCE_BRANCH" =~ ^(feature|bugfix)/ ]]; then
+          if [[ "$TARGET_BRANCH" == "develop" ]] && [[ ! "$SOURCE_BRANCH" =~ ^(feature|bugfix)\/ ]]; then
             echo "❌ Branches targeting develop should start with 'feature/' or 'bugfix/'. Current branch: $SOURCE_BRANCH"
             exit 1
           fi
