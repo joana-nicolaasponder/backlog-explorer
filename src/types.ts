@@ -13,6 +13,41 @@ export interface RawgScreenshot {
   height: number
 }
 
+export interface Genre {
+  id: number;
+  name: string;
+}
+
+export interface Platform {
+  id: number;
+  name: string;
+}
+
+export interface Mood {
+  id: number;
+  name: string;
+}
+
+export interface GameGenre {
+  genres: Genre;
+}
+
+export interface GamePlatform {
+  platforms: Platform;
+}
+
+export interface GameMood {
+  moods: Mood;
+}
+
+export interface Mood {
+  id: string;
+  name: string;
+  category: 'primary' | 'secondary';
+  description: string;
+  created_at: string;
+}
+
 export interface Game {
   id: string;
   title: string;
@@ -23,6 +58,49 @@ export interface Game {
   user_id: string;
   created_at: string;
   updated_at: string;
+  game_genres: GameGenre[];
+  game_platforms: GamePlatform[];
+  game_moods?: GameMood[];
+  moods?: string[];
+  image?: string;
+  rawg_id?: string;
+}
+
+export interface UserGameResponse {
+  status: string;
+  progress: number;
+  game_id: string;
+  updated_at: string;
+  game: {
+    id: string;
+    title: string;
+    game_genres: {
+      genres: {
+        name: string;
+      };
+    }[];
+    game_platforms: {
+      platforms: {
+        name: string;
+      };
+    }[];
+    game_moods?: {
+      moods: {
+        name: string;
+      };
+    }[];
+  };
+}
+
+export interface UserGame {
+  id: string;
+  user_id: string;
+  game_id: string;
+  status: string;
+  progress: number;
+  created_at: string;
+  updated_at: string;
+  game: Game;
 }
 
 export type SessionAccomplishment =
