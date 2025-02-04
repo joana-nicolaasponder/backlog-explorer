@@ -116,24 +116,29 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
     if (!user) throw new Error('No user found')
 
     // First check if the game exists
-    const { data: existingGame } = await supabase
+    const { data: existingGames } = await supabase
       .from('games')
       .select('id')
       .eq('rawg_id', game.id)
-      .single()
 
-    // Then check if user has this game
-    const { data: existingUserGame } = await supabase
-      .from('user_games')
-      .select(`
-        id,
-        status,
-        progress,
-        game_id
-      `)
-      .eq('game_id', existingGame?.id)
-      .eq('user_id', user.id)
-      .single()
+    const existingGame = existingGames?.[0]
+
+    // Only check for user game if we found an existing game
+    let existingUserGame = null
+    if (existingGame) {
+      const { data: userGames } = await supabase
+        .from('user_games')
+        .select(`
+          id,
+          status,
+          progress,
+          game_id
+        `)
+        .eq('game_id', existingGame.id)
+        .eq('user_id', user.id)
+
+      existingUserGame = userGames?.[0]
+    }
 
     if (existingUserGame) {
       // If user already has this game, show a message
@@ -199,11 +204,12 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
       let gameId: string
 
       // Check if game exists by RAWG ID
-      const { data: existingGame } = await supabase
+      const { data: existingGames } = await supabase
         .from('games')
         .select('id')
         .eq('rawg_id', formData.rawg_id)
-        .single()
+      
+      const existingGame = existingGames?.[0]
 
       if (existingGame) {
         gameId = existingGame.id
@@ -228,53 +234,53 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
         if (gameError) throw gameError
         if (!newGame) throw new Error('Failed to create game')
         gameId = newGame.id
+      }
 
-        // Set up platform mappings from RAWG
-        if (selectedGame && selectedGame.platforms) {
-          for (const platform of selectedGame.platforms) {
-            const { data: existingMapping } = await supabase
-              .from('rawg_platform_mappings')
-              .select('platform_id')
-              .eq('rawg_id', platform.platform.id)
-              .single()
+      // Set up platform and genre mappings from RAWG
+      if (selectedGame) {
+        console.log('Selected game:', selectedGame.name);
+        console.log('Form data platforms:', formData.platforms);
+        
+        // Filter platforms to only those selected by user
+        const selectedPlatforms = selectedGame.platforms.filter(p => 
+          formData.platforms.includes(p.platform.name)
+        );
+        console.log('Filtered platforms:', selectedPlatforms.map(p => p.platform.name));
 
-            if (existingMapping) {
-              await supabase.from('game_platforms').insert({
-                game_id: gameId,
-                platform_id: existingMapping.platform_id,
-                created_at: new Date().toISOString()
-              })
-            }
-          }
+        // Map selected platforms and all genres
+        const { platformIds, genreIds } = await mapRAWGGameToIds({
+          ...selectedGame,
+          platforms: selectedPlatforms
+        });
+        console.log('Mapped IDs:', { platformIds, genreIds });
+        
+        // Add platforms
+        for (const platformId of platformIds) {
+          const { data, error } = await supabase.from('game_platforms').insert({
+            game_id: gameId,
+            platform_id: platformId
+          }).select();
+          console.log('Added platform:', { data, error });
         }
 
-        // Set up genre mappings from RAWG
-        if (selectedGame && selectedGame.genres) {
-          for (const genre of selectedGame.genres) {
-            const { data: existingMapping } = await supabase
-              .from('rawg_genre_mappings')
-              .select('genre_id')
-              .eq('rawg_id', genre.id)
-              .single()
-
-            if (existingMapping) {
-              await supabase.from('game_genres').insert({
-                game_id: gameId,
-                genre_id: existingMapping.genre_id,
-                created_at: new Date().toISOString()
-              })
-            }
-          }
+        // Add genres
+        for (const genreId of genreIds) {
+          const { data, error } = await supabase.from('game_genres').insert({
+            game_id: gameId,
+            genre_id: genreId
+          }).select();
+          console.log('Added genre:', { data, error });
         }
       }
 
       // Now create or update the user_game relationship
-      const { data: existingUserGame } = await supabase
+      const { data: existingUserGames } = await supabase
         .from('user_games')
         .select('id')
         .eq('user_id', user.id)
         .eq('game_id', gameId)
-        .single()
+        
+      const existingUserGame = existingUserGames?.[0]
 
       if (existingUserGame) {
         // Update existing user_game
@@ -329,9 +335,15 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
       onGameAdded()
     } catch (error) {
       console.error('Error adding game:', error)
+      setError(error instanceof Error ? error.message : 'An error occurred while adding the game')
+      return // Exit early if there's an error
     } finally {
       setIsLoading(false)
     }
+
+    // Only close modal and notify if we succeeded
+    setShowModal(false)
+    onGameAdded()
   }
 
   return (
