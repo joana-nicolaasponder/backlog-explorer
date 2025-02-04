@@ -3,19 +3,20 @@
 # Check if feature name is provided
 if [ -z "$1" ]; then
     echo "Please provide a feature name"
-    echo "Usage: ./scripts/create-feature.sh feature-name"
+    echo "Usage: ./create-feature.sh feature-name"
     exit 1
 fi
 
-# Convert feature name to kebab case and clean it
-FEATURE_NAME=$(echo "$1" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | sed 's/[^a-zA-Z0-9-]//g')
+# Convert feature name to kebab case and create branch name
+FEATURE_NAME=$(echo "$1" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
+BRANCH_NAME="feature/$FEATURE_NAME"
 
-# Make sure we're up to date with develop
+# Switch to develop branch and update it
 git checkout develop
 git pull origin develop
 
-# Create and checkout new feature branch
-git checkout -b "feature/$FEATURE_NAME"
+# Create and switch to new feature branch
+git checkout -b "$BRANCH_NAME"
 
-echo "Created and switched to branch feature/$FEATURE_NAME"
+echo "Created and switched to branch $BRANCH_NAME"
 echo "You can now start working on your feature!"
