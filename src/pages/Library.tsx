@@ -91,16 +91,35 @@ const Library = () => {
         }
 
         // Format games with platform and genre names
-        let formattedGames = userGames.map(userGame => ({
-          id: userGame.game.id,
-          title: userGame.game.title,
-          status: userGame.status,
-          progress: userGame.progress,
-          image: userGame.game.background_image,
-          created_at: userGame.game.created_at,
-          platforms: userGame.game.game_platforms.map(gp => gp.platforms.name),
-          genres: userGame.game.game_genres.map(gg => gg.genres.name)
-        }))
+        let formattedGames = userGames.map(userGame => {
+          console.log('Raw game data:', JSON.stringify(userGame.game, null, 2));
+          console.log('Game platforms:', JSON.stringify(userGame.game.game_platforms, null, 2));
+          console.log('Game genres:', JSON.stringify(userGame.game.game_genres, null, 2));
+          
+          const platforms = userGame.game.game_platforms?.map(gp => {
+            console.log('Platform mapping:', gp);
+            return gp.platforms?.name;
+          }).filter(Boolean) || [];
+          
+          const genres = userGame.game.game_genres?.map(gg => {
+            console.log('Genre mapping:', gg);
+            return gg.genres?.name;
+          }).filter(Boolean) || [];
+          
+          console.log('Extracted platforms:', platforms);
+          console.log('Extracted genres:', genres);
+          
+          return {
+            id: userGame.game.id,
+            title: userGame.game.title,
+            status: userGame.status,
+            progress: userGame.progress,
+            image: userGame.game.background_image,
+            created_at: userGame.game.created_at,
+            platforms,
+            genres
+          };
+        })
 
         // Extract unique platform names
         const platformNames = Array.from(new Set(
