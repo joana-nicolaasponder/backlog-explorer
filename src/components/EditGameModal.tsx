@@ -41,6 +41,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
   const [originalMoods, setOriginalMoods] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
   const [isLoadingMoods, setIsLoadingMoods] = useState(false)
   const [statusOptions] = useState<string[]>([
     'Endless',
@@ -128,14 +129,8 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
       setOriginalMoods([]);
       // Don't try to load moods if we don't have both game.id and userId
       if (!game.id || !userId) {
-        console.log('Skipping mood load - missing game.id or userId:', { gameId: game.id, userId });
         return;
       }
-      console.log('Loading moods for:', {
-        gameId: game.id,
-        gameTitle: game.title,
-        modalOpen: showModal
-      });
       try {
   
         const { data: gameMoods, error } = await supabase
@@ -148,20 +143,20 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
         if (gameMoods) {
           if (mounted) {
             const moodIds = gameMoods.map(gm => gm.mood_id);
-            console.log('Setting moods:', moodIds);
+
             setSelectedMoods(moodIds);
             setOriginalMoods(moodIds);
           }
         } else {
           // No moods found, reset to empty if modal is open
           if (showModal) {
-            console.log('No moods found, resetting states');
+
             setSelectedMoods([]);
             setOriginalMoods([]);
           }
         }
       } catch (error) {
-        console.error('Error loading game moods:', error);
+        setError('Failed to load game moods. Please try again.');
       }
     }
 
@@ -180,10 +175,8 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     const loadRawgData = async () => {
       if (game.rawg_id) {
         try {
-          // console.log('Loading RAWG data for game:', game.rawg_id)
           const gameDetails = await getGameDetails(Number(game.rawg_id))
           if (gameDetails) {
-            // console.log('RAWG data loaded:', gameDetails)
             // Update form data with RAWG data while preserving user's status and progress
             setFormData((prev) => ({
               ...prev,
@@ -193,38 +186,24 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
             }))
           }
         } catch (error) {
-          console.error('Error loading RAWG data:', error)
+          setError('Failed to load game details. Please try again.');
         }
       }
     }
     loadRawgData()
   }, [game.rawg_id])
 
-  // Add debug logging for mood changes
   const handleMoodChange = (moods: string[]) => {
-    console.log('Mood selection changed:', {
-      previous: selectedMoods,
-      new: moods,
-      original: originalMoods
-    });
     setSelectedMoods(moods);
   };
 
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    console.log('=== FORM SUBMISSION STARTED ===');
-    console.log('Form Data:', formData);
-    console.log('Game State:', {
-      id: game.id,
-      status: game.status,
-      moods: game.moods,
-      selectedMoods,
-      originalMoods
-    });
-    console.log('=== FORM SUBMISSION STARTED ===');
+
     e.preventDefault()
     setIsLoading(true)
     setError(null)
+    setSuccess(null)
 
     try {
       // Get current user
@@ -232,9 +211,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
       if (userError) throw userError
       if (!user) throw new Error('No user found')
       
-      // console.log('1. User authenticated:', user.id)
-      // console.log('2. Game ID:', game.id)
-      // console.log('3. Selected moods:', selectedMoods)
+
 
       // Step 1: Update user_games
       const { error: updateError } = await supabase
@@ -249,40 +226,20 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
         .eq('user_id', user.id)
 
       if (updateError) {
-        console.error('Failed to update user_games:', updateError)
+
         throw updateError
       }
-      // console.log('4. Updated user_games successfully')
 
-      console.log('Debug - Current state:', {
-        selectedMoods,
-        gameMoods: game.moods,
-        condition1: selectedMoods.length === 0 && (game.moods || []).length > 0,
-        condition2: !arraysEqual(selectedMoods, game.moods || []),
-        userId
-      });
+
+
 
       // Debug the condition evaluation
-      console.log('=== MOOD STATE AT SUBMISSION ===');
-      console.log('Original moods:', originalMoods);
-      console.log('Selected moods:', selectedMoods);
-      
       const hasExistingMoods = originalMoods.length > 0;
       const moodsCleared = selectedMoods.length === 0 && hasExistingMoods;
       const moodsChanged = !arraysEqual(selectedMoods, originalMoods);
       
-      console.log('=== CONDITION EVALUATION ===');
-      console.log('Condition Check:', {
-        hasExistingMoods: `${hasExistingMoods} (original length: ${originalMoods.length})`,
-        moodsCleared: `${moodsCleared} (selected empty: ${selectedMoods.length === 0})`,
-        moodsChanged: `${moodsChanged} (arrays equal: ${arraysEqual(selectedMoods, originalMoods)})`,
-        'Will Delete?': moodsCleared || moodsChanged
-      });
-      
       if (moodsCleared || moodsChanged) {
-        console.log('=== TRIGGERING MOOD UPDATE ===');
         // Step 2: Delete existing moods
-        console.log('Attempting to delete moods for:', { gameId: game.id, userId });
         const { error: deleteError } = await supabase
           .from('game_moods')
           .delete()
@@ -290,14 +247,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           .eq('user_id', userId)
           .throwOnError();
         
-        if (deleteError) {
-          console.error('Delete error:', deleteError);
-        } else {
-          console.log('Successfully deleted existing moods');
-        }
-
-        if (deleteError) {
-          console.error('Failed to delete existing moods:', deleteError);
+               if (deleteError) {
           throw deleteError;
         }
 
@@ -317,7 +267,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
             .throwOnError();
 
           if (insertError) {
-            console.error('Failed to insert new moods:', insertError);
+
             throw insertError;
           }
         }
@@ -327,30 +277,21 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           .from('game_moods')
           .select('mood_id')
           .eq('game_id', game.id);
-        if (moodsError) {
-          console.error('Failed to refetch moods:', moodsError);
+               if (moodsError) {
+          throw moodsError;
         } else {
           setSelectedMoods(newMoods ? newMoods.map((m: any) => m.mood_id) : []);
         }
       }
 
-      console.log('=== FINAL STATE ===');
-      console.log('Selected Moods:', selectedMoods);
-      console.log('Game Moods:', game.moods);
-      
-      // Add a longer delay before closing and refreshing
-      console.log('Waiting 3 seconds before closing...');
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      // Close modal first
-      setShowModal(false);
-      
-      // Wait another second before refreshing
-      console.log('Waiting 1 more second before refreshing...');
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      onGameUpdated();
+      setSuccess('Changes saved successfully!');
+      // Give users a moment to see the success message
+      setTimeout(() => {
+        setShowModal(false);
+        onGameUpdated();
+      }, 1000);
     } catch (error) {
-      console.error('Error updating game:', error)
+
       setError('Failed to update game. Please try again.')
     } finally {
       setIsLoading(false)
@@ -369,12 +310,6 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           ✕
         </button>
         <h3 className="font-bold text-xl mb-6 text-base-content">Edit Game Progress</h3>
-
-        {error && (
-          <div className="alert alert-error mb-4">
-            <span>{error}</span>
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Game Details Section */}
@@ -439,14 +374,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                         className="hidden"
                         checked={formData.status === status.value}
                         onChange={() => {
-                           console.log('Status changing:', { from: formData.status, to: status.value });
                            setFormData({ ...formData, status: status.value });
-                           console.log('Game state after status change:', {
-                             id: game.id,
-                             title: game.title,
-                             newStatus: status.value,
-                             moods: selectedMoods
-                           });
                          }}
                       />
                       <span className="text-lg">{status.icon}</span>
@@ -611,28 +539,35 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
             </div>
           </div>
 
-          <div className="modal-action gap-2">
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={() => setShowModal(false)}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <span className="loading loading-spinner loading-sm"></span>
-                  Saving...
-                </>
-              ) : (
-                'Save Changes'
-              )}
-            </button>
+          <div className="space-y-4">
+            {(error || success) && (
+              <div className={`alert ${error ? 'alert-error' : 'alert-success'} mb-2`}>
+                <span>{error || success}</span>
+              </div>
+            )}
+            <div className="modal-action gap-2">
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => setShowModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <span className="loading loading-spinner loading-sm"></span>
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </button>
+            </div>
           </div>
         </form>
       </div>
