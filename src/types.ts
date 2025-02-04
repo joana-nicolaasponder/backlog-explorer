@@ -23,11 +23,6 @@ export interface Platform {
   name: string;
 }
 
-export interface Mood {
-  id: number;
-  name: string;
-}
-
 export interface GameGenre {
   genres: Genre;
 }
@@ -36,16 +31,16 @@ export interface GamePlatform {
   platforms: Platform;
 }
 
-export interface GameMood {
-  moods: Mood;
-}
-
 export interface Mood {
   id: string;
   name: string;
   category: 'primary' | 'secondary';
   description: string;
   created_at: string;
+}
+
+export interface GameMood {
+  moods: Mood;
 }
 
 export interface Game {
