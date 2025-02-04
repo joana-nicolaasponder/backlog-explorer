@@ -36,9 +36,13 @@ const FeedbackPage = () => {
       setContent('');
       setCategory('general');
       setMessage('Thank you for your feedback! 🙌');
-    } catch (error: any) {
+    } catch (error) {
       setMessage('Error submitting feedback. Please try again.');
-      console.error('Error:', error.message);
+      if (error instanceof Error) {
+        console.error('Error:', error.message);
+      } else {
+        console.error('Unknown error occurred');
+      }
     } finally {
       setIsSubmitting(false);
     }

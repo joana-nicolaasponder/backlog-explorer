@@ -30,8 +30,12 @@ const ResetPassword = () => {
       setTimeout(() => {
         navigate('/')
       }, 2000)
-    } catch (error: any) {
-      setMessage(`Error: ${error.message}`)
+    } catch (error) {
+      if (error instanceof Error) {
+        setMessage(`Error: ${error.message}`)
+      } else {
+        setMessage('An unexpected error occurred')
+      }
     }
   }
 
@@ -66,14 +70,17 @@ const ResetPassword = () => {
 }
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  console.log('ProtectedRoute: Component rendered');
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
 
   useEffect(() => {
+    console.log('ProtectedRoute: useEffect triggered');
     let mounted = true
 
     const checkAccess = async () => {
+      console.log('ProtectedRoute: Checking access...');
       try {
         // Get the current session
         const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession()
@@ -81,7 +88,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
         if (sessionError) throw sessionError
         
         if (!currentSession?.user?.email) {
-          // console.log('No valid session found')
+          console.log('ProtectedRoute: No valid session found')
           if (mounted) {
             setSession(null)
             setLoading(false)
@@ -101,7 +108,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
         }
 
         if (!allowedUser || allowedUser.length === 0) {
-          // console.log('Email not in allowlist:', currentSession.user.email)
+          console.log('ProtectedRoute: Email not in allowlist:', currentSession.user.email)
           await supabase.auth.signOut()
           if (mounted) {
             setSession(null)
@@ -133,7 +140,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     checkAccess()
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, _newSession) => {
       // console.log('Auth state changed:', event, newSession?.user?.email)
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         checkAccess()
@@ -152,6 +159,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }, [])
 
   if (loading) {
+    console.log('ProtectedRoute: Still loading...');
     return (
       <div className="flex justify-center items-center min-h-screen">
         <div className="loading loading-spinner loading-lg"></div>
@@ -160,8 +168,10 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
   
   if (!session) {
+    console.log('ProtectedRoute: No session, redirecting to login');
     return <Navigate to="/login" />
   }
+  console.log('ProtectedRoute: Session valid, rendering children');
   
   return <>{children}</>
 }
@@ -174,14 +184,17 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const getSession = async () => {
+      console.log('Getting initial session...');
       const { data } = await supabase.auth.getSession()
+      console.log('Initial session:', data.session?.user?.email);
       setSession(data.session)
     }
 
     getSession()
 
     const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
+        console.log('App: Auth state changed:', event, session?.user?.email);
         setSession(session)
       }
     )

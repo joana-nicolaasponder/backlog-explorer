@@ -3,23 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import supabase from '../supabaseClient'
 import EditGameModal from './EditGameModal'
 
-interface Platform {
-  id: string
-  name: string
-}
+import { Game as BaseGame, Platform, Genre } from '../types'
 
-interface Genre {
-  id: string
-  name: string
-}
-
-interface Game {
-  id: string
-  title: string
+interface Game extends Omit<BaseGame, 'game_genres' | 'game_platforms' | 'game_moods'> {
   platforms: string[]
   genres: string[]
-  status: string
-  progress: number
   image: string
 }
 

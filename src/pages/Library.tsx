@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom'
 import supabase from '../supabaseClient'
 import GameCard from '../components/GameCard'
 import SearchBar from '../components/SearchBar'
+import { UserGame } from '../types'
 
 const Library = () => {
   const location = useLocation()
@@ -13,7 +14,7 @@ const Library = () => {
   const [filterGenre, setFilterGenre] = useState<string>('')
   const [sortOrder, setSortOrder] = useState<string>('alphabetical-asc')
   const [searchQuery, setSearchQuery] = useState<string>('')
-  const [games, setGames] = useState<any[]>([])
+  const [games, setGames] = useState<UserGame[]>([])
   const [platformOptions, setPlatformOptions] = useState<string[]>([])
   const [genreOptions, setGenreOptions] = useState<string[]>([])
   const [statusOptions, setStatusOptions] = useState<string[]>([])
