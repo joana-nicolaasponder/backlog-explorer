@@ -3,6 +3,8 @@ name: CI/CD Pipeline
 on:
   push:
     branches: [ main, develop, deploy, 'feature/*' ]
+    tags:
+      - 'v*'
   pull_request:
     branches: [ main, develop, deploy ]
 
@@ -31,8 +33,90 @@ jobs:
             exit 1
           fi
 
+  update-changelog:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/deploy'
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Get previous tag
+        id: previoustag
+        uses: WyriHaximus/github-action-get-previous-tag@v1
+        with:
+          fallback: 1.0.0
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get the latest tag
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "1.0.0")
+          
+          # Get commit messages since last tag
+          COMMITS=$(git log --pretty=format:"%s" $LATEST_TAG..HEAD)
+          
+          # Calculate new version (increment patch version)
+          IFS='.' read -r -a VERSION_PARTS <<< "$LATEST_TAG"
+          MAJOR=${VERSION_PARTS[0]#v}
+          MINOR=${VERSION_PARTS[1]}
+          PATCH=$((VERSION_PARTS[2] + 1))
+          NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+          
+          # Generate changelog entry
+          DATE=$(date +%Y-%m-%d)
+          CHANGELOG_ENTRY="## [$NEW_VERSION] - $DATE\n"
+          
+          # Categorize commits
+          FEATURES=$(echo "$COMMITS" | grep -i "^feat:" || true)
+          FIXES=$(echo "$COMMITS" | grep -i "^fix:" || true)
+          CHORES=$(echo "$COMMITS" | grep -i "^chore:" || true)
+          
+          if [ ! -z "$FEATURES" ]; then
+            CHANGELOG_ENTRY+="\n### Added\n"
+            while IFS= read -r line; do
+              CHANGELOG_ENTRY+="- ${line#feat: }\n"
+            done <<< "$FEATURES"
+          fi
+          
+          if [ ! -z "$FIXES" ]; then
+            CHANGELOG_ENTRY+="\n### Fixed\n"
+            while IFS= read -r line; do
+              CHANGELOG_ENTRY+="- ${line#fix: }\n"
+            done <<< "$FIXES"
+          fi
+          
+          if [ ! -z "$CHORES" ]; then
+            CHANGELOG_ENTRY+="\n### Changed\n"
+            while IFS= read -r line; do
+              CHANGELOG_ENTRY+="- ${line#chore: }\n"
+            done <<< "$CHORES"
+          fi
+          
+          # Update CHANGELOG.md
+          sed -i "s/## \[Unreleased\]/## \[Unreleased\]\n\n$CHANGELOG_ENTRY/" CHANGELOG.md
+          
+          # Create new tag
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add CHANGELOG.md
+          git commit -m "chore: update changelog for version $NEW_VERSION"
+          git tag -a "v$NEW_VERSION" -m "Release version $NEW_VERSION"
+          
+          # Set outputs
+          echo "::set-output name=version::$NEW_VERSION"
+          echo "::set-output name=changelog::$CHANGELOG_ENTRY"
+
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: deploy
+          tags: true
+
   build:
     runs-on: ubuntu-latest
+    needs: [update-changelog]
     steps:
       - uses: actions/checkout@v3
       
@@ -69,6 +153,30 @@ jobs:
         
       - name: Run lint
         run: npm run lint
+
+  validate-database:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/deploy'
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm install @supabase/supabase-js
+        
+      - name: Validate Database Environments
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_SERVICE_KEY: ${{ secrets.VITE_SUPABASE_SERVICE_KEY }}
+          DEV_SUPABASE_URL: ${{ secrets.DEV_SUPABASE_URL }}
+          DEV_SUPABASE_SERVICE_KEY: ${{ secrets.DEV_SUPABASE_SERVICE_KEY }}
+        run: node scripts/validate-environments.js
 
   pr-reminder:
     runs-on: ubuntu-latest
