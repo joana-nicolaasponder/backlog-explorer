@@ -6,8 +6,9 @@ import { RAWGPlatform, RAWGGenre } from '../types/rawg'
 
 import { Mood } from '../types'
 
-interface EditableGame extends Omit<Game, 'game_genres' | 'game_platforms' | 'game_moods' | 'platform' | 'genre' | 'user_id' | 'created_at' | 'updated_at'> {
+interface EditableGame extends Omit<Game, 'game_genres' | 'game_platforms' | 'game_moods' | 'genre' | 'user_id' | 'created_at' | 'updated_at'> {
   genres: string[]
+  platforms: string[]
 }
 
 interface EditGameModalProps {
@@ -25,18 +26,22 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
   showModal,
   setShowModal,
 }) => {
+
   const [formData, setFormData] = useState({
     status: game.status || '',
     progress: game.progress || 0,
     title: game.title || '',
     genres: game.genres || [],
     image: game.image,
-    moods: game.moods || []
+    moods: game.moods || [],
+    platforms: game.platforms || []
   })
   const [availableMoods, setAvailableMoods] = useState<Mood[]>([])
   const [selectedMoods, setSelectedMoods] = useState<string[]>([])
+  const [originalMoods, setOriginalMoods] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isLoadingMoods, setIsLoadingMoods] = useState(false)
   const [statusOptions] = useState<string[]>([
     'Endless',
     'Satisfied',
@@ -49,6 +54,12 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     'Currently Playing',
     'Done',
   ])
+
+  const arraysEqual = (a: string[], b: string[]): boolean => {
+    const sortedA = [...a].sort();
+    const sortedB = [...b].sort();
+    return sortedA.length === sortedB.length && sortedA.every((value, index) => value === sortedB[index]);
+  };
 
   // Load available moods from Supabase
   useEffect(() => {
@@ -105,27 +116,65 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     loadMoods()
   }, [])
 
-  // Load game's existing moods
+  // Load game's existing moods when modal opens
   useEffect(() => {
+    let mounted = true;
+    
     const loadGameMoods = async () => {
+      if (!showModal || !mounted) return;
+      
+      // Reset states first
+      setSelectedMoods([]);
+      setOriginalMoods([]);
+      // Don't try to load moods if we don't have both game.id and userId
+      if (!game.id || !userId) {
+        console.log('Skipping mood load - missing game.id or userId:', { gameId: game.id, userId });
+        return;
+      }
+      console.log('Loading moods for:', {
+        gameId: game.id,
+        gameTitle: game.title,
+        modalOpen: showModal
+      });
       try {
+  
         const { data: gameMoods, error } = await supabase
           .from('game_moods')
           .select('mood_id')
           .eq('game_id', game.id)
+          .eq('user_id', userId);
 
-        if (error) throw error
+        if (error) throw error;
         if (gameMoods) {
-          const moodIds = gameMoods.map(gm => gm.mood_id)
-          setSelectedMoods(moodIds)
+          if (mounted) {
+            const moodIds = gameMoods.map(gm => gm.mood_id);
+            console.log('Setting moods:', moodIds);
+            setSelectedMoods(moodIds);
+            setOriginalMoods(moodIds);
+          }
+        } else {
+          // No moods found, reset to empty if modal is open
+          if (showModal) {
+            console.log('No moods found, resetting states');
+            setSelectedMoods([]);
+            setOriginalMoods([]);
+          }
         }
       } catch (error) {
-        console.error('Error loading game moods:', error)
+        console.error('Error loading game moods:', error);
       }
     }
 
-    if (game.id) loadGameMoods()
-  }, [game.id])
+    if (game.id && showModal) {
+      loadGameMoods();
+    }
+    
+    return () => {
+      mounted = false;
+    };
+  }, [game.id, userId, showModal])
+
+
 
   useEffect(() => {
     const loadRawgData = async () => {
@@ -151,7 +200,28 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     loadRawgData()
   }, [game.rawg_id])
 
+  // Add debug logging for mood changes
+  const handleMoodChange = (moods: string[]) => {
+    console.log('Mood selection changed:', {
+      previous: selectedMoods,
+      new: moods,
+      original: originalMoods
+    });
+    setSelectedMoods(moods);
+  };
+
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    console.log('=== FORM SUBMISSION STARTED ===');
+    console.log('Form Data:', formData);
+    console.log('Game State:', {
+      id: game.id,
+      status: game.status,
+      moods: game.moods,
+      selectedMoods,
+      originalMoods
+    });
+    console.log('=== FORM SUBMISSION STARTED ===');
     e.preventDefault()
     setIsLoading(true)
     setError(null)
@@ -172,6 +242,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
         .update({
           status: formData.status,
           progress: formData.progress,
+          platforms: formData.platforms,
           updated_at: new Date().toISOString()
         })
         .eq('game_id', game.id)
@@ -183,45 +254,101 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
       }
       // console.log('4. Updated user_games successfully')
 
-      // Step 2: Delete existing moods
-      const { error: deleteError } = await supabase
-        .from('game_moods')
-        .delete()
-        .eq('game_id', game.id)
-        .throwOnError()
+      console.log('Debug - Current state:', {
+        selectedMoods,
+        gameMoods: game.moods,
+        condition1: selectedMoods.length === 0 && (game.moods || []).length > 0,
+        condition2: !arraysEqual(selectedMoods, game.moods || []),
+        userId
+      });
 
-      if (deleteError) {
-        console.error('Failed to delete existing moods:', deleteError)
-        throw deleteError
-      }
-      // console.log('5. Deleted existing moods successfully')
-
-      // Step 3: Insert new moods if any are selected
-      if (selectedMoods.length > 0) {
-        const moodData = selectedMoods.map(moodId => ({
-          user_id: userId,
-          game_id: game.id,
-          mood_id: moodId,
-          weight: 1,
-          created_at: new Date().toISOString()
-        }))
-
-        const { error: insertError } = await supabase
+      // Debug the condition evaluation
+      console.log('=== MOOD STATE AT SUBMISSION ===');
+      console.log('Original moods:', originalMoods);
+      console.log('Selected moods:', selectedMoods);
+      
+      const hasExistingMoods = originalMoods.length > 0;
+      const moodsCleared = selectedMoods.length === 0 && hasExistingMoods;
+      const moodsChanged = !arraysEqual(selectedMoods, originalMoods);
+      
+      console.log('=== CONDITION EVALUATION ===');
+      console.log('Condition Check:', {
+        hasExistingMoods: `${hasExistingMoods} (original length: ${originalMoods.length})`,
+        moodsCleared: `${moodsCleared} (selected empty: ${selectedMoods.length === 0})`,
+        moodsChanged: `${moodsChanged} (arrays equal: ${arraysEqual(selectedMoods, originalMoods)})`,
+        'Will Delete?': moodsCleared || moodsChanged
+      });
+      
+      if (moodsCleared || moodsChanged) {
+        console.log('=== TRIGGERING MOOD UPDATE ===');
+        // Step 2: Delete existing moods
+        console.log('Attempting to delete moods for:', { gameId: game.id, userId });
+        const { error: deleteError } = await supabase
           .from('game_moods')
-          .insert(moodData)
-          .throwOnError()
-
-        if (insertError) {
-          console.error('Failed to insert new moods:', insertError)
-          throw insertError
+          .delete()
+          .eq('game_id', game.id)
+          .eq('user_id', userId)
+          .throwOnError();
+        
+        if (deleteError) {
+          console.error('Delete error:', deleteError);
+        } else {
+          console.log('Successfully deleted existing moods');
         }
-        // console.log('6. Inserted new moods successfully')
-      } else {
-        // console.log('6. No new moods to insert')
+
+        if (deleteError) {
+          console.error('Failed to delete existing moods:', deleteError);
+          throw deleteError;
+        }
+
+        // Step 3: Insert new moods if any are selected
+        if (selectedMoods.length > 0) {
+          const moodData = selectedMoods.map(moodId => ({
+            user_id: userId,
+            game_id: game.id,
+            mood_id: moodId,
+            weight: 1,
+            created_at: new Date().toISOString()
+          }));
+
+          const { error: insertError } = await supabase
+            .from('game_moods')
+            .insert(moodData)
+            .throwOnError();
+
+          if (insertError) {
+            console.error('Failed to insert new moods:', insertError);
+            throw insertError;
+          }
+        }
+
+        // Refetch moods
+        const { data: newMoods, error: moodsError } = await supabase
+          .from('game_moods')
+          .select('mood_id')
+          .eq('game_id', game.id);
+        if (moodsError) {
+          console.error('Failed to refetch moods:', moodsError);
+        } else {
+          setSelectedMoods(newMoods ? newMoods.map((m: any) => m.mood_id) : []);
+        }
       }
 
-      onGameUpdated()
-      setShowModal(false)
+      console.log('=== FINAL STATE ===');
+      console.log('Selected Moods:', selectedMoods);
+      console.log('Game Moods:', game.moods);
+      
+      // Add a longer delay before closing and refreshing
+      console.log('Waiting 3 seconds before closing...');
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      // Close modal first
+      setShowModal(false);
+      
+      // Wait another second before refreshing
+      console.log('Waiting 1 more second before refreshing...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      onGameUpdated();
     } catch (error) {
       console.error('Error updating game:', error)
       setError('Failed to update game. Please try again.')
@@ -311,7 +438,16 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                         name="status"
                         className="hidden"
                         checked={formData.status === status.value}
-                        onChange={() => setFormData({ ...formData, status: status.value })}
+                        onChange={() => {
+                           console.log('Status changing:', { from: formData.status, to: status.value });
+                           setFormData({ ...formData, status: status.value });
+                           console.log('Game state after status change:', {
+                             id: game.id,
+                             title: game.title,
+                             newStatus: status.value,
+                             moods: selectedMoods
+                           });
+                         }}
                       />
                       <span className="text-lg">{status.icon}</span>
                       <span>{status.value}</span>
