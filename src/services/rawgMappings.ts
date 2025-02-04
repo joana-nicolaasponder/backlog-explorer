@@ -126,8 +126,10 @@ export async function syncGenreMapping(rawgGenre: { id: number; name: string }):
   const { error } = await supabase
     .from('rawg_genre_mappings')
     .insert({
+      id: Date.now(), // Use timestamp as a simple way to generate unique bigint IDs
       rawg_id: rawgGenre.id,
-      genre_id: genreId
+      genre_id: genreId,
+      rawg_name: rawgGenre.name
     });
 
   if (error) {
