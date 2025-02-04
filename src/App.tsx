@@ -70,17 +70,14 @@ const ResetPassword = () => {
 }
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  console.log('ProtectedRoute: Component rendered');
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
 
   useEffect(() => {
-    console.log('ProtectedRoute: useEffect triggered');
     let mounted = true
 
     const checkAccess = async () => {
-      console.log('ProtectedRoute: Checking access...');
       try {
         // Get the current session
         const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession()
@@ -88,7 +85,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
         if (sessionError) throw sessionError
         
         if (!currentSession?.user?.email) {
-          console.log('ProtectedRoute: No valid session found')
           if (mounted) {
             setSession(null)
             setLoading(false)
@@ -108,7 +104,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
         }
 
         if (!allowedUser || allowedUser.length === 0) {
-          console.log('ProtectedRoute: Email not in allowlist:', currentSession.user.email)
           await supabase.auth.signOut()
           if (mounted) {
             setSession(null)
@@ -122,7 +117,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
         // User is allowed, update the session
         if (mounted) {
-          // console.log('Access granted for:', currentSession.user.email)
           setSession(currentSession)
           setLoading(false)
         }
@@ -141,7 +135,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, _newSession) => {
-      // console.log('Auth state changed:', event, newSession?.user?.email)
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         checkAccess()
       } else if (event === 'SIGNED_OUT') {
