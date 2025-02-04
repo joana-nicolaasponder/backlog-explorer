@@ -154,8 +154,62 @@ CREATE TABLE IF NOT EXISTS moods (
 CREATE TABLE IF NOT EXISTS game_genres (
     genre_id uuid NOT NULL REFERENCES genres(id),
     game_id uuid NOT NULL REFERENCES games(id),
-    created_at timestamp with time zone DEFAULT now()
+    created_at timestamp with time zone DEFAULT now(),
+    PRIMARY KEY (genre_id, game_id)
 );
+
+-- RAWG Mapping Tables
+CREATE TABLE IF NOT EXISTS rawg_platform_mappings (
+    id bigint NOT NULL PRIMARY KEY,
+    rawg_id integer NOT NULL,
+    platform_id uuid NOT NULL REFERENCES platforms(id),
+    rawg_name text NOT NULL,
+    created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+    UNIQUE(rawg_id, platform_id)
+);
+
+CREATE TABLE IF NOT EXISTS rawg_genre_mappings (
+    id bigint NOT NULL PRIMARY KEY,
+    rawg_id integer NOT NULL,
+    genre_id uuid NOT NULL REFERENCES genres(id),
+    rawg_name text NOT NULL,
+    created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+    UNIQUE(rawg_id, genre_id)
+);
+
+-- Enable RLS on mapping tables
+ALTER TABLE rawg_platform_mappings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE rawg_genre_mappings ENABLE ROW LEVEL SECURITY;
+
+-- Add RLS policies for platform mappings
+DO $$ BEGIN
+    CREATE POLICY "Allow authenticated users to read platform mappings" ON rawg_platform_mappings
+        FOR SELECT TO authenticated
+        USING (true);
+    EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE POLICY "Allow authenticated users to insert platform mappings" ON rawg_platform_mappings
+        FOR INSERT TO authenticated
+        WITH CHECK (true);
+    EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
+-- Add RLS policies for genre mappings
+DO $$ BEGIN
+    CREATE POLICY "Allow authenticated users to read genre mappings" ON rawg_genre_mappings
+        FOR SELECT TO authenticated
+        USING (true);
+    EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE POLICY "Allow authenticated users to insert genre mappings" ON rawg_genre_mappings
+        FOR INSERT TO authenticated
+        WITH CHECK (true);
+    EXCEPTION WHEN duplicate_object THEN null;
+END $$;
 
 CREATE TABLE IF NOT EXISTS game_platforms (
     platform_id uuid NOT NULL REFERENCES platforms(id),
@@ -190,6 +244,13 @@ DO $$ BEGIN
     CREATE POLICY "Allow authenticated users to read platforms" ON platforms
         FOR SELECT TO authenticated
         USING (true);
+    EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE POLICY "Allow authenticated users to insert platforms" ON platforms
+        FOR INSERT TO authenticated
+        WITH CHECK (true);
     EXCEPTION WHEN duplicate_object THEN null;
 END $$;
 
