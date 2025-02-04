@@ -13,7 +13,7 @@ interface GameFormData {
   status: string
   progress: number
   image: string
-  moods: string[]
+  moods: string[]  // Mood IDs are strings from the database
   rawg_id?: number
   rawg_slug?: string
   metacritic_rating?: number
@@ -42,7 +42,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
     status: 'Not Started',
     progress: 0,
     image: '',
-    moods: [],
+    moods: [] as string[],
   })
   const [platformOptions, setPlatformOptions] = useState<string[]>([])
   const [genreOptions, setGenreOptions] = useState<string[]>([])
