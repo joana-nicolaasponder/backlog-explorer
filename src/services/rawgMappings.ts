@@ -60,8 +60,10 @@ export async function syncPlatformMapping(rawgPlatform: { id: number; name: stri
   const { error } = await supabase
     .from('rawg_platform_mappings')
     .insert({
+      id: Date.now(), // Use timestamp as a simple way to generate unique bigint IDs
       rawg_id: rawgPlatform.id,
-      platform_id: platformId
+      platform_id: platformId,
+      rawg_name: rawgPlatform.name
     });
 
   if (error) {
