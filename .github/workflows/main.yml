@@ -2,7 +2,7 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, develop, deploy, 'feature/*' ]
+    branches: [ main, develop, deploy, 'feature/*', 'bugfix/*' ]
     tags:
       - 'v*'
   pull_request:
@@ -27,9 +27,9 @@ jobs:
             exit 1
           fi
           
-          # Ensure feature branches are properly named
-          if [[ "$TARGET_BRANCH" == "develop" && ! "$SOURCE_BRANCH" =~ ^feature/ ]]; then
-            echo "❌ Feature branches should start with 'feature/'. Current branch: $SOURCE_BRANCH"
+          # Ensure feature and bugfix branches are properly named
+          if [[ "$TARGET_BRANCH" == "develop" ]] && [[ ! "$SOURCE_BRANCH" =~ ^(feature|bugfix)\/ ]]; then
+            echo "❌ Branches targeting develop should start with 'feature/' or 'bugfix/'. Current branch: $SOURCE_BRANCH"
             exit 1
           fi
 
@@ -116,7 +116,7 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
-    needs: [update-changelog]
+    if: github.ref != 'refs/heads/deploy' || needs.update-changelog.result == 'success'
     steps:
       - uses: actions/checkout@v3
       
@@ -156,8 +156,15 @@ jobs:
 
   validate-database:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/deploy' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
-    needs: [build]
+    if: |
+      github.ref == 'refs/heads/deploy' ||
+      github.ref == 'refs/heads/main' ||
+      github.ref == 'refs/heads/develop' ||
+      (github.event_name == 'pull_request' && 
+        (github.base_ref == 'deploy' || 
+         github.base_ref == 'main' || 
+         github.base_ref == 'develop'))
+    needs: [lint]
     steps:
       - uses: actions/checkout@v3
       
@@ -172,10 +179,12 @@ jobs:
         
       - name: Validate Database Environments
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_SERVICE_KEY: ${{ secrets.VITE_SUPABASE_SERVICE_KEY }}
           DEV_SUPABASE_URL: ${{ secrets.DEV_SUPABASE_URL }}
           DEV_SUPABASE_SERVICE_KEY: ${{ secrets.DEV_SUPABASE_SERVICE_KEY }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_SERVICE_KEY: ${{ secrets.VITE_SUPABASE_SERVICE_KEY }}
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_BASE_REF: ${{ github.base_ref }}
         run: node scripts/validate-environments.js
 
   pr-reminder:
