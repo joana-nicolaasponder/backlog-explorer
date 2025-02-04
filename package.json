@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "lint": "eslint src --ext .ts,.tsx",
+    "lint": "eslint .",
     "preview": "vite preview",
     "test": "jest",
     "api": "node api/server.cjs"
