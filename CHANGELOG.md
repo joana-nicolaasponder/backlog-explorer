@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.4] - 2025-02-04
+
+### Added
+- run database validation on main and develop branches
+
+
 ## [1.0.3] - 2025-02-04
 
 ### Changed
