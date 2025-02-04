@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Session } from '@supabase/supabase-js'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import supabase from '../supabaseClient'
 
 interface AuthProps {
@@ -9,6 +9,7 @@ interface AuthProps {
 
 const Auth: React.FC<AuthProps> = ({ onAuth }) => {
   const location = useLocation()
+  const navigate = useNavigate()
   const [email, setEmail] = useState<string>('')
   const [password, setPassword] = useState<string>('')
   const [confirmPassword, setConfirmPassword] = useState<string>('')
@@ -17,7 +18,7 @@ const Auth: React.FC<AuthProps> = ({ onAuth }) => {
   const [resetSent, setResetSent] = useState<boolean>(false)
   const [loading, setLoading] = useState<boolean>(false)
   const [googleLoading, setGoogleLoading] = useState<boolean>(false)
-  const [error, setError] = useState<string>((location.state as any)?.error || '')
+  const [error, setError] = useState<string>((location.state as { error?: string })?.error || '')
   const [success, setSuccess] = useState<string>('')
 
   const validateEmail = (email: string) => {
@@ -65,22 +66,40 @@ const Auth: React.FC<AuthProps> = ({ onAuth }) => {
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            redirectTo: `${window.location.origin}/app`
+          }
         })
         if (error) throw error
         setSuccess(
           'Sign-up successful! Please check your email to confirm your account.'
         )
       } else {
+        console.log('Attempting password sign in...');
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
-          password,
+          password
         })
         if (error) throw error
         onAuth(data.session)
+
+        // Check if the email is in the allowlist after setting session
+        const { data: allowedUser, error: allowlistError } = await supabase
+          .from('allowed_emails')
+          .select('email')
+          .eq('email', data.session?.user?.email || '')
+          .single()
+
+        if (allowlistError || !allowedUser) {
+          await supabase.auth.signOut()
+          throw new Error('You are not authorized to access this application. Please contact the administrator.')
+        }
+        navigate('/app');
       }
-    } catch (err: any) {
-      setError(err.message)
-      console.error(err.message)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred'
+      setError(message)
+      console.error(message)
     } finally {
       setLoading(false)
     }
@@ -88,30 +107,7 @@ const Auth: React.FC<AuthProps> = ({ onAuth }) => {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user?.email) {
-        try {
-          // Check if the email is in the allowlist
-          const { data: allowedUser, error: allowlistError } = await supabase
-            .from('allowed_emails')
-            .select('email')
-            .eq('email', session.user.email)
-            .single()
-
-          if (allowlistError || !allowedUser) {
-            // If user is not in allowlist, sign them out
-            await supabase.auth.signOut()
-            setError('You are not authorized to access this application. Please contact the administrator.')
-            return
-          }
-
-          // If we get here, the user is allowed
-          onAuth(session)
-        } catch (err: any) {
-          console.error('Auth state change error:', err.message)
-          await supabase.auth.signOut()
-          setError(err.message)
-        }
-      }
+      // Handle auth state changes if needed in the future
     })
 
     return () => {
