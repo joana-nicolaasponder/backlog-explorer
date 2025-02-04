@@ -5,8 +5,6 @@ import { Game, GameNote, RawgGameDetails } from '../types'
 import EditGameModal from '../components/EditGameModal'
 import imageCompression from 'browser-image-compression'
 
-interface GameDetailsProps {}
-
 const GameDetails = () => {
   const { id } = useParams()
   const [game, setGame] = useState<Game | null>(null)

@@ -44,9 +44,9 @@ export type SessionMood =
   | 'Mixed'
   | 'Frustrating'
   | 'Meh'
-  | 'Regret';
+  | 'Regret'
   | 'Impressed'
-  | 'Disappointed';
+  | 'Disappointed'
 
 export type SessionIntent =
   | 'Continue Story'
