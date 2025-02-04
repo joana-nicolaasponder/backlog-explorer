@@ -14,14 +14,24 @@ interface GenreMapping {
 }
 
 export async function syncPlatformMapping(rawgPlatform: { id: number; name: string }): Promise<string | null> {
+  console.log('Syncing platform:', rawgPlatform.name);
+  
   // Check if mapping already exists
-  const { data: existingMapping } = await supabase
+  const { data: existingMappings, error: mappingError } = await supabase
     .from('rawg_platform_mappings')
     .select('platform_id')
-    .eq('rawg_id', rawgPlatform.id)
-    .single();
+    .eq('rawg_id', rawgPlatform.id);
+    
+  if (mappingError) {
+    console.error('Error checking platform mapping:', mappingError);
+    return null;
+  }
+
+  console.log('Existing mappings:', existingMappings);
+  const existingMapping = existingMappings?.[0];
 
   if (existingMapping) {
+    console.log('Found existing platform mapping:', existingMapping);
     return existingMapping.platform_id;
   }
 
@@ -56,8 +66,7 @@ export async function syncPlatformMapping(rawgPlatform: { id: number; name: stri
     .from('rawg_platform_mappings')
     .insert({
       rawg_id: rawgPlatform.id,
-      platform_id: platformId,
-      rawg_name: rawgPlatform.name
+      platform_id: platformId
     });
 
   if (error) {
@@ -69,14 +78,24 @@ export async function syncPlatformMapping(rawgPlatform: { id: number; name: stri
 }
 
 export async function syncGenreMapping(rawgGenre: { id: number; name: string }): Promise<string | null> {
+  console.log('Syncing genre:', rawgGenre.name);
+
   // Check if mapping already exists
-  const { data: existingMapping } = await supabase
+  const { data: existingMappings, error: mappingError } = await supabase
     .from('rawg_genre_mappings')
     .select('genre_id')
-    .eq('rawg_id', rawgGenre.id)
-    .single();
+    .eq('rawg_id', rawgGenre.id);
+    
+  if (mappingError) {
+    console.error('Error checking genre mapping:', mappingError);
+    return null;
+  }
+
+  console.log('Existing mappings:', existingMappings);
+  const existingMapping = existingMappings?.[0];
 
   if (existingMapping) {
+    console.log('Found existing genre mapping:', existingMapping);
     return existingMapping.genre_id;
   }
 
@@ -111,8 +130,7 @@ export async function syncGenreMapping(rawgGenre: { id: number; name: string }):
     .from('rawg_genre_mappings')
     .insert({
       rawg_id: rawgGenre.id,
-      genre_id: genreId,
-      rawg_name: rawgGenre.name
+      genre_id: genreId
     });
 
   if (error) {
