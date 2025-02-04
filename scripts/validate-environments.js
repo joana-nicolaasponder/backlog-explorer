@@ -17,8 +17,8 @@ const devClient = createClient(
 );
 
 const prodClient = createClient(
-  process.env.PROD_SUPABASE_URL,
-  process.env.PROD_SUPABASE_SERVICE_KEY
+  process.env.VITE_SUPABASE_URL,
+  process.env.VITE_SUPABASE_SERVICE_KEY
 );
 
 console.log('Comparing development and production environments...');
