@@ -14,8 +14,6 @@ interface GenreMapping {
 }
 
 export async function syncPlatformMapping(rawgPlatform: { id: number; name: string }): Promise<string | null> {
-  console.log('Syncing platform:', rawgPlatform.name);
-  
   // Check if mapping already exists
   const { data: existingMappings, error: mappingError } = await supabase
     .from('rawg_platform_mappings')
@@ -23,15 +21,12 @@ export async function syncPlatformMapping(rawgPlatform: { id: number; name: stri
     .eq('rawg_id', rawgPlatform.id);
     
   if (mappingError) {
-    console.error('Error checking platform mapping:', mappingError);
-    return null;
+    throw new Error(`Error checking platform mapping: ${mappingError.message}`);
   }
 
-  console.log('Existing mappings:', existingMappings);
   const existingMapping = existingMappings?.[0];
 
   if (existingMapping) {
-    console.log('Found existing platform mapping:', existingMapping);
     return existingMapping.platform_id;
   }
 

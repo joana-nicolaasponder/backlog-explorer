@@ -152,7 +152,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }, [])
 
   if (loading) {
-    console.log('ProtectedRoute: Still loading...');
     return (
       <div className="flex justify-center items-center min-h-screen">
         <div className="loading loading-spinner loading-lg"></div>
@@ -161,10 +160,8 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
   
   if (!session) {
-    console.log('ProtectedRoute: No session, redirecting to login');
     return <Navigate to="/login" />
   }
-  console.log('ProtectedRoute: Session valid, rendering children');
   
   return <>{children}</>
 }
@@ -177,9 +174,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const getSession = async () => {
-      console.log('Getting initial session...');
       const { data } = await supabase.auth.getSession()
-      console.log('Initial session:', data.session?.user?.email);
       setSession(data.session)
     }
 
@@ -187,7 +182,7 @@ const App: React.FC = () => {
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log('App: Auth state changed:', event, session?.user?.email);
+
         setSession(session)
       }
     )
