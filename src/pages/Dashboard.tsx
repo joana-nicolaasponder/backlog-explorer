@@ -87,13 +87,14 @@ const Dashboard = () => {
         if (error) throw error
 
         // Get the most recent game note
-        const { data: recentNote } = await supabase
+        const { data: recentNotes } = await supabase
           .from('game_notes')
           .select('created_at, content')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
           .limit(1)
-          .single()
+
+        const recentNote = recentNotes?.[0]
 
         const completedGames = userGames.filter(game => 
           ['Endless', 'Done', 'Satisfied', 'DNF'].includes(game.status)
