@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.8] - 2025-02-05
+
+### Added
+- Add custom cover image support
+
+
 ## [1.0.7] - 2025-02-05
 
 ### Fixed
