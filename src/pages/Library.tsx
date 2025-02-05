@@ -60,18 +60,13 @@ const Library = () => {
             id,
             status,
             progress,
+            platforms,
+            image,
             game:games (
               id,
               title,
               background_image,
               created_at,
-              game_platforms (
-                platform_id,
-                platforms (
-                  id,
-                  name
-                )
-              ),
               game_genres (
                 genre_id,
                 genres (
@@ -95,9 +90,9 @@ const Library = () => {
           title: userGame.game.title,
           status: userGame.status,
           progress: userGame.progress,
-          image: userGame.game.background_image,
+          image: userGame.image || userGame.game.background_image,
           created_at: userGame.game.created_at,
-          platforms: userGame.game.game_platforms.map(gp => gp.platforms.name),
+          platforms: userGame.platforms,
           genres: userGame.game.game_genres.map(gg => gg.genres.name)
         }))
 
