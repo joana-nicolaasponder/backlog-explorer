@@ -8,16 +8,9 @@ interface Game {
   title: string
   image: string
   progress: number
-  game_platforms: {
-    platforms: {
-      name: string
-    }
-  }[]
-  game_genres: {
-    genres: {
-      name: string
-    }
-  }[]
+  platforms: string[]
+  genres: string[]
+  status: string
 }
 
 const HomePage = () => {
@@ -59,15 +52,12 @@ const HomePage = () => {
             id,
             status,
             progress,
+            platforms,
+            image,
             game:games (
               id,
               title,
               background_image,
-              game_platforms (
-                platforms (
-                  name
-                )
-              ),
               game_genres (
                 genres (
                   name
@@ -86,14 +76,11 @@ const HomePage = () => {
           games?.map((userGame) => ({
             id: userGame.game.id,
             title: userGame.game.title,
-            image: userGame.game.background_image,
+            image: userGame.image || userGame.game.background_image,
             progress: userGame.progress,
-            game_platforms: userGame.game.game_platforms.map((gp) => ({
-              platforms: { name: gp.platforms.name },
-            })),
-            game_genres: userGame.game.game_genres.map((gg) => ({
-              genres: { name: gg.genres.name },
-            })),
+            platforms: userGame.platforms || [],
+            genres: userGame.game.game_genres.map(gg => gg.genres.name),
+            status: userGame.status,
           })) || []
 
         setCurrentGames(formattedGames)
@@ -167,16 +154,16 @@ const HomePage = () => {
                   <div className="card-body">
                     <h3 className="card-title">{game.title}</h3>
                     <div className="flex gap-2 flex-wrap mb-2">
-                      {game.game_platforms.map((gp, index) => (
-                        <span key={index} className="badge badge-outline">
-                          {gp.platforms.name}
+                      {game.platforms.map((platform, index) => (
+                        <span key={`${game.id}-${platform}-${index}`} className="badge badge-outline">
+                          {platform}
                         </span>
                       ))}
                     </div>
                     <div className="flex gap-2 flex-wrap mb-4">
-                      {game.game_genres.map((gg, index) => (
-                        <span key={index} className="badge badge-accent">
-                          {gg.genres.name}
+                      {game.genres.map((genre, index) => (
+                        <span key={`${game.id}-${genre}-${index}`} className="badge badge-accent">
+                          {genre}
                         </span>
                       ))}
                     </div>
