@@ -13,7 +13,7 @@ interface GameFormData {
   status: string
   progress: number
   image: string
-  moods: string[]  // Mood IDs are strings from the database
+  moods: string[] // Mood IDs are strings from the database
   rawg_id?: number
   rawg_slug?: string
   metacritic_rating?: number
@@ -63,7 +63,9 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
   const [isLoading, setIsLoading] = useState(false)
   const [isSearching, setIsSearching] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [existingGameMessage, setExistingGameMessage] = useState<string | null>(null)
+  const [existingGameMessage, setExistingGameMessage] = useState<string | null>(
+    null
+  )
 
   useEffect(() => {
     fetchOptions()
@@ -112,7 +114,9 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
     setSelectedGame(game)
 
     // Check if user already has this game
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
     if (!user) throw new Error('No user found')
 
     // First check if the game exists
@@ -128,12 +132,14 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
     if (existingGame) {
       const { data: userGames } = await supabase
         .from('user_games')
-        .select(`
+        .select(
+          `
           id,
           status,
           progress,
           game_id
-        `)
+        `
+        )
         .eq('game_id', existingGame.id)
         .eq('user_id', user.id)
 
@@ -208,7 +214,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
         .from('games')
         .select('id')
         .eq('rawg_id', formData.rawg_id)
-      
+
       const existingGame = existingGames?.[0]
 
       if (existingGame) {
@@ -236,40 +242,33 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
         gameId = newGame.id
       }
 
-      // Set up platform and genre mappings from RAWG
-      if (selectedGame) {
-        console.log('Selected game:', selectedGame.name);
-        console.log('Form data platforms:', formData.platforms);
-        
-        // Filter platforms to only those selected by user
-        const selectedPlatforms = selectedGame.platforms.filter(p => 
-          formData.platforms.includes(p.platform.name)
-        );
-        console.log('Filtered platforms:', selectedPlatforms.map(p => p.platform.name));
+      // For new games, add all available platforms and genres from RAWG
+      if (selectedGame && !existingGame) {
+        // Map all platforms and genres from RAWG
+        const { platformIds, genreIds } = await mapRAWGGameToIds(selectedGame)
 
-        // Map selected platforms and all genres
-        const { platformIds, genreIds } = await mapRAWGGameToIds({
-          ...selectedGame,
-          platforms: selectedPlatforms
-        });
-        console.log('Mapped IDs:', { platformIds, genreIds });
-        
-        // Add platforms
+        // Add all available platforms
         for (const platformId of platformIds) {
-          const { data, error } = await supabase.from('game_platforms').insert({
+          const { error } = await supabase.from('game_platforms').insert({
             game_id: gameId,
-            platform_id: platformId
-          }).select();
-          if (error) throw error;
+            platform_id: platformId,
+          })
+          if (error && error.code !== '23505') {
+            // Ignore duplicate key errors
+            throw error
+          }
         }
 
         // Add genres
         for (const genreId of genreIds) {
-          const { data, error } = await supabase.from('game_genres').insert({
+          const { error } = await supabase.from('game_genres').insert({
             game_id: gameId,
-            genre_id: genreId
-          }).select();
-          if (error) throw error;
+            genre_id: genreId,
+          })
+          if (error && error.code !== '23505') {
+            // Ignore duplicate key errors
+            throw error
+          }
         }
       }
 
@@ -279,7 +278,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
         .select('id')
         .eq('user_id', user.id)
         .eq('game_id', gameId)
-        
+
       const existingUserGame = existingUserGames?.[0]
 
       if (existingUserGame) {
@@ -289,6 +288,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
           .update({
             status: formData.status,
             progress: formData.progress,
+            platforms: formData.platforms, // Store user's selected platforms
           })
           .eq('id', existingUserGame.id)
       } else {
@@ -298,6 +298,11 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
           game_id: gameId,
           status: formData.status,
           progress: formData.progress,
+          platforms: formData.platforms, // Store user's selected platforms
+          image:
+            formData.image !== formData.background_image
+              ? formData.image
+              : null, // Store user's custom image
         })
       }
 
@@ -335,7 +340,11 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
       onGameAdded()
     } catch (error) {
       console.error('Error adding game:', error)
-      setError(error instanceof Error ? error.message : 'An error occurred while adding the game')
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'An error occurred while adding the game'
+      )
       return // Exit early if there's an error
     } finally {
       setIsLoading(false)
@@ -368,8 +377,18 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
 
         {existingGameMessage && (
           <div className="alert bg-base-200 text-base-content border-2 border-base-300 mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-base-content shrink-0 w-6 h-6">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              className="stroke-base-content shrink-0 w-6 h-6"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              ></path>
             </svg>
             <span>{existingGameMessage}</span>
           </div>
@@ -406,9 +425,41 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
                   src={formData.image}
                   alt={formData.title}
                   className="object-cover w-full h-full"
+                  onError={(e) => {
+                    console.error('Image failed to load:', formData.image)
+                    setError(
+                      'Failed to load image. Please check the URL and try again.'
+                    )
+                  }}
                 />
               </div>
             )}
+
+            <div className="form-control">
+              <label className="label">
+                <span className="label-text text-base-content">
+                  Custom Image URL (optional)
+                </span>
+              </label>
+              <input
+                type="url"
+                className="input input-bordered bg-base-100"
+                value={
+                  formData.image !== formData.background_image
+                    ? formData.image
+                    : ''
+                }
+                placeholder="Enter a URL to override the default game image"
+                onChange={(e) => {
+                  const url = e.target.value.trim()
+                  setFormData({
+                    ...formData,
+                    image: url || formData.background_image || '',
+                  })
+                  setError(null)
+                }}
+              />
+            </div>
 
             <div className="form-control">
               <label className="label">
@@ -527,11 +578,13 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
                           <span
                             className={`
                               btn btn-sm normal-case px-4
-                              ${isSelected
-                                ? 'bg-primary text-primary-content hover:bg-primary-focus border-primary'
-                                : disabled
+                              ${
+                                isSelected
+                                  ? 'bg-primary text-primary-content hover:bg-primary-focus border-primary'
+                                  : disabled
                                   ? 'btn-disabled opacity-50'
-                                  : 'btn-ghost hover:bg-base-200 border border-base-300'}
+                                  : 'btn-ghost hover:bg-base-200 border border-base-300'
+                              }
                               transition-all duration-200
                             `}
                           >
@@ -543,7 +596,9 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
                               onChange={(e) => {
                                 const newMoods = e.target.checked
                                   ? [...formData.moods, mood.id]
-                                  : formData.moods.filter((id) => id !== mood.id)
+                                  : formData.moods.filter(
+                                      (id) => id !== mood.id
+                                    )
                                 setFormData({ ...formData, moods: newMoods })
                               }}
                             />
@@ -597,11 +652,13 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
                           <span
                             className={`
                               btn btn-sm normal-case px-4
-                              ${isSelected
-                                ? 'bg-secondary text-secondary-content hover:bg-secondary-focus border-secondary'
-                                : disabled
+                              ${
+                                isSelected
+                                  ? 'bg-secondary text-secondary-content hover:bg-secondary-focus border-secondary'
+                                  : disabled
                                   ? 'btn-disabled opacity-50'
-                                  : 'btn-ghost hover:bg-base-200 border border-base-300'}
+                                  : 'btn-ghost hover:bg-base-200 border border-base-300'
+                              }
                               transition-all duration-200
                             `}
                           >
@@ -613,7 +670,9 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
                               onChange={(e) => {
                                 const newMoods = e.target.checked
                                   ? [...formData.moods, mood.id]
-                                  : formData.moods.filter((id) => id !== mood.id)
+                                  : formData.moods.filter(
+                                      (id) => id !== mood.id
+                                    )
                                 setFormData({ ...formData, moods: newMoods })
                               }}
                             />
@@ -641,12 +700,24 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
                 <div className="join join-vertical w-full">
                   {[
                     { value: 'Wishlist', icon: '🎮', desc: 'Want to play' },
-                    { value: 'Currently Playing', icon: '▶️', desc: 'In progress' },
+                    {
+                      value: 'Currently Playing',
+                      icon: '▶️',
+                      desc: 'In progress',
+                    },
                     { value: 'Done', icon: '✅', desc: 'Completed main story' },
                     { value: 'DNF', icon: '⏹️', desc: 'Did not finish' },
                     { value: 'Endless', icon: '♾️', desc: 'No definite end' },
-                    { value: 'Satisfied', icon: '🌟', desc: 'Happy with progress' },
-                    { value: 'Try Again', icon: '🔄', desc: 'Give it another shot' },
+                    {
+                      value: 'Satisfied',
+                      icon: '🌟',
+                      desc: 'Happy with progress',
+                    },
+                    {
+                      value: 'Try Again',
+                      icon: '🔄',
+                      desc: 'Give it another shot',
+                    },
                     { value: 'Started', icon: '🎯', desc: 'Just began' },
                     { value: 'Owned', icon: '💫', desc: 'In collection' },
                     { value: 'Come back!', icon: '⏰', desc: 'Return later' },
@@ -711,29 +782,6 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
             </div>
           </div>
 
-          {/* Optional Details */}
-          <div className="card bg-base-200 shadow-sm p-6 space-y-4">
-            <h2 className="card-title text-base-content text-lg">
-              Optional Details
-            </h2>
-
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text text-base-content">
-                  Cover Image URL
-                </span>
-              </label>
-              <input
-                type="text"
-                className="input input-bordered bg-base-100"
-                value={formData.image}
-                onChange={(e) =>
-                  setFormData({ ...formData, image: e.target.value })
-                }
-                placeholder="https://..."
-              />
-            </div>
-          </div>
 
           <div className="modal-action gap-2">
             <button

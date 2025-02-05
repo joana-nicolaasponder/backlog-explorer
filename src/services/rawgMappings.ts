@@ -40,14 +40,14 @@ export async function syncPlatformMapping(rawgPlatform: { id: number; name: stri
 
   if (!platforms || platforms.length === 0) {
     // Create new platform if no match found
-    const { data: newPlatform } = await supabase
+    const { data: newPlatform, error: insertError } = await supabase
       .from('platforms')
       .insert({ name: rawgPlatform.name })
       .select()
       .single();
 
-    if (!newPlatform) {
-      console.error('Failed to create new platform:', rawgPlatform.name);
+    if (insertError) {
+      console.error('Failed to create platform:', rawgPlatform.name, insertError);
       return null;
     }
 
@@ -60,7 +60,7 @@ export async function syncPlatformMapping(rawgPlatform: { id: number; name: stri
   const { error } = await supabase
     .from('rawg_platform_mappings')
     .insert({
-      id: Date.now(), // Use timestamp as a simple way to generate unique bigint IDs
+      id: Date.now(),  // Use timestamp as unique ID
       rawg_id: rawgPlatform.id,
       platform_id: platformId,
       rawg_name: rawgPlatform.name
@@ -106,14 +106,14 @@ export async function syncGenreMapping(rawgGenre: { id: number; name: string }):
 
   if (!genres || genres.length === 0) {
     // Create new genre if no match found
-    const { data: newGenre } = await supabase
+    const { data: newGenre, error: insertError } = await supabase
       .from('genres')
       .insert({ name: rawgGenre.name })
       .select()
       .single();
 
-    if (!newGenre) {
-      console.error('Failed to create new genre:', rawgGenre.name);
+    if (insertError) {
+      console.error('Failed to create genre:', rawgGenre.name, insertError);
       return null;
     }
 
@@ -126,7 +126,7 @@ export async function syncGenreMapping(rawgGenre: { id: number; name: string }):
   const { error } = await supabase
     .from('rawg_genre_mappings')
     .insert({
-      id: Date.now(), // Use timestamp as a simple way to generate unique bigint IDs
+      id: Date.now(),  // Use timestamp as unique ID
       rawg_id: rawgGenre.id,
       genre_id: genreId,
       rawg_name: rawgGenre.name
