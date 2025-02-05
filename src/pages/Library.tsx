@@ -7,8 +7,10 @@ import { UserGame } from '../types'
 
 const Library = () => {
   const location = useLocation()
-  const [filterStatus, setFilterStatus] = useState<string | string[]>(
-    location.state?.filterStatus || ''
+  const [filterStatus, setFilterStatus] = useState<string>(
+    Array.isArray(location.state?.filterStatus) 
+      ? location.state.filterStatus[0] || ''
+      : location.state?.filterStatus || ''
   )
   const [filterPlatform, setFilterPlatform] = useState<string>('')
   const [filterGenre, setFilterGenre] = useState<string>('')
@@ -125,15 +127,9 @@ const Library = () => {
         }
 
         if (filterStatus) {
-          if (Array.isArray(filterStatus)) {
-            formattedGames = formattedGames.filter(game =>
-              filterStatus.includes(game.status)
-            )
-          } else {
-            formattedGames = formattedGames.filter(game =>
-              game.status === filterStatus
-            )
-          }
+          formattedGames = formattedGames.filter(game =>
+            game.status === filterStatus
+          )
         }
 
         if (searchQuery) {
