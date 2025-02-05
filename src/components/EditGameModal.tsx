@@ -43,6 +43,9 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [isLoadingMoods, setIsLoadingMoods] = useState(false)
+  const [imageError, setImageError] = useState<string | null>(null)
+  const [isValidatingImage, setIsValidatingImage] = useState(false)
+  const [validationTimeout, setValidationTimeout] = useState<NodeJS.Timeout | null>(null)
   const [statusOptions] = useState<string[]>([
     'Endless',
     'Satisfied',
@@ -198,6 +201,48 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
   };
 
 
+  const validateImageUrl = async (url: string, isSubmit: boolean = false): Promise<boolean> => {
+    // Clear any existing validation timeout
+    if (validationTimeout) {
+      clearTimeout(validationTimeout);
+      setValidationTimeout(null);
+    }
+    if (!url) return true; // Empty URL is valid (optional field)
+    
+    // Basic URL format validation
+    try {
+      new URL(url);
+    } catch {
+      setImageError('Please enter a valid URL');
+      return false;
+    }
+
+    // Check if image can be loaded in the browser
+    try {
+      setIsValidatingImage(true);
+      
+      const result = await new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve(true);
+        img.onerror = () => resolve(false);
+        img.src = url;
+      });
+
+      if (!result) {
+        setImageError('Could not load image from URL');
+        return false;
+      }
+    } catch (err) {
+      setImageError('Failed to validate image URL');
+      return false;
+    } finally {
+      setIsValidatingImage(false);
+    }
+
+    setImageError(null);
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setIsLoading(true)
@@ -208,6 +253,15 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     const originalFormState = { ...formData }
     
     try {
+      // Validate image URL if one is provided
+      if (formData.image) {
+        const isValidImage = await validateImageUrl(formData.image, true);
+        if (!isValidImage) {
+          setIsLoading(false);
+          return;
+        }
+      }
+
       // Get current user
       const { data: { user }, error: userError } = await supabase.auth.getUser()
       if (userError) {
@@ -224,6 +278,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           status: formData.status,
           progress: formData.progress,
           platforms: formData.platforms,
+          image: formData.image,
           updated_at: new Date().toISOString()
         })
         .eq('game_id', game.id)
@@ -364,6 +419,57 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                     {genre}
                   </span>
                 ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Custom Image Section */}
+          <div className="card bg-base-200 shadow-sm p-6 space-y-6">
+            <h2 className="card-title text-base-content text-lg">Custom Cover Image</h2>
+            <div className="space-y-4">
+              <div className="flex flex-col space-y-2">
+                <label htmlFor="image" className="text-sm font-medium text-base-content">
+                  Custom Cover Image URL (optional)
+                </label>
+                <input
+                  type="text"
+                  id="image"
+                  name="image"
+                  value={formData.image || ''}
+                  onChange={(e) => {
+                    const newUrl = e.target.value;
+                    setFormData({ ...formData, image: newUrl });
+                    
+                    // Clear any existing timeout
+                    if (validationTimeout) {
+                      clearTimeout(validationTimeout);
+                    }
+                    
+                    if (newUrl) {
+                      // Set a new timeout for validation
+                      const timeout = setTimeout(() => {
+                        validateImageUrl(newUrl);
+                      }, 500); // 500ms debounce
+                      setValidationTimeout(timeout);
+                    } else {
+                      setImageError(null);
+                      setIsValidatingImage(false);
+                    }
+                  }}
+                  placeholder="Enter a URL for a custom cover image"
+                  className={`input input-bordered w-full ${imageError ? 'input-error' : ''}`}
+                  disabled={isValidatingImage}
+                />
+                {isValidatingImage && (
+                  <div className="text-sm text-base-content/70">
+                    Validating image URL...
+                  </div>
+                )}
+                {imageError && (
+                  <div className="text-sm text-error">
+                    {imageError}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -567,11 +673,24 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           </div>
 
           <div className="space-y-4">
-            {(error || success) && (
-              <div className={`alert ${error ? 'alert-error' : 'alert-success'} mb-2`}>
-                <span>{error || success}</span>
+            {/* Error and Success Messages */}
+            {(error || imageError || success) && (
+              <div className={`alert ${error || imageError ? 'alert-error' : 'alert-success'} mb-2`}>
+                {(error || imageError) && (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-4 w-4" fill="none" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                )}
+                {success && (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-4 w-4" fill="none" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                )}
+                <span>{error || imageError || success}</span>
               </div>
             )}
+
+            {/* Action Buttons */}
             <div className="modal-action gap-2">
               <button
                 type="button"
@@ -583,7 +702,8 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={isLoading}
+                disabled={isLoading || !!imageError}
+                title={imageError ? 'Please fix the image URL error before saving' : undefined}
               >
                 {isLoading ? (
                   <>
