@@ -9,6 +9,7 @@ interface Game extends Omit<BaseGame, 'game_genres' | 'game_platforms' | 'game_m
   platforms: string[]
   genres: string[]
   image: string
+  game_platforms?: { platforms: { name: string } }[]  // For backward compatibility
 }
 
 interface GameCardProps {
@@ -167,8 +168,9 @@ const GameCard = ({ games, userId, onRefresh }: GameCardProps) => {
                 </div>
               </h2>
               <div className="flex gap-2 items-center flex-wrap">
-                {game.platforms?.map((platform) => (
-                  <span key={platform} className="badge badge-outline">
+                {/* Display platforms from user_games */}
+                {game.platforms?.map((platform, index) => (
+                  <span key={`${game.id}-${platform}-${index}`} className="badge badge-outline">
                     {platform}
                   </span>
                 ))}
