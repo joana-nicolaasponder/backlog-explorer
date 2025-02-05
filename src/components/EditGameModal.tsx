@@ -199,19 +199,23 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
 
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-
     e.preventDefault()
     setIsLoading(true)
     setError(null)
     setSuccess(null)
 
+    // Store original form state to revert on error
+    const originalFormState = { ...formData }
+    
     try {
       // Get current user
       const { data: { user }, error: userError } = await supabase.auth.getUser()
-      if (userError) throw userError
-      if (!user) throw new Error('No user found')
-      
-
+      if (userError) {
+        throw new Error('Authentication error. Please try again.')
+      }
+      if (!user) {
+        throw new Error('No user found. Please log in again.')
+      }
 
       // Step 1: Update user_games
       const { error: updateError } = await supabase
@@ -226,73 +230,96 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
         .eq('user_id', user.id)
 
       if (updateError) {
-
-        throw updateError
+        console.error('Error updating game:', updateError)
+        throw new Error('Failed to update game status. Please try again.')
       }
 
-
-
-
-      // Debug the condition evaluation
-      const hasExistingMoods = originalMoods.length > 0;
-      const moodsCleared = selectedMoods.length === 0 && hasExistingMoods;
-      const moodsChanged = !arraysEqual(selectedMoods, originalMoods);
+      // Handle mood updates
+      const hasExistingMoods = originalMoods.length > 0
+      const moodsCleared = selectedMoods.length === 0 && hasExistingMoods
+      const moodsChanged = !arraysEqual(selectedMoods, originalMoods)
       
       if (moodsCleared || moodsChanged) {
-        // Step 2: Delete existing moods
-        const { error: deleteError } = await supabase
-          .from('game_moods')
-          .delete()
-          .eq('game_id', game.id)
-          .eq('user_id', userId)
-          .throwOnError();
-        
-               if (deleteError) {
-          throw deleteError;
-        }
-
-        // Step 3: Insert new moods if any are selected
-        if (selectedMoods.length > 0) {
-          const moodData = selectedMoods.map(moodId => ({
-            user_id: userId,
-            game_id: game.id,
-            mood_id: moodId,
-            weight: 1,
-            created_at: new Date().toISOString()
-          }));
-
-          const { error: insertError } = await supabase
+        try {
+          // Step 2: Delete existing moods
+          const { error: deleteError } = await supabase
             .from('game_moods')
-            .insert(moodData)
-            .throwOnError();
+            .delete()
+            .eq('game_id', game.id)
+            .eq('user_id', userId)
 
-          if (insertError) {
-
-            throw insertError;
+          if (deleteError) {
+            console.error('Error deleting moods:', deleteError)
+            throw new Error('Failed to update game moods. Please try again.')
           }
-        }
 
-        // Refetch moods
-        const { data: newMoods, error: moodsError } = await supabase
-          .from('game_moods')
-          .select('mood_id')
-          .eq('game_id', game.id);
-               if (moodsError) {
-          throw moodsError;
-        } else {
-          setSelectedMoods(newMoods ? newMoods.map((m: any) => m.mood_id) : []);
+          // Step 3: Insert new moods if any are selected
+          if (selectedMoods.length > 0) {
+            const moodData = selectedMoods.map(moodId => ({
+              user_id: userId,
+              game_id: game.id,
+              mood_id: moodId,
+              weight: 1,
+              created_at: new Date().toISOString()
+            }))
+
+            const { error: insertError } = await supabase
+              .from('game_moods')
+              .insert(moodData)
+
+            if (insertError) {
+              console.error('Error inserting moods:', insertError)
+              throw new Error('Failed to save new game moods. Please try again.')
+            }
+          }
+
+          // Verify mood updates
+          const { data: newMoods, error: moodsError } = await supabase
+            .from('game_moods')
+            .select('mood_id')
+            .eq('game_id', game.id)
+
+          if (moodsError) {
+            console.error('Error verifying moods:', moodsError)
+            throw new Error('Failed to verify mood updates. Please check your library.')
+          }
+
+          setSelectedMoods(newMoods ? newMoods.map(m => m.mood_id) : [])
+        } catch (moodError) {
+          // If mood update fails, we should roll back the game status update
+          const { error: rollbackError } = await supabase
+            .from('user_games')
+            .update({
+              status: originalFormState.status,
+              progress: originalFormState.progress,
+              platforms: originalFormState.platforms,
+              updated_at: new Date().toISOString()
+            })
+            .eq('game_id', game.id)
+            .eq('user_id', user.id)
+
+          if (rollbackError) {
+            console.error('Error rolling back game status:', rollbackError)
+            throw new Error('Update failed. Please refresh and try again.')
+          }
+
+          // Reset form state
+          setFormData(originalFormState)
+          throw moodError
         }
       }
 
-      setSuccess('Changes saved successfully!');
+      setSuccess('Changes saved successfully!')
       // Give users a moment to see the success message
       setTimeout(() => {
-        setShowModal(false);
-        onGameUpdated();
-      }, 1000);
+        setShowModal(false)
+        onGameUpdated()
+      }, 1000)
     } catch (error) {
-
-      setError('Failed to update game. Please try again.')
+      console.error('Submit error:', error)
+      setError(error instanceof Error ? error.message : 'Failed to update game. Please try again.')
+      // Reset form state on error
+      setFormData(originalFormState)
     } finally {
       setIsLoading(false)
     }
