@@ -141,7 +141,7 @@ const HomePage = () => {
             </p>
             <button
               className="btn btn-primary"
-              onClick={() => navigate('/library')}
+              onClick={() => navigate('/app/library')}
             >
               Browse Your Library
             </button>
