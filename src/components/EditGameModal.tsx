@@ -71,18 +71,12 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
   // Load available platforms for this game from RAWG
   useEffect(() => {
     const loadGamePlatforms = async () => {
-      console.log('Loading platforms for game:', game)
-      
       try {
         let gameDetails;
         
         if (game.rawg_id) {
-          // If we have a RAWG ID, use it
-          console.log('Using existing RAWG ID:', game.rawg_id)
           gameDetails = await getGameDetails(Number(game.rawg_id))
         } else {
-          // If no RAWG ID, search by title
-          console.log('Searching RAWG for game:', game.title)
           const searchResults = await searchGames(game.title)
           
           // Find the most relevant match
@@ -92,21 +86,18 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           const bestMatch = exactMatch || searchResults[0]
           
           if (bestMatch) {
-            console.log('Found game in RAWG:', bestMatch)
             gameDetails = await getGameDetails(bestMatch.id)
           }
         }
 
         if (!gameDetails?.platforms) {
-          console.log('No platform information found in RAWG')
           return
         }
 
         // Get the platform names from RAWG
         const rawgPlatformNames = gameDetails.platforms.map(p => p.platform.name)
-        console.log('RAWG platform names:', rawgPlatformNames)
 
-        // First get all platform mappings to check the available mappings
+        // Get all platform mappings
         const { data: allMappings, error: allMappingsError } = await supabase
           .from('rawg_platform_mappings')
           .select('rawg_name, platform_id')
@@ -116,21 +107,6 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           return
         }
 
-        console.log('All available mappings:', allMappings)
-
-        // Debug: Show all mappings and their names
-        console.log('Available mappings:', allMappings?.map(m => ({ 
-          rawg_name: m.rawg_name,
-          normalized: m.rawg_name.toLowerCase().replace(/[^a-z0-9]/g, '')
-        })))
-
-        // Debug: Show normalized RAWG names
-        const normalizedRawgNames = rawgPlatformNames.map(name => ({
-          original: name,
-          normalized: name.toLowerCase().replace(/[^a-z0-9]/g, '')
-        }))
-        console.log('Normalized RAWG names:', normalizedRawgNames)
-
         // Find which RAWG platforms we have mappings for using normalized comparison
         const mappedPlatforms = rawgPlatformNames.filter(name => {
           const normalized = name.toLowerCase().replace(/[^a-z0-9]/g, '')
@@ -139,10 +115,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           )
         })
 
-        console.log('Mapped platform names:', mappedPlatforms)
-
         if (mappedPlatforms.length === 0) {
-          console.log('No mappings found for any RAWG platforms')
           // If no mappings found, let's at least show the platform from the game data
           const { data: platforms, error: platformsError } = await supabase
             .from('platforms')
@@ -159,7 +132,6 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
             )
             
             if (matchingPlatforms.length > 0) {
-              console.log('Found matching platforms by name:', matchingPlatforms)
               setAvailablePlatforms(matchingPlatforms)
               return
             }
@@ -173,22 +145,18 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           .select('platform_id, rawg_name')
           .in('rawg_name', mappedPlatforms)
 
-        console.log('Platform mappings response:', { data: platformMappings, error: mappingError })
-
         if (mappingError) {
           console.error('Error fetching platform mappings:', mappingError)
           return
         }
 
         if (!platformMappings || platformMappings.length === 0) {
-          console.log('No platform mappings found for RAWG platforms:', rawgPlatformNames)
           return
         }
 
         if (platformMappings && platformMappings.length > 0) {
           // Get the actual platform records
           const platformIds = platformMappings.map(m => m.platform_id)
-          console.log('Looking up platform IDs:', platformIds)
 
           const { data: platforms, error: platformsError } = await supabase
             .from('platforms')
@@ -196,18 +164,13 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
             .in('id', platformIds)
             .order('name')
 
-          console.log('Platform records response:', { data: platforms, error: platformsError })
-
           if (platformsError) {
             console.error('Error loading platforms:', platformsError)
             return
           }
 
           if (platforms && platforms.length > 0) {
-            console.log('Setting available platforms:', platforms)
             setAvailablePlatforms(platforms)
-          } else {
-            console.log('No platform records found for IDs:', platformIds)
           }
         }
       } catch (error) {
