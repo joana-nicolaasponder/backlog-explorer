@@ -13,10 +13,11 @@ const SideBar = ({ onLogout, onAddGame }: SideBarProps) => {
   return (
     <aside>
       {/* Mobile Menu Button */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="fixed top-4 left-4 z-50 btn btn-circle btn-ghost lg:hidden"
-      >
+      <div className="fixed top-0 left-0 right-0 h-16 bg-base-100 z-50 lg:hidden flex items-center justify-between px-4">
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="btn btn-circle btn-ghost"
+        >
         <svg
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
@@ -30,7 +31,10 @@ const SideBar = ({ onLogout, onAddGame }: SideBarProps) => {
             d="M4 6h16M4 12h16M4 18h16"
           ></path>
         </svg>
-      </button>
+        </button>
+        <h1 className="text-2xl font-bold">Backlog Explorer</h1>
+        <div className="w-10"></div> {/* Spacer to center the title */}
+      </div>
 
       {/* Desktop Sidebar */}
       <div className="hidden lg:flex lg:sticky lg:top-0 lg:h-screen w-64 bg-base-100 text-base-content shadow-lg flex-col">
@@ -181,14 +185,10 @@ const SideBar = ({ onLogout, onAddGame }: SideBarProps) => {
             onClick={() => setIsOpen(false)}
           ></div>
           <div
-            className="fixed inset-y-0 left-0 z-30 w-64 bg-base-100 shadow-lg flex flex-col p-4
-              transform transition-transform duration-200 ease-in-out lg:hidden"
+            className="fixed top-16 left-0 bottom-0 z-30 w-64 bg-base-100 shadow-lg flex flex-col p-4
+              transform transition-transform duration-200 ease-in-out lg:hidden overflow-y-auto"
           >
             <div className="flex-1">
-              <div className="mb-8">
-                <h1 className="text-2xl font-bold mb-4">Backlog Explorer</h1>
-              </div>
-
               <nav className="space-y-2">
                 <Link
                   to="/app"
@@ -264,6 +264,50 @@ const SideBar = ({ onLogout, onAddGame }: SideBarProps) => {
                     />
                   </svg>
                   <span>Explore</span>
+                </Link>
+
+                <Link
+                  to="/app/profile"
+                  className={`flex items-center space-x-2 p-2 rounded-lg hover:bg-base-200 ${
+                    location.pathname === '/app/profile' ? 'bg-base-200' : ''
+                  }`}
+                  onClick={() => setIsOpen(false)}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <span>Profile</span>
+                </Link>
+
+                <Link
+                  to="/app/feedback"
+                  className={`flex items-center space-x-2 p-2 rounded-lg hover:bg-base-200 ${
+                    location.pathname === '/app/feedback' ? 'bg-base-200' : ''
+                  }`}
+                  onClick={() => setIsOpen(false)}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M18 5v8a2 2 0 01-2 2h-5l-5 4v-4H4a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2zM7 8H5v2h2V8zm2 0h2v2H9V8zm6 0h-2v2h2V8z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <span>Send Feedback</span>
                 </Link>
               </nav>
             </div>
