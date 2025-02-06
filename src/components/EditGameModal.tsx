@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
 import supabase from '../supabaseClient'
 import { Game } from '../types'
-import { getGameDetails } from '../services/rawg'
+import { getGameDetails, searchGames } from '../services/rawg'
 import { RAWGPlatform, RAWGGenre } from '../types/rawg'
 
-import { Mood } from '../types'
+import { Mood, Platform } from '../types'
 
 interface EditableGame extends Omit<Game, 'game_genres' | 'game_platforms' | 'game_moods' | 'genre' | 'user_id' | 'created_at' | 'updated_at'> {
   genres: string[]
@@ -36,6 +36,9 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     moods: game.moods || [],
     platforms: game.platforms || []
   })
+  const [availablePlatforms, setAvailablePlatforms] = useState<Platform[]>([])
+  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([])
+  const [originalPlatforms, setOriginalPlatforms] = useState<string[]>([])
   const [availableMoods, setAvailableMoods] = useState<Mood[]>([])
   const [selectedMoods, setSelectedMoods] = useState<string[]>([])
   const [originalMoods, setOriginalMoods] = useState<string[]>([])
@@ -64,6 +67,119 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     const sortedB = [...b].sort();
     return sortedA.length === sortedB.length && sortedA.every((value, index) => value === sortedB[index]);
   };
+
+  // Load available platforms for this game from RAWG
+  useEffect(() => {
+    const loadGamePlatforms = async () => {
+      try {
+        let gameDetails;
+        
+        if (game.rawg_id) {
+          gameDetails = await getGameDetails(Number(game.rawg_id))
+        } else {
+          const searchResults = await searchGames(game.title)
+          
+          // Find the most relevant match
+          const exactMatch = searchResults.find(g => 
+            g.name.toLowerCase() === game.title.toLowerCase()
+          )
+          const bestMatch = exactMatch || searchResults[0]
+          
+          if (bestMatch) {
+            gameDetails = await getGameDetails(bestMatch.id)
+          }
+        }
+
+        if (!gameDetails?.platforms) {
+          return
+        }
+
+        // Get the platform names from RAWG
+        const rawgPlatformNames = gameDetails.platforms.map(p => p.platform.name)
+
+        // Get all platform mappings
+        const { data: allMappings, error: allMappingsError } = await supabase
+          .from('rawg_platform_mappings')
+          .select('rawg_name, platform_id')
+        
+        if (allMappingsError) {
+          console.error('Error fetching all mappings:', allMappingsError)
+          return
+        }
+
+        // Find which RAWG platforms we have mappings for using normalized comparison
+        const mappedPlatforms = rawgPlatformNames.filter(name => {
+          const normalized = name.toLowerCase().replace(/[^a-z0-9]/g, '')
+          return allMappings?.some(mapping => 
+            mapping.rawg_name.toLowerCase().replace(/[^a-z0-9]/g, '') === normalized
+          )
+        })
+
+        if (mappedPlatforms.length === 0) {
+          // If no mappings found, let's at least show the platform from the game data
+          const { data: platforms, error: platformsError } = await supabase
+            .from('platforms')
+            .select('*')
+            .order('name')
+
+          if (!platformsError && platforms) {
+            // Find platforms that match the RAWG names (case-insensitive, ignore spaces)
+            const matchingPlatforms = platforms.filter(p => 
+              rawgPlatformNames.some(rawgName => 
+                p.name.toLowerCase().replace(/[^a-z0-9]/g, '') === 
+                rawgName.toLowerCase().replace(/[^a-z0-9]/g, '')
+              )
+            )
+            
+            if (matchingPlatforms.length > 0) {
+              setAvailablePlatforms(matchingPlatforms)
+              return
+            }
+          }
+          return
+        }
+
+        // Get the corresponding platform records from our database
+        const { data: platformMappings, error: mappingError } = await supabase
+          .from('rawg_platform_mappings')
+          .select('platform_id, rawg_name')
+          .in('rawg_name', mappedPlatforms)
+
+        if (mappingError) {
+          console.error('Error fetching platform mappings:', mappingError)
+          return
+        }
+
+        if (!platformMappings || platformMappings.length === 0) {
+          return
+        }
+
+        if (platformMappings && platformMappings.length > 0) {
+          // Get the actual platform records
+          const platformIds = platformMappings.map(m => m.platform_id)
+
+          const { data: platforms, error: platformsError } = await supabase
+            .from('platforms')
+            .select('*')
+            .in('id', platformIds)
+            .order('name')
+
+          if (platformsError) {
+            console.error('Error loading platforms:', platformsError)
+            return
+          }
+
+          if (platforms && platforms.length > 0) {
+            setAvailablePlatforms(platforms)
+          }
+        }
+      } catch (error) {
+        console.error('Error in loadGamePlatforms:', error)
+      }
+    }
+
+    loadGamePlatforms()
+  }, [game.rawg_id, game.title])
 
   // Load available moods from Supabase
   useEffect(() => {
@@ -277,7 +393,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
         .update({
           status: formData.status,
           progress: formData.progress,
-          platforms: formData.platforms,
+          platforms: formData.platforms, // Keep this for backward compatibility
           image: formData.image,
           updated_at: new Date().toISOString()
         })
@@ -287,6 +403,70 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
       if (updateError) {
         console.error('Error updating game:', updateError)
         throw new Error('Failed to update game status. Please try again.')
+      }
+
+      // Step 2: Update platform relationships
+      try {
+        // Delete existing platform relationships
+        const { error: deletePlatformsError } = await supabase
+          .from('game_platforms')
+          .delete()
+          .eq('game_id', game.id)
+
+        if (deletePlatformsError) {
+          console.error('Error deleting platforms:', deletePlatformsError)
+          throw new Error('Failed to update game platforms. Please try again.')
+        }
+
+        // Get platform IDs for the selected platform names
+        const { data: platformData, error: platformError } = await supabase
+          .from('platforms')
+          .select('id, name')
+          .in('name', formData.platforms)
+
+        if (platformError) {
+          console.error('Error fetching platform IDs:', platformError)
+          throw new Error('Failed to fetch platform information. Please try again.')
+        }
+
+        // Insert new platform relationships
+        if (platformData && platformData.length > 0) {
+          const platformRelations = platformData.map(platform => ({
+            game_id: game.id,
+            platform_id: platform.id,
+            created_at: new Date().toISOString()
+          }))
+
+          const { error: insertPlatformsError } = await supabase
+            .from('game_platforms')
+            .insert(platformRelations)
+
+          if (insertPlatformsError) {
+            console.error('Error inserting platforms:', insertPlatformsError)
+            throw new Error('Failed to save new game platforms. Please try again.')
+          }
+        }
+      } catch (platformError) {
+        // If platform update fails, roll back the game status update
+        const { error: rollbackError } = await supabase
+          .from('user_games')
+          .update({
+            status: originalFormState.status,
+            progress: originalFormState.progress,
+            platforms: originalFormState.platforms,
+            updated_at: new Date().toISOString()
+          })
+          .eq('game_id', game.id)
+          .eq('user_id', user.id)
+
+        if (rollbackError) {
+          console.error('Error rolling back game status:', rollbackError)
+          throw new Error('Update failed. Please refresh and try again.')
+        }
+
+        // Reset form state
+        setFormData(originalFormState)
+        throw platformError
       }
 
       // Handle mood updates
@@ -538,6 +718,42 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                   <span>Almost Done</span>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Platform Selection */}
+          <div className="card bg-base-200 shadow-sm p-6 space-y-6">
+            <h2 className="card-title text-base-content text-lg">Platforms</h2>
+            <div className="flex flex-wrap gap-2">
+              {availablePlatforms.map((platform) => {
+                const isSelected = formData.platforms.includes(platform.name)
+                return (
+                  <label
+                    key={platform.id}
+                    className="cursor-pointer"
+                  >
+                    <span
+                      className={`
+                        btn btn-sm normal-case
+                        ${isSelected ? 'btn-primary' : 'btn-ghost border border-base-300'}
+                      `}
+                    >
+                      <input
+                        type="checkbox"
+                        className="hidden"
+                        checked={isSelected}
+                        onChange={(e) => {
+                          const newPlatforms = e.target.checked
+                            ? [...formData.platforms, platform.name]
+                            : formData.platforms.filter(p => p !== platform.name)
+                          setFormData({ ...formData, platforms: newPlatforms })
+                        }}
+                      />
+                      {platform.name}
+                    </span>
+                  </label>
+                )
+              })}
             </div>
           </div>
 
