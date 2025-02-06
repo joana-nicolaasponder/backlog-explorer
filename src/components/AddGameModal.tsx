@@ -371,7 +371,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
         >
           ✕
         </button>
-        <h3 className="font-bold text-xl mb-6 text-base-content">
+        <h3 className="font-bold text-xl mb-4 text-base-content">
           Add New Game
         </h3>
 
@@ -394,419 +394,512 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
           </div>
         )}
 
-        {isSearching ? (
-          <div className="mb-8">
-            <GameSearch onGameSelect={handleGameSelect} />
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => {
-              setIsSearching(true)
-              setExistingGameMessage(null)
-            }}
-            className="btn btn-ghost btn-sm mb-8 gap-2"
-          >
-            <span className="text-lg">⬅️</span>
-            Search for a different game
-          </button>
-        )}
+        <div className="mb-8 space-y-4">
+          {!selectedGame ? (
+            <div className="bg-primary/10 border-2 border-primary rounded-lg p-6 space-y-6">
+              <div className="flex items-start space-x-3">
+                <div className="p-2 bg-primary rounded-lg">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="w-6 h-6 text-primary-content"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <h4 className="text-lg font-semibold mb-1">
+                    Search for your game
+                  </h4>
+                  <p className="text-base-content/70">
+                    Search our database of over 500,000 games to add to your
+                    library.
+                  </p>
+                </div>
+              </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Game Details Section */}
-          <div className="card bg-base-200 shadow-sm p-6 space-y-4">
-            <h2 className="card-title text-base-content text-lg">
-              Game Details
-            </h2>
+              <GameSearch onGameSelect={handleGameSelect} />
 
-            {formData.image && (
-              <div className="relative aspect-video w-full rounded-lg overflow-hidden bg-base-300">
-                <img
-                  src={formData.image}
-                  alt={formData.title}
-                  className="object-cover w-full h-full"
-                  onError={(e) => {
-                    console.error('Image failed to load:', formData.image)
-                    setError(
-                      'Failed to load image. Please check the URL and try again.'
-                    )
+              <div className="alert bg-base-200 text-base-content/80 border border-base-300">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="w-6 h-6 shrink-0"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"
+                  />
+                </svg>
+                <span>
+                  Can't find your game? Try searching by the game's official
+                  title. If you still can't find it,
+                  <a
+                    href="https://rawg.io/apidocs"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="link link-primary"
+                  >
+                    let us know
+                  </a>
+                  !
+                </span>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedGame(null)
+                setFormData({
+                  ...formData,
+                  title: '',
+                  platforms: [],
+                  genres: [],
+                  rawg_id: undefined,
+                  rawg_slug: undefined,
+                  metacritic_rating: undefined,
+                  release_date: undefined,
+                  background_image: undefined,
+                  description: undefined,
+                })
+              }}
+              className="btn btn-ghost gap-2 mb-8 hover:bg-primary/10"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="w-5 h-5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
+                />
+              </svg>
+              Search for a different game
+            </button>
+          )}
+        </div>
+
+        {selectedGame && (
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Game Details Section */}
+            <div className="card bg-base-200 shadow-sm p-6 space-y-4">
+              <h2 className="card-title text-base-content text-lg">
+                Game Details
+              </h2>
+
+              {formData.image && (
+                <div className="relative aspect-video w-full rounded-lg overflow-hidden bg-base-300">
+                  <img
+                    src={formData.image}
+                    alt={formData.title}
+                    className="object-cover w-full h-full"
+                    onError={(e) => {
+                      console.error('Image failed to load:', formData.image)
+                      setError(
+                        'Failed to load image. Please check the URL and try again.'
+                      )
+                    }}
+                  />
+                </div>
+              )}
+
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text text-base-content">
+                    Custom Image URL (optional)
+                  </span>
+                </label>
+                <input
+                  type="url"
+                  className="input input-bordered bg-base-100"
+                  value={
+                    formData.image !== formData.background_image
+                      ? formData.image
+                      : ''
+                  }
+                  placeholder="Enter a URL to override the default game image"
+                  onChange={(e) => {
+                    const url = e.target.value.trim()
+                    setFormData({
+                      ...formData,
+                      image: url || formData.background_image || '',
+                    })
+                    setError(null)
                   }}
                 />
               </div>
-            )}
 
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text text-base-content">
-                  Custom Image URL (optional)
-                </span>
-              </label>
-              <input
-                type="url"
-                className="input input-bordered bg-base-100"
-                value={
-                  formData.image !== formData.background_image
-                    ? formData.image
-                    : ''
-                }
-                placeholder="Enter a URL to override the default game image"
-                onChange={(e) => {
-                  const url = e.target.value.trim()
-                  setFormData({
-                    ...formData,
-                    image: url || formData.background_image || '',
-                  })
-                  setError(null)
-                }}
-              />
-            </div>
-
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text text-base-content">Title</span>
-              </label>
-              <input
-                type="text"
-                className="input input-bordered bg-base-100"
-                value={formData.title}
-                onChange={(e) =>
-                  setFormData({ ...formData, title: e.target.value })
-                }
-                required
-              />
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <label className="text-sm font-medium text-base-content">
-                  Platforms <span className="text-error">*</span>
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text text-base-content">Title</span>
                 </label>
-                {formData.platforms.length === 0 && (
-                  <span className="text-sm text-error">
-                    Select at least one platform
-                  </span>
-                )}
+                <input
+                  type="text"
+                  className="input input-bordered bg-base-100"
+                  value={formData.title}
+                  onChange={(e) =>
+                    setFormData({ ...formData, title: e.target.value })
+                  }
+                  required
+                />
               </div>
-              <div className="flex flex-wrap gap-2">
-                {platformOptions.map((platform) => (
-                  <button
-                    key={platform}
-                    type="button"
-                    onClick={() => {
-                      const newPlatforms = formData.platforms.includes(platform)
-                        ? formData.platforms.filter((p) => p !== platform)
-                        : [...formData.platforms, platform]
-                      setFormData({ ...formData, platforms: newPlatforms })
-                    }}
-                    className={`
-                      btn btn-sm normal-case
-                      ${
-                        formData.platforms.includes(platform)
-                          ? 'bg-primary text-primary-content hover:bg-primary-focus'
-                          : 'btn-ghost hover:bg-base-300'
-                      }
-                      transition-all duration-200
-                    `}
-                  >
-                    {platform}
-                  </button>
-                ))}
-              </div>
-            </div>
 
-            <div className="space-y-3">
-              <label className="text-sm font-medium text-base-content">
-                Genres
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {formData.genres.map((genre) => (
-                  <span
-                    key={genre}
-                    className="badge badge-secondary badge-lg font-medium"
-                  >
-                    {genre}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="mb-6">
-            <label className="block text-lg font-medium mb-4 text-base-content">
-              How would you describe this game?
-            </label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Primary Moods */}
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-sm font-medium text-base-content/70">
-                    Primary Moods
-                  </h3>
-                  <span className="text-xs text-base-content/60">
-                    {
-                      formData.moods.filter(
-                        (id) =>
-                          availableMoods.find((m) => m.id === id)?.category ===
-                          'primary'
-                      ).length
-                    }{' '}
-                    / 2 max
-                  </span>
+                  <label className="text-sm font-medium text-base-content">
+                    Platforms <span className="text-error">*</span>
+                  </label>
+                  {formData.platforms.length === 0 && (
+                    <span className="text-sm text-error">
+                      Select at least one platform
+                    </span>
+                  )}
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {availableMoods
-                    .filter((mood) => mood.category === 'primary')
-                    .map((mood) => {
-                      const isSelected = formData.moods.includes(mood.id)
-                      const primaryCount = formData.moods.filter(
-                        (id) =>
-                          availableMoods.find((m) => m.id === id)?.category ===
-                          'primary'
-                      ).length
-                      const disabled = !isSelected && primaryCount >= 2
-
-                      return (
-                        <label
-                          key={mood.id}
-                          className={`
-                            tooltip
-                            before:!bg-base-300 before:!text-base-content
-                            before:!shadow-lg before:!rounded-lg
-                          `}
-                          data-tip={mood.description}
-                        >
-                          <span
-                            className={`
-                              btn btn-sm normal-case px-4
-                              ${
-                                isSelected
-                                  ? 'bg-primary text-primary-content hover:bg-primary-focus border-primary'
-                                  : disabled
-                                  ? 'btn-disabled opacity-50'
-                                  : 'btn-ghost hover:bg-base-200 border border-base-300'
-                              }
-                              transition-all duration-200
-                            `}
-                          >
-                            <input
-                              type="checkbox"
-                              className="hidden"
-                              checked={isSelected}
-                              disabled={disabled}
-                              onChange={(e) => {
-                                const newMoods = e.target.checked
-                                  ? [...formData.moods, mood.id]
-                                  : formData.moods.filter(
-                                      (id) => id !== mood.id
-                                    )
-                                setFormData({ ...formData, moods: newMoods })
-                              }}
-                            />
-                            {mood.name}
-                          </span>
-                        </label>
-                      )
-                    })}
-                </div>
-              </div>
-
-              {/* Secondary Moods */}
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-sm font-medium text-base-content/70">
-                    Secondary Moods
-                  </h3>
-                  <span className="text-xs text-base-content/60">
-                    {
-                      formData.moods.filter(
-                        (id) =>
-                          availableMoods.find((m) => m.id === id)?.category ===
-                          'secondary'
-                      ).length
-                    }{' '}
-                    / 3 max
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {availableMoods
-                    .filter((mood) => mood.category === 'secondary')
-                    .map((mood) => {
-                      const isSelected = formData.moods.includes(mood.id)
-                      const secondaryCount = formData.moods.filter(
-                        (id) =>
-                          availableMoods.find((m) => m.id === id)?.category ===
-                          'secondary'
-                      ).length
-                      const disabled = !isSelected && secondaryCount >= 3
-
-                      return (
-                        <label
-                          key={mood.id}
-                          className={`
-                            tooltip
-                            before:!bg-base-300 before:!text-base-content
-                            before:!shadow-lg before:!rounded-lg
-                          `}
-                          data-tip={mood.description}
-                        >
-                          <span
-                            className={`
-                              btn btn-sm normal-case px-4
-                              ${
-                                isSelected
-                                  ? 'bg-secondary text-secondary-content hover:bg-secondary-focus border-secondary'
-                                  : disabled
-                                  ? 'btn-disabled opacity-50'
-                                  : 'btn-ghost hover:bg-base-200 border border-base-300'
-                              }
-                              transition-all duration-200
-                            `}
-                          >
-                            <input
-                              type="checkbox"
-                              className="hidden"
-                              checked={isSelected}
-                              disabled={disabled}
-                              onChange={(e) => {
-                                const newMoods = e.target.checked
-                                  ? [...formData.moods, mood.id]
-                                  : formData.moods.filter(
-                                      (id) => id !== mood.id
-                                    )
-                                setFormData({ ...formData, moods: newMoods })
-                              }}
-                            />
-                            {mood.name}
-                          </span>
-                        </label>
-                      )
-                    })}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Game Progress Section */}
-          <div className="card bg-base-200 shadow-sm p-6 space-y-6">
-            <h2 className="card-title text-base-content text-lg">
-              Game Progress
-            </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <label className="text-sm font-medium text-base-content">
-                  Status
-                </label>
-                <div className="join join-vertical w-full">
-                  {[
-                    { value: 'Wishlist', icon: '🎮', desc: 'Want to play' },
-                    {
-                      value: 'Currently Playing',
-                      icon: '▶️',
-                      desc: 'In progress',
-                    },
-                    { value: 'Done', icon: '✅', desc: 'Completed main story' },
-                    { value: 'DNF', icon: '⏹️', desc: 'Did not finish' },
-                    { value: 'Endless', icon: '♾️', desc: 'No definite end' },
-                    {
-                      value: 'Satisfied',
-                      icon: '🌟',
-                      desc: 'Happy with progress',
-                    },
-                    {
-                      value: 'Try Again',
-                      icon: '🔄',
-                      desc: 'Give it another shot',
-                    },
-                    { value: 'Started', icon: '🎯', desc: 'Just began' },
-                    { value: 'Owned', icon: '💫', desc: 'In collection' },
-                    { value: 'Come back!', icon: '⏰', desc: 'Return later' },
-                  ].map((status) => (
-                    <label
-                      key={status.value}
+                  {platformOptions.map((platform) => (
+                    <button
+                      key={platform}
+                      type="button"
+                      onClick={() => {
+                        const newPlatforms = formData.platforms.includes(
+                          platform
+                        )
+                          ? formData.platforms.filter((p) => p !== platform)
+                          : [...formData.platforms, platform]
+                        setFormData({ ...formData, platforms: newPlatforms })
+                      }}
                       className={`
-                        btn btn-sm justify-start gap-2 normal-case
+                        btn btn-sm normal-case
                         ${
-                          formData.status === status.value
-                            ? 'btn-primary'
-                            : 'btn-ghost'
+                          formData.platforms.includes(platform)
+                            ? 'bg-primary text-primary-content hover:bg-primary-focus'
+                            : 'btn-ghost hover:bg-base-300'
                         }
+                        transition-all duration-200
                       `}
                     >
-                      <input
-                        type="radio"
-                        name="status"
-                        className="hidden"
-                        checked={formData.status === status.value}
-                        onChange={() =>
-                          setFormData({ ...formData, status: status.value })
-                        }
-                      />
-                      <span className="text-lg">{status.icon}</span>
-                      <span>{status.value}</span>
-                      <span className="text-xs opacity-70">{status.desc}</span>
-                    </label>
+                      {platform}
+                    </button>
                   ))}
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <label className="text-sm font-medium text-base-content">
-                    Completion
-                  </label>
-                  <span className="badge badge-primary">
-                    {formData.progress}%
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={formData.progress}
-                  className="range range-primary"
-                  step="5"
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      progress: parseInt(e.target.value),
-                    })
-                  }
-                />
-                <div className="w-full flex justify-between text-xs text-base-content/60">
-                  <span>Just Started</span>
-                  <span>Halfway</span>
-                  <span>Almost Done</span>
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-base-content">
+                  Genres
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {formData.genres.map((genre) => (
+                    <span
+                      key={genre}
+                      className="badge badge-secondary badge-lg font-medium"
+                    >
+                      {genre}
+                    </span>
+                  ))}
                 </div>
               </div>
             </div>
-          </div>
 
+            <div className="mb-6">
+              <label className="block text-lg font-medium mb-4 text-base-content">
+                How would you describe this game?
+              </label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Primary Moods */}
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-sm font-medium text-base-content/70">
+                      Primary Moods
+                    </h3>
+                    <span className="text-xs text-base-content/60">
+                      {
+                        formData.moods.filter(
+                          (id) =>
+                            availableMoods.find((m) => m.id === id)
+                              ?.category === 'primary'
+                        ).length
+                      }{' '}
+                      / 2 max
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {availableMoods
+                      .filter((mood) => mood.category === 'primary')
+                      .map((mood) => {
+                        const isSelected = formData.moods.includes(mood.id)
+                        const primaryCount = formData.moods.filter(
+                          (id) =>
+                            availableMoods.find((m) => m.id === id)
+                              ?.category === 'primary'
+                        ).length
+                        const disabled = !isSelected && primaryCount >= 2
 
-          <div className="modal-action gap-2">
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={() => onGameAdded()}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={isLoading || formData.platforms.length === 0}
-            >
-              {isLoading ? (
-                <>
-                  <span className="loading loading-spinner loading-sm"></span>
-                  Adding...
-                </>
-              ) : (
-                'Add to Collection'
-              )}
-            </button>
-          </div>
-        </form>
+                        return (
+                          <label
+                            key={mood.id}
+                            className={`
+                              tooltip
+                              before:!bg-base-300 before:!text-base-content
+                              before:!shadow-lg before:!rounded-lg
+                            `}
+                            data-tip={mood.description}
+                          >
+                            <span
+                              className={`
+                                btn btn-sm normal-case px-4
+                                ${
+                                  isSelected
+                                    ? 'bg-primary text-primary-content hover:bg-primary-focus border-primary'
+                                    : disabled
+                                    ? 'btn-disabled opacity-50'
+                                    : 'btn-ghost hover:bg-base-200 border border-base-300'
+                                }
+                                transition-all duration-200
+                              `}
+                            >
+                              <input
+                                type="checkbox"
+                                className="hidden"
+                                checked={isSelected}
+                                disabled={disabled}
+                                onChange={(e) => {
+                                  const newMoods = e.target.checked
+                                    ? [...formData.moods, mood.id]
+                                    : formData.moods.filter(
+                                        (id) => id !== mood.id
+                                      )
+                                  setFormData({ ...formData, moods: newMoods })
+                                }}
+                              />
+                              {mood.name}
+                            </span>
+                          </label>
+                        )
+                      })}
+                  </div>
+                </div>
+
+                {/* Secondary Moods */}
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-sm font-medium text-base-content/70">
+                      Secondary Moods
+                    </h3>
+                    <span className="text-xs text-base-content/60">
+                      {
+                        formData.moods.filter(
+                          (id) =>
+                            availableMoods.find((m) => m.id === id)
+                              ?.category === 'secondary'
+                        ).length
+                      }{' '}
+                      / 3 max
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {availableMoods
+                      .filter((mood) => mood.category === 'secondary')
+                      .map((mood) => {
+                        const isSelected = formData.moods.includes(mood.id)
+                        const secondaryCount = formData.moods.filter(
+                          (id) =>
+                            availableMoods.find((m) => m.id === id)
+                              ?.category === 'secondary'
+                        ).length
+                        const disabled = !isSelected && secondaryCount >= 3
+
+                        return (
+                          <label
+                            key={mood.id}
+                            className={`
+                              tooltip
+                              before:!bg-base-300 before:!text-base-content
+                              before:!shadow-lg before:!rounded-lg
+                            `}
+                            data-tip={mood.description}
+                          >
+                            <span
+                              className={`
+                                btn btn-sm normal-case px-4
+                                ${
+                                  isSelected
+                                    ? 'bg-secondary text-secondary-content hover:bg-secondary-focus border-secondary'
+                                    : disabled
+                                    ? 'btn-disabled opacity-50'
+                                    : 'btn-ghost hover:bg-base-200 border border-base-300'
+                                }
+                                transition-all duration-200
+                              `}
+                            >
+                              <input
+                                type="checkbox"
+                                className="hidden"
+                                checked={isSelected}
+                                disabled={disabled}
+                                onChange={(e) => {
+                                  const newMoods = e.target.checked
+                                    ? [...formData.moods, mood.id]
+                                    : formData.moods.filter(
+                                        (id) => id !== mood.id
+                                      )
+                                  setFormData({ ...formData, moods: newMoods })
+                                }}
+                              />
+                              {mood.name}
+                            </span>
+                          </label>
+                        )
+                      })}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Game Progress Section */}
+            <div className="card bg-base-200 shadow-sm p-6 space-y-6">
+              <h2 className="card-title text-base-content text-lg">
+                Game Progress
+              </h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <label className="text-sm font-medium text-base-content">
+                    Status
+                  </label>
+                  <div className="join join-vertical w-full">
+                    {[
+                      { value: 'Wishlist', icon: '🎮', desc: 'Want to play' },
+                      {
+                        value: 'Currently Playing',
+                        icon: '▶️',
+                        desc: 'In progress',
+                      },
+                      {
+                        value: 'Done',
+                        icon: '✅',
+                        desc: 'Completed main story',
+                      },
+                      { value: 'DNF', icon: '⏹️', desc: 'Did not finish' },
+                      { value: 'Endless', icon: '♾️', desc: 'No definite end' },
+                      {
+                        value: 'Satisfied',
+                        icon: '🌟',
+                        desc: 'Happy with progress',
+                      },
+                      {
+                        value: 'Try Again',
+                        icon: '🔄',
+                        desc: 'Give it another shot',
+                      },
+                      { value: 'Started', icon: '🎯', desc: 'Just began' },
+                      { value: 'Owned', icon: '💫', desc: 'In collection' },
+                      { value: 'Come back!', icon: '⏰', desc: 'Return later' },
+                    ].map((status) => (
+                      <label
+                        key={status.value}
+                        className={`
+                          btn btn-sm justify-start gap-2 normal-case
+                          ${
+                            formData.status === status.value
+                              ? 'btn-primary'
+                              : 'btn-ghost'
+                          }
+                        `}
+                      >
+                        <input
+                          type="radio"
+                          name="status"
+                          className="hidden"
+                          checked={formData.status === status.value}
+                          onChange={() =>
+                            setFormData({ ...formData, status: status.value })
+                          }
+                        />
+                        <span className="text-lg">{status.icon}</span>
+                        <span>{status.value}</span>
+                        <span className="text-xs opacity-70">
+                          {status.desc}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <label className="text-sm font-medium text-base-content">
+                      Completion
+                    </label>
+                    <span className="badge badge-primary">
+                      {formData.progress}%
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={formData.progress}
+                    className="range range-primary"
+                    step="5"
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        progress: parseInt(e.target.value),
+                      })
+                    }
+                  />
+                  <div className="w-full flex justify-between text-xs text-base-content/60">
+                    <span>Just Started</span>
+                    <span>Halfway</span>
+                    <span>Almost Done</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-action gap-2">
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => onGameAdded()}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={isLoading || formData.platforms.length === 0}
+              >
+                {isLoading ? (
+                  <>
+                    <span className="loading loading-spinner loading-sm"></span>
+                    Adding...
+                  </>
+                ) : (
+                  'Add to Collection'
+                )}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
       <div className="modal-backdrop" onClick={() => onGameAdded()}></div>
     </div>
