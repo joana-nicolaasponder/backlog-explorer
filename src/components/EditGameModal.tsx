@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import supabase from '../supabaseClient'
 import { Game } from '../types'
-import { getGameDetails, searchGames } from '../services/rawg'
-import { RAWGPlatform, RAWGGenre } from '../types/rawg'
+import { gameService } from '../services/gameService'
+import { Platform as GamePlatform, Genre as GameGenre } from '../types/game'
 
 import { Mood, Platform } from '../types'
 
@@ -36,6 +36,8 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     moods: game.moods || [],
     platforms: game.platforms || []
   })
+  const [platformOptions, setPlatformOptions] = useState<GamePlatform[]>([])
+  const [genreOptions, setGenreOptions] = useState<GameGenre[]>([])
   const [availablePlatforms, setAvailablePlatforms] = useState<Platform[]>([])
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([])
   const [originalPlatforms, setOriginalPlatforms] = useState<string[]>([])
@@ -68,118 +70,58 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     return sortedA.length === sortedB.length && sortedA.every((value, index) => value === sortedB[index]);
   };
 
-  // Load available platforms for this game from RAWG
+  // Load available platforms for this game
   useEffect(() => {
     const loadGamePlatforms = async () => {
       try {
-        let gameDetails;
-        
-        if (game.rawg_id) {
-          gameDetails = await getGameDetails(Number(game.rawg_id))
-        } else {
-          const searchResults = await searchGames(game.title)
+        // Only try to load IGDB details if this is an IGDB game
+        if (game.provider === 'igdb') {
+          let gameDetails;
           
-          // Find the most relevant match
-          const exactMatch = searchResults.find(g => 
-            g.name.toLowerCase() === game.title.toLowerCase()
-          )
-          const bestMatch = exactMatch || searchResults[0]
-          
-          if (bestMatch) {
-            gameDetails = await getGameDetails(bestMatch.id)
-          }
-        }
-
-        if (!gameDetails?.platforms) {
-          return
-        }
-
-        // Get the platform names from RAWG
-        const rawgPlatformNames = gameDetails.platforms.map(p => p.platform.name)
-
-        // Get all platform mappings
-        const { data: allMappings, error: allMappingsError } = await supabase
-          .from('rawg_platform_mappings')
-          .select('rawg_name, platform_id')
-        
-        if (allMappingsError) {
-          console.error('Error fetching all mappings:', allMappingsError)
-          return
-        }
-
-        // Find which RAWG platforms we have mappings for using normalized comparison
-        const mappedPlatforms = rawgPlatformNames.filter(name => {
-          const normalized = name.toLowerCase().replace(/[^a-z0-9]/g, '')
-          return allMappings?.some(mapping => 
-            mapping.rawg_name.toLowerCase().replace(/[^a-z0-9]/g, '') === normalized
-          )
-        })
-
-        if (mappedPlatforms.length === 0) {
-          // If no mappings found, let's at least show the platform from the game data
-          const { data: platforms, error: platformsError } = await supabase
-            .from('platforms')
-            .select('*')
-            .order('name')
-
-          if (!platformsError && platforms) {
-            // Find platforms that match the RAWG names (case-insensitive, ignore spaces)
-            const matchingPlatforms = platforms.filter(p => 
-              rawgPlatformNames.some(rawgName => 
-                p.name.toLowerCase().replace(/[^a-z0-9]/g, '') === 
-                rawgName.toLowerCase().replace(/[^a-z0-9]/g, '')
-              )
-            )
+          if (game.external_id) {
+            gameDetails = await gameService.getGameDetails(game.external_id);
+          } else {
+            const searchResult = await gameService.searchGames(game.title);
             
-            if (matchingPlatforms.length > 0) {
-              setAvailablePlatforms(matchingPlatforms)
-              return
+            // Find the most relevant match
+            const exactMatch = searchResult.results.find(g => 
+              g.name.toLowerCase() === game.title.toLowerCase()
+            );
+            const bestMatch = exactMatch || searchResult.results[0];
+            
+            if (bestMatch) {
+              gameDetails = await gameService.getGameDetails(bestMatch.id);
             }
           }
-          return
+
+          if (gameDetails) {
+            setPlatformOptions(gameDetails.platforms || []);
+            setGenreOptions(gameDetails.genres || []);
+          }
+          return; // Exit after setting IGDB options
         }
 
-        // Get the corresponding platform records from our database
-        const { data: platformMappings, error: mappingError } = await supabase
+        // For non-IGDB games, load platforms from database
+        const { data: allMappings, error: allMappingsError } = await supabase
           .from('rawg_platform_mappings')
-          .select('platform_id, rawg_name')
-          .in('rawg_name', mappedPlatforms)
+          .select('rawg_name, platform_id');
 
-        if (mappingError) {
-          console.error('Error fetching platform mappings:', mappingError)
-          return
+        if (allMappingsError) {
+          console.error('Error loading platform mappings:', allMappingsError);
+          return;
         }
 
-        if (!platformMappings || platformMappings.length === 0) {
-          return
-        }
-
-        if (platformMappings && platformMappings.length > 0) {
-          // Get the actual platform records
-          const platformIds = platformMappings.map(m => m.platform_id)
-
-          const { data: platforms, error: platformsError } = await supabase
-            .from('platforms')
-            .select('*')
-            .in('id', platformIds)
-            .order('name')
-
-          if (platformsError) {
-            console.error('Error loading platforms:', platformsError)
-            return
-          }
-
-          if (platforms && platforms.length > 0) {
-            setAvailablePlatforms(platforms)
-          }
-        }
+        // Set the available platforms from the database
+        setAvailablePlatforms(allMappings || []);
       } catch (error) {
-        console.error('Error in loadGamePlatforms:', error)
+        console.error('Error in loadGamePlatforms:', error);
       }
-    }
+    };
 
-    loadGamePlatforms()
-  }, [game.rawg_id, game.title])
+    // Load platforms when the component mounts
+    loadGamePlatforms();
+
+  }, [game.external_id, game.title])
 
   // Load available moods from Supabase
   useEffect(() => {
