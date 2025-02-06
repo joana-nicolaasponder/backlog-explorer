@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.11] - 2025-02-06
+
+### Added
+- improve game search UX and data consistency
+- improve platform selection in EditGameModal
+
+### Changed
+- remove debug console logs from platform loading code
+
+
 ## [1.0.10] - 2025-02-06
 
 ### Fixed
