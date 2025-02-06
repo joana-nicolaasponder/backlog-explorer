@@ -49,6 +49,8 @@ export interface Game {
   platform: string;
   genre: string;
   status: string;
+  external_id?: string;
+  provider?: string;
   progress: number;
   user_id: string;
   created_at: string;
