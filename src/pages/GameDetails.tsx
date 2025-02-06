@@ -4,12 +4,14 @@ import supabase from '../supabaseClient'
 import { Game, GameNote, RawgGameDetails } from '../types'
 import EditGameModal from '../components/EditGameModal'
 import imageCompression from 'browser-image-compression'
+import { gameService } from '../services/gameService'
 
 const GameDetails = () => {
   const { id } = useParams()
   const [game, setGame] = useState<Game | null>(null)
   const [notes, setNotes] = useState<GameNote[]>([])
   const [rawgDetails, setRawgDetails] = useState<RawgGameDetails | null>(null)
+  const [details, setDetails] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [showAddNote, setShowAddNote] = useState(false)
   const [editingNote, setEditingNote] = useState<GameNote | null>(null)
@@ -33,13 +35,40 @@ const GameDetails = () => {
   )
   const [showEditModal, setShowEditModal] = useState(false)
 
-  const fetchRawgDetails = async (gameTitle: string) => {
+  const fetchGameDetails = async (game: Game) => {
+    if (!game) return
+
+    if (game.provider === 'igdb' && game.external_id) {
+      try {
+        const [gameDetails, screenshots] = await Promise.all([
+          gameService.getGameDetails(game.external_id),
+          gameService.getGameScreenshots(game.external_id),
+        ])
+        console.log('IGDB details:', gameDetails)
+        console.log('IGDB screenshots:', screenshots)
+        setDetails(gameDetails)
+        const rawgDetails = {
+          description_raw: gameDetails.summary || '',
+          metacritic: gameDetails.aggregated_rating || 0,
+          playtime: 0,
+          background_image: gameDetails.background_image || '',
+          screenshots: screenshots.map((url) => ({ image: url })),
+        }
+        console.log('Setting rawgDetails to:', rawgDetails)
+        setRawgDetails(rawgDetails)
+      } catch (error) {
+        console.error('Error fetching IGDB details:', error)
+      }
+      return
+    }
+
+    // Fallback to RAWG for existing RAWG games
     try {
       const apiKey = import.meta.env.VITE_RAWG_API_KEY
       // Search for the game first
       const searchResponse = await fetch(
         `https://api.rawg.io/api/games?search=${encodeURIComponent(
-          gameTitle
+          game.title
         )}&key=${apiKey}`
       )
       const searchData = await searchResponse.json()
@@ -92,8 +121,8 @@ const GameDetails = () => {
           game:games (
             id,
             title,
-            rawg_id,
-            rawg_slug,
+            external_id,
+            provider,
             metacritic_rating,
             release_date,
             background_image,
@@ -120,16 +149,17 @@ const GameDetails = () => {
         title: userGameData.game.title,
         status: userGameData.status,
         progress: userGameData.progress,
-        rawg_id: userGameData.game.rawg_id,
-        rawg_slug: userGameData.game.rawg_slug,
+        external_id: userGameData.game.external_id,
+        provider: userGameData.game.provider,
         metacritic_rating: userGameData.game.metacritic_rating,
         release_date: userGameData.game.release_date,
         background_image: userGameData.game.background_image,
         description: userGameData.game.description,
       })
 
+      // Only fetch RAWG details for RAWG games
       if (userGameData.game) {
-        fetchRawgDetails(userGameData.game.title)
+        fetchGameDetails(userGameData.game)
       }
 
       // Fetch game notes
@@ -556,36 +586,71 @@ const GameDetails = () => {
       </div>
 
       {/* Progress Tracking */}
-      <div className="card bg-base-200 mb-4 sm:mb-6">
-        <div className="card-body py-3 px-3 sm:py-4 sm:px-4">
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <div className="flex justify-between mb-2">
-                <span className="text-sm font-medium">Progress</span>
-                <span className="text-sm font-medium">{game.progress}%</span>
+      <div className="space-y-4 mb-8">
+        <div className="card bg-base-200">
+          <div className="card-body py-3 px-3 sm:py-4 sm:px-4">
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <div className="flex justify-between mb-2">
+                  <span className="text-sm font-medium">Progress</span>
+                  <span className="text-sm font-medium">{game.progress}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={game.progress}
+                  className="range range-primary range-sm"
+                  step="5"
+                  onChange={(e) => updateProgress(parseInt(e.target.value))}
+                />
+                <div className="w-full flex justify-between text-xs px-1 mt-1">
+                  <span>|</span>
+                  <span>|</span>
+                  <span>|</span>
+                  <span>|</span>
+                  <span>|</span>
+                </div>
               </div>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={game.progress}
-                className="range range-primary range-sm"
-                step="5"
-                onChange={(e) => updateProgress(parseInt(e.target.value))}
-              />
-              <div className="w-full flex justify-between text-xs px-1 mt-1">
-                <span>|</span>
-                <span>|</span>
-                <span>|</span>
-                <span>|</span>
-                <span>|</span>
-              </div>
+              {isUpdatingProgress && (
+                <div className="loading loading-spinner loading-xs"></div>
+              )}
             </div>
-            {isUpdatingProgress && (
-              <div className="loading loading-spinner loading-xs"></div>
-            )}
           </div>
         </div>
+
+        {/* Time to Beat */}
+        {details?.time_to_beat && (
+          <div className="space-y-2">
+            <h3 className="text-sm font-medium px-1">Time to Beat</h3>
+            <div className="stats stats-vertical lg:stats-horizontal shadow bg-base-200 w-full">
+              {details.time_to_beat.hastily && (
+                <div className="stat place-items-center">
+                  <div className="stat-title text-xs">Quick Play</div>
+                  <div className="stat-value text-2xl">
+                    {Math.round(details.time_to_beat.hastily / 3600)}h
+                  </div>
+                </div>
+              )}
+              {details.time_to_beat.normally && (
+                <div className="stat place-items-center">
+                  <div className="stat-title text-xs">Main Story</div>
+                  <div className="stat-value text-2xl">
+                    {Math.round(details.time_to_beat.normally / 3600)}h
+                  </div>
+                </div>
+              )}
+              {details.time_to_beat.completely && (
+                <div className="stat place-items-center">
+                  <div className="stat-title text-xs">Completionist</div>
+                  <div className="stat-value text-2xl">
+                    {Math.round(details.time_to_beat.completely / 3600)}h
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Game Details Section */}
@@ -622,14 +687,41 @@ const GameDetails = () => {
                   )} */}
                 </div>
 
-                {rawgDetails.description_raw && (
-                  <div>
-                    <h3 className="font-semibold text-lg mb-2">About</h3>
-                    <p className="text-sm opacity-70">
-                      {rawgDetails.description_raw}
-                    </p>
-                  </div>
-                )}
+                <div>
+                  {game?.provider === 'igdb' ? (
+                    <>
+                      {details?.summary && (
+                        <div className="mb-6">
+                          <h3 className="font-semibold text-lg mb-2">
+                            Summary
+                          </h3>
+                          <p className="text-sm opacity-70 whitespace-pre-line">
+                            {details.summary}
+                          </p>
+                        </div>
+                      )}
+                      {details?.storyline && (
+                        <div className="mb-6">
+                          <h3 className="font-semibold text-lg mb-2">
+                            Storyline
+                          </h3>
+                          <p className="text-sm opacity-70 whitespace-pre-line">
+                            {details.storyline}
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    rawgDetails?.description_raw && (
+                      <div>
+                        <h3 className="font-semibold text-lg mb-2">About</h3>
+                        <p className="text-sm opacity-70 whitespace-pre-line">
+                          {rawgDetails.description_raw}
+                        </p>
+                      </div>
+                    )
+                  )}
+                </div>
               </div>
               {rawgDetails.screenshots &&
                 rawgDetails.screenshots.length > 0 && (
