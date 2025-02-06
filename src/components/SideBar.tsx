@@ -118,6 +118,28 @@ const SideBar = ({ onLogout, onAddGame }: SideBarProps) => {
             </Link>
 
             <Link
+              to="/app/profile"
+              className={`flex items-center space-x-2 p-2 rounded-lg hover:bg-base-200 ${
+                location.pathname === '/app/profile' ? 'bg-base-200' : ''
+              }`}
+              onClick={() => setIsOpen(false)}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <span>Profile</span>
+            </Link>
+
+            <Link
               to="/app/feedback"
               className={`flex items-center space-x-2 p-2 rounded-lg hover:bg-base-200 ${
                 location.pathname === '/app/feedback' ? 'bg-base-200' : ''
