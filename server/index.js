@@ -8,13 +8,11 @@ const port = process.env.PORT || 3001;
 
 // Configure CORS
 const corsOptions = {
-  origin: [
-    process.env.CORS_ORIGIN,
-    'http://localhost:5173',
-    'http://127.0.0.1:5173'
-  ],
+  origin: true, // Allow all origins for debugging
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Client-ID']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Client-ID'],
+  credentials: true,
+  maxAge: 86400 // Cache preflight request for 24 hours
 };
 
 app.use(cors(corsOptions));
