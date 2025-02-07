@@ -55,10 +55,11 @@ async function validateQueries() {
     // Get table info from both environments
     const getTableInfo = async (client, table) => {
       const { data, error } = await client
-        .from('information_schema.columns')
+        .from('columns')
         .select('column_name, data_type')
         .eq('table_name', table)
-        .eq('table_schema', 'public');
+        .eq('table_schema', 'public')
+        .schema('information_schema');
       if (error) throw error;
       return data;
     };
