@@ -68,7 +68,7 @@ const GameDetails = () => {
         })
       }
     } catch (error) {
-
+      console.error('Error fetching RAWG details:', error)
     }
   }
 
@@ -163,7 +163,7 @@ const GameDetails = () => {
       if (notesError) throw notesError
       setNotes(notesData || [])
     } catch (error) {
-
+      console.error('Error fetching game and notes:', error)
     } finally {
       setLoading(false)
     }

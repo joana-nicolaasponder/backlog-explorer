@@ -106,7 +106,7 @@ const Auth: React.FC<AuthProps> = ({ onAuth }) => {
   }
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, _session) => {
       // Handle auth state changes if needed in the future
     })
 

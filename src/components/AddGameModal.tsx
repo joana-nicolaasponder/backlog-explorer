@@ -61,8 +61,8 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
     'Done',
   ])
   const [isLoading, setIsLoading] = useState(false)
-  const [isSearching, setIsSearching] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [_isSearching, setIsSearching] = useState(true)
+  const [_error, setError] = useState<string | null>(null)
   const [existingGameMessage, setExistingGameMessage] = useState<string | null>(
     null
   )
@@ -511,7 +511,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
                     src={formData.image}
                     alt={formData.title}
                     className="object-cover w-full h-full"
-                    onError={(e) => {
+                    onError={(_e) => {
                       console.error('Image failed to load:', formData.image)
                       setError(
                         'Failed to load image. Please check the URL and try again.'
