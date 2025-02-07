@@ -109,7 +109,6 @@ const GameDetails = () => {
         .eq('game_id', id)
         .single()
 
-      console.log('UserGameData:', userGameData)
 
       // Get user's selected moods for this game
       const { data: gameMoods, error: moodsError } = await supabase
@@ -118,7 +117,6 @@ const GameDetails = () => {
         .eq('game_id', id)
         .eq('user_id', user_id)
 
-      console.log('GameMoods:', gameMoods)
 
       if (gameError) {
         console.error('Error fetching game:', gameError)
@@ -147,7 +145,6 @@ const GameDetails = () => {
         description: userGameData.game.description
       }
 
-      console.log('FormattedGame:', formattedGame)
 
       setGame(formattedGame)
 
