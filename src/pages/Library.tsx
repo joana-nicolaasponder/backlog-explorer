@@ -67,6 +67,8 @@ const Library = () => {
               title,
               background_image,
               created_at,
+              provider,
+              external_id,
               game_genres (
                 genre_id,
                 genres (
@@ -92,8 +94,10 @@ const Library = () => {
           progress: userGame.progress,
           image: userGame.image || userGame.game.background_image,
           created_at: userGame.game.created_at,
-          platforms: userGame.platforms,
-          genres: userGame.game.game_genres.map(gg => gg.genres.name)
+          platforms: userGame.platforms || [],
+          genres: userGame.game.game_genres.map(gg => gg.genres.name),
+          provider: userGame.game.provider || 'rawg',
+          external_id: userGame.game.external_id || 0
         }))
 
         // Extract unique platform names
