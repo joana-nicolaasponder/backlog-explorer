@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.12] - 2025-02-07
+
+### Fixed
+- resolve linting issues
+- update AddGameModal to use external_id and provider fields
+- EditGameModal platform and mood loading in GameDetails
+
+### Changed
+- remove remaining console logs
+- remove debug console logs
+
+
 ## [1.0.11] - 2025-02-06
 
 ### Added
