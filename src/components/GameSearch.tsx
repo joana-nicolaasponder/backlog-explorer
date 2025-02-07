@@ -1,15 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
-import { searchGames } from '../services/rawg';
-import { RAWGGameShort } from '../types/rawg';
+import { gameService } from '../services/gameService';
+import { GameBasic } from '../types/game';
 import debounce from 'lodash/debounce';
 
 interface GameSearchProps {
-  onGameSelect: (game: RAWGGameShort) => void;
+  onGameSelect: (game: GameBasic) => void;
 }
 
 const GameSearch: React.FC<GameSearchProps> = ({ onGameSelect }) => {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<RAWGGameShort[]>([]);
+  const [results, setResults] = useState<GameBasic[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,8 +25,8 @@ const GameSearch: React.FC<GameSearchProps> = ({ onGameSelect }) => {
       setError(null);
 
       try {
-        const games = await searchGames(searchQuery);
-        setResults(games);
+        const searchResult = await gameService.searchGames(searchQuery);
+        setResults(searchResult.results);
       } catch (err) {
         setError('Error searching for games. Please try again.');
         console.error('Search error:', err);
