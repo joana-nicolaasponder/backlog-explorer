@@ -51,7 +51,7 @@ const mapGameBasic = (game: any): GameBasic => ({
 })
 
 const fetchIGDB = async (endpoint: string, query: string) => {
-  console.log('Sending IGDB request:', { endpoint, query })
+
   const response = await fetch(`${IGDB_PROXY_URL}${endpoint}`, {
     method: 'POST',
     headers: {
@@ -111,8 +111,7 @@ where id = ${numericId};`
 
       const game = gameData[0]
       const timeToBeat = timeToBeatData[0]
-      console.log('Raw IGDB game data:', game)
-      console.log('Raw IGDB time to beat data:', timeToBeat)
+
 
       return {
         ...mapGameBasic(game),
