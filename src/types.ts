@@ -46,19 +46,21 @@ export interface GameMood {
 export interface Game {
   id: string;
   title: string;
-  platform: string;
-  genre: string;
   status: string;
   progress: number;
-  user_id: string;
-  created_at: string;
-  updated_at: string;
-  game_genres: GameGenre[];
-  game_platforms: GamePlatform[];
+  provider: string;
+  external_id: number;
+  metacritic_rating?: number;
+  release_date?: string;
+  background_image?: string;
+  description?: string;
+  game_genres?: GameGenre[];
+  game_platforms?: GamePlatform[];
   game_moods?: GameMood[];
+  // Simple arrays of names for the EditGameModal
+  platforms?: string[];
+  genres?: string[];
   moods?: string[];
-  image?: string;
-  rawg_id?: string;
 }
 
 export interface UserGameResponse {

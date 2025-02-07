@@ -4,15 +4,29 @@ import supabase from '../supabaseClient'
 import { Game, GameNote, RawgGameDetails } from '../types'
 import EditGameModal from '../components/EditGameModal'
 import imageCompression from 'browser-image-compression'
+import { gameService } from '../services/gameService'
 
 const GameDetails = () => {
   const { id } = useParams()
+  const [userId, setUserId] = useState<string>('')
   const [game, setGame] = useState<Game | null>(null)
   const [notes, setNotes] = useState<GameNote[]>([])
   const [rawgDetails, setRawgDetails] = useState<RawgGameDetails | null>(null)
+  const [details, setDetails] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [showAddNote, setShowAddNote] = useState(false)
   const [editingNote, setEditingNote] = useState<GameNote | null>(null)
+
+  // Get current user
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        setUserId(user.id)
+      }
+    }
+    getCurrentUser()
+  }, [])
   const [noteForm, setNoteForm] = useState<Partial<GameNote>>({
     content: '',
     play_session_date: null,
@@ -34,13 +48,88 @@ const GameDetails = () => {
   const [showEditModal, setShowEditModal] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
 
-  const fetchRawgDetails = async (gameTitle: string) => {
+  const migrateToIGDB = async (game: Game) => {
+    try {
+      // Search for game in IGDB
+      const searchResult = await gameService.searchGames(game.title);
+      if (searchResult.results.length === 0) return null;
+
+      const igdbGame = searchResult.results[0];
+      
+      // Update game in database
+      const { error } = await supabase
+        .from('games')
+        .update({
+          provider: 'igdb',
+          external_id: igdbGame.id,
+          description: igdbGame.summary || game.description,
+          metacritic_rating: igdbGame.metacritic || game.metacritic_rating,
+          release_date: igdbGame.released || game.release_date,
+          background_image: igdbGame.background_image || game.background_image
+        })
+        .eq('id', game.id);
+
+      if (error) {
+        console.error('Error migrating to IGDB:', error);
+        return null;
+      }
+
+      return {
+        ...game,
+        provider: 'igdb',
+        external_id: igdbGame.id
+      };
+    } catch (error) {
+      console.error('Error in IGDB migration:', error);
+      return null;
+    }
+  };
+
+  const fetchGameDetails = async (game: Game) => {
+    if (!game) return
+
+    // If it's already an IGDB game or was successfully migrated
+    if (game.provider === 'igdb' && game.external_id) {
+      try {
+        const [gameDetails, screenshots] = await Promise.all([
+          gameService.getGameDetails(game.external_id.toString()),
+          gameService.getGameScreenshots(game.external_id.toString()),
+        ])
+
+        setDetails(gameDetails)
+        const rawgDetails = {
+          description_raw: gameDetails.summary || '',
+          metacritic: gameDetails.aggregated_rating || 0,
+          playtime: 0,
+          background_image: gameDetails.background_image || '',
+          screenshots: screenshots.map((url) => ({ image: url })),
+        }
+
+        setRawgDetails(rawgDetails)
+      } catch (error) {
+        console.error('Error fetching IGDB details:', error)
+      }
+      return
+    }
+
+    // Try to migrate RAWG game to IGDB
+    if (game.provider === 'rawg') {
+      const migratedGame = await migrateToIGDB(game);
+      if (migratedGame) {
+        setGame(migratedGame);
+        // Fetch details for the newly migrated IGDB game
+        await fetchGameDetails(migratedGame);
+        return;
+      }
+    }
+
+    // Fallback to RAWG if migration failed or for legacy support
     try {
       const apiKey = import.meta.env.VITE_RAWG_API_KEY
       // Search for the game first
       const searchResponse = await fetch(
         `https://api.rawg.io/api/games?search=${encodeURIComponent(
-          gameTitle
+          game.title
         )}&key=${apiKey}`
       )
       const searchData = await searchResponse.json()
@@ -74,11 +163,8 @@ const GameDetails = () => {
 
   const fetchGameAndNotes = async () => {
     try {
-      const { data: userData } = await supabase.auth.getUser()
-      const user_id = userData.user?.id
-
-      if (!user_id) {
-
+      if (!userId) {
+        console.error('No user ID found')
         return
       }
 
@@ -103,13 +189,20 @@ const GameDetails = () => {
           status,
           progress,
           platforms,
-          image,
           game:games (
-            ${gameColumns},
-            game_genres (genre_id, genres(id, name))
+            id,
+            title,
+            external_id,
+            provider,
+            metacritic_rating,
+            release_date,
+            background_image,
+            description,
+            game_moods (moods (*))
           )
-        `)
-        .eq('user_id', user_id)
+        `
+        )
+        .eq('user_id', userId)
         .eq('game_id', id)
         .single()
 
@@ -132,28 +225,27 @@ const GameDetails = () => {
         return
       }
 
-      // Format game exactly like GameCard does
-      const formattedGame = {
+      const gameData = {
         id: userGameData.game.id,
         title: userGameData.game.title,
         status: userGameData.status,
         progress: userGameData.progress,
-        platforms: userGameData.platforms || [],
-        genres: userGameData.game.game_genres?.map(gg => gg.genres.name) || [],
-        moods: gameMoods?.map(gm => gm.mood.name) || [],
-        image: userGameData.game.background_image,
-        rawg_id: userGameData.game[import.meta.env.VITE_USE_DEV_DB ? 'external_id' : 'rawg_id'],
-        rawg_slug: userGameData.game.rawg_slug,
+        provider: userGameData.game.provider || 'rawg',
+        external_id: userGameData.game.external_id || 0,
         metacritic_rating: userGameData.game.metacritic_rating,
         release_date: userGameData.game.release_date,
-        description: userGameData.game.description
+        background_image: userGameData.game.background_image,
+        description: userGameData.game.description,
+        platforms: userGameData.platforms || [],
+        genres: [],
+        image: userGameData.game.background_image
       }
+      
+      setGame(gameData)
 
-
-      setGame(formattedGame)
-
+      // Fetch additional details from external provider
       if (userGameData.game) {
-        fetchRawgDetails(userGameData.game.title)
+        fetchGameDetails(userGameData.game)
       }
 
       // Fetch game notes
@@ -161,7 +253,7 @@ const GameDetails = () => {
         .from('game_notes')
         .select('*')
         .eq('game_id', id)
-        .eq('user_id', user_id)
+        .eq('user_id', userId)
         .order('created_at', { ascending: false })
 
       if (notesError) throw notesError
@@ -174,16 +266,6 @@ const GameDetails = () => {
   }
 
   // Get user ID on component mount
-  useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        setUserId(user.id)
-      }
-    }
-    getUser()
-  }, [])
-
   useEffect(() => {
     if (userId) {
       fetchGameAndNotes()
@@ -593,36 +675,71 @@ const GameDetails = () => {
       </div>
 
       {/* Progress Tracking */}
-      <div className="card bg-base-200 mb-4 sm:mb-6">
-        <div className="card-body py-3 px-3 sm:py-4 sm:px-4">
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <div className="flex justify-between mb-2">
-                <span className="text-sm font-medium">Progress</span>
-                <span className="text-sm font-medium">{game.progress}%</span>
+      <div className="space-y-4 mb-8">
+        <div className="card bg-base-200">
+          <div className="card-body py-3 px-3 sm:py-4 sm:px-4">
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <div className="flex justify-between mb-2">
+                  <span className="text-sm font-medium">Progress</span>
+                  <span className="text-sm font-medium">{game.progress}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={game.progress}
+                  className="range range-primary range-sm"
+                  step="5"
+                  onChange={(e) => updateProgress(parseInt(e.target.value))}
+                />
+                <div className="w-full flex justify-between text-xs px-1 mt-1">
+                  <span>|</span>
+                  <span>|</span>
+                  <span>|</span>
+                  <span>|</span>
+                  <span>|</span>
+                </div>
               </div>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={game.progress}
-                className="range range-primary range-sm"
-                step="5"
-                onChange={(e) => updateProgress(parseInt(e.target.value))}
-              />
-              <div className="w-full flex justify-between text-xs px-1 mt-1">
-                <span>|</span>
-                <span>|</span>
-                <span>|</span>
-                <span>|</span>
-                <span>|</span>
-              </div>
+              {isUpdatingProgress && (
+                <div className="loading loading-spinner loading-xs"></div>
+              )}
             </div>
-            {isUpdatingProgress && (
-              <div className="loading loading-spinner loading-xs"></div>
-            )}
           </div>
         </div>
+
+        {/* Time to Beat */}
+        {details?.time_to_beat && (
+          <div className="space-y-2">
+            <h3 className="text-sm font-medium px-1">Time to Beat</h3>
+            <div className="stats stats-vertical lg:stats-horizontal shadow bg-base-200 w-full">
+              {details.time_to_beat.hastily && (
+                <div className="stat place-items-center">
+                  <div className="stat-title text-xs">Quick Play</div>
+                  <div className="stat-value text-2xl">
+                    {Math.round(details.time_to_beat.hastily / 3600)}h
+                  </div>
+                </div>
+              )}
+              {details.time_to_beat.normally && (
+                <div className="stat place-items-center">
+                  <div className="stat-title text-xs">Main Story</div>
+                  <div className="stat-value text-2xl">
+                    {Math.round(details.time_to_beat.normally / 3600)}h
+                  </div>
+                </div>
+              )}
+              {details.time_to_beat.completely && (
+                <div className="stat place-items-center">
+                  <div className="stat-title text-xs">Completionist</div>
+                  <div className="stat-value text-2xl">
+                    {Math.round(details.time_to_beat.completely / 3600)}h
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Game Details Section */}
@@ -659,23 +776,50 @@ const GameDetails = () => {
                   )} */}
                 </div>
 
-                {rawgDetails.description_raw && (
-                  <div>
-                    <h3 className="font-semibold text-lg mb-2">About</h3>
-                    <p className="text-sm opacity-70">
-                      {rawgDetails.description_raw}
-                    </p>
-                  </div>
-                )}
+                <div>
+                  {game?.provider === 'igdb' ? (
+                    <>
+                      {details?.summary && (
+                        <div className="mb-6">
+                          <h3 className="font-semibold text-lg mb-2">
+                            Summary
+                          </h3>
+                          <p className="text-sm opacity-70 whitespace-pre-line">
+                            {details.summary}
+                          </p>
+                        </div>
+                      )}
+                      {details?.storyline && (
+                        <div className="mb-6">
+                          <h3 className="font-semibold text-lg mb-2">
+                            Storyline
+                          </h3>
+                          <p className="text-sm opacity-70 whitespace-pre-line">
+                            {details.storyline}
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    rawgDetails?.description_raw && (
+                      <div>
+                        <h3 className="font-semibold text-lg mb-2">About</h3>
+                        <p className="text-sm opacity-70 whitespace-pre-line">
+                          {rawgDetails.description_raw}
+                        </p>
+                      </div>
+                    )
+                  )}
+                </div>
               </div>
               {rawgDetails.screenshots &&
                 rawgDetails.screenshots.length > 0 && (
                   <div>
                     <h3 className="font-semibold text-lg mb-2">Screenshots</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {rawgDetails.screenshots.map((screenshot) => (
+                      {rawgDetails.screenshots.map((screenshot, index) => (
                         <img
-                          key={screenshot.id}
+                          key={`screenshot-${index}`}
                           src={screenshot.image}
                           alt="Game Screenshot"
                           className="rounded-lg w-full h-40 object-cover cursor-pointer hover:opacity-90 transition-opacity"
@@ -1189,15 +1333,13 @@ const GameDetails = () => {
         </div>
       )}
       {/* Edit Game Modal */}
-      {userId && game && showEditModal && (
-        <EditGameModal
-          game={game}
-          userId={userId}
-          showModal={showEditModal}
-          setShowModal={setShowEditModal}
-          onGameUpdated={fetchGameAndNotes}
-        />
-      )}
+      {game && <EditGameModal
+        game={game}
+        userId={userId}
+        showModal={showEditModal}
+        setShowModal={setShowEditModal}
+        onGameUpdated={fetchGameAndNotes}
+      />}
     </div>
   )
 }
