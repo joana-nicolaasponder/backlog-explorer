@@ -46,7 +46,6 @@ const GameDetails = () => {
     null
   )
   const [showEditModal, setShowEditModal] = useState(false)
-  const [userId, setUserId] = useState<string | null>(null)
 
   const migrateToIGDB = async (game: Game) => {
     try {
@@ -169,22 +168,10 @@ const GameDetails = () => {
       }
 
       // Fetch game details and user-specific data
-      // First get user game data with platforms and moods
-      // Define columns based on environment
-      const gameColumns = [
-        'id',
-        'title',
-        ...(import.meta.env.VITE_USE_DEV_DB ? ['external_id', 'provider'] : ['rawg_id']),
-        'rawg_slug',
-        'metacritic_rating',
-        'release_date',
-        'background_image',
-        'description'
-      ].join(',');
-
       const { data: userGameData, error: gameError } = await supabase
         .from('user_games')
-        .select(`
+        .select(
+          `
           id,
           status,
           progress,
@@ -206,22 +193,13 @@ const GameDetails = () => {
         .eq('game_id', id)
         .single()
 
-
-      // Get user's selected moods for this game
-      const { data: gameMoods, error: moodsError } = await supabase
-        .from('game_moods')
-        .select('mood:moods(id, name)')
-        .eq('game_id', id)
-        .eq('user_id', user_id)
-
-
       if (gameError) {
-
+        console.error('Error fetching game:', gameError)
         return
       }
 
       if (!userGameData) {
-
+        console.error('Game not found')
         return
       }
 
@@ -259,13 +237,12 @@ const GameDetails = () => {
       if (notesError) throw notesError
       setNotes(notesData || [])
     } catch (error) {
-      console.error('Error fetching game and notes:', error)
+      console.error('Error:', error)
     } finally {
       setLoading(false)
     }
   }
 
-  // Get user ID on component mount
   useEffect(() => {
     if (userId) {
       fetchGameAndNotes()

@@ -47,9 +47,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
       moods: game.moods || [],
       platforms: game.platforms || []
     })
-    // Update platforms
-    setSelectedPlatforms(game.platforms || [])
-    setOriginalPlatforms(game.platforms || [])
+    // Platforms are managed in formData.platforms
     // Update moods
     setSelectedMoods(game.moods || [])
     setOriginalMoods(game.moods || [])
@@ -57,8 +55,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
   const [platformOptions, setPlatformOptions] = useState<GamePlatform[]>([])
   const [genreOptions, setGenreOptions] = useState<GameGenre[]>([])
   const [availablePlatforms, setAvailablePlatforms] = useState<Platform[]>([])
-  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(game.platforms || [])
-  const [originalPlatforms, setOriginalPlatforms] = useState<string[]>(game.platforms || [])
+  // Platforms are managed in formData.platforms
   const [availableMoods, setAvailableMoods] = useState<Mood[]>([])
   const [selectedMoods, setSelectedMoods] = useState<string[]>(game.moods || [])
   const [originalMoods, setOriginalMoods] = useState<string[]>(game.moods || [])
@@ -91,11 +88,6 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
   // Load available platforms for this game
   useEffect(() => {
     const loadGamePlatforms = async () => {
-      if (!showModal) return; // Only load when modal is shown
-
-      if (!showModal) return; // Only load when modal is shown
-      if (!game.id || !userId) return;
-
       try {
         // Only try to load IGDB details if this is an IGDB game
         if (game.provider === 'igdb') {
@@ -171,11 +163,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           // Set the available platforms
           setAvailablePlatforms(platforms || []);
           
-          // Keep existing selected platforms
-          if (!selectedPlatforms.length && game.platforms) {
-            setSelectedPlatforms(game.platforms);
-            setOriginalPlatforms(game.platforms);
-          }
+          // No need to set selected platforms as they're managed in formData
         }
       } catch (error) {
         console.error('Error in loadGamePlatforms:', error);
@@ -190,8 +178,6 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
   // Load available moods from Supabase
   useEffect(() => {
     const loadMoods = async () => {
-      if (!showModal) return; // Only load when modal is shown
-
       try {
 
         // Get the current session
@@ -242,7 +228,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     }
 
     loadMoods()
-  }, [showModal, game.id, userId])
+  }, [])
 
   // Load game's existing moods when modal opens
   useEffect(() => {
@@ -300,11 +286,9 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
 
   useEffect(() => {
     const loadRawgData = async () => {
-      if (!showModal) return; // Only load when modal is shown
-      
-      if (game.external_id) {
+      if (game.rawg_id) {
         try {
-          const gameDetails = await getGameDetails(Number(game.external_id))
+          const gameDetails = await getGameDetails(Number(game.rawg_id))
           if (gameDetails) {
             // Update form data with RAWG data while preserving user's status and progress
             setFormData((prev) => ({
@@ -541,7 +525,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
               updated_at: new Date().toISOString()
             })
             .eq('game_id', game.id)
-            .eq('user_id', userId)
+            .eq('user_id', user.id)
 
           if (rollbackError) {
             console.error('Error rolling back game status:', rollbackError)
