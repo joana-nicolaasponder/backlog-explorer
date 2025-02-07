@@ -26,12 +26,12 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
   showModal,
   setShowModal,
 }) => {
-  console.log('EditGameModal props:', { game, userId, showModal })
+
 
   // Initialize form data when modal opens
   useEffect(() => {
     if (showModal) {
-      console.log('Modal opened, setting initial form data:', game)
+
       setFormData({
         status: game.status || '',
         progress: game.progress || 0,
@@ -94,9 +94,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
   useEffect(() => {
     const loadGamePlatforms = async () => {
       if (!showModal) return; // Only load when modal is shown
-      console.log('Loading platforms for game:', game.title)
-      console.log('Loading platforms, game:', game)
-      console.log('Initial platforms:', game.platforms)
+
       if (!showModal) return; // Only load when modal is shown
       if (!game.id || !userId) return;
 
@@ -238,9 +236,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
   useEffect(() => {
     const loadMoods = async () => {
       if (!showModal) return; // Only load when modal is shown
-      console.log('Loading moods for game:', game.title)
-      console.log('Loading moods for game:', game)
-      console.log('Initial moods:', game.moods)
+
       try {
         // console.log('Loading moods...')
         // Get the current session
