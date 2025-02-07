@@ -61,8 +61,8 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
     'Done',
   ])
   const [isLoading, setIsLoading] = useState(false)
-  const [isSearching, setIsSearching] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [_isSearching, setIsSearching] = useState(true)
+  const [_error, setError] = useState<string | null>(null)
   const [existingGameMessage, setExistingGameMessage] = useState<string | null>(
     null
   )
@@ -209,11 +209,11 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
       // First, get or create the game
       let gameId: string
 
-      // Check if game exists by RAWG ID
+      // Check if game exists by external_id
       const { data: existingGames } = await supabase
         .from('games')
         .select('id')
-        .eq('rawg_id', formData.rawg_id)
+        .eq('external_id', formData.rawg_id)
 
       const existingGame = existingGames?.[0]
 
@@ -226,7 +226,8 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
           .insert([
             {
               title: formData.title,
-              rawg_id: formData.rawg_id,
+              external_id: formData.rawg_id,
+              provider: 'rawg',
               rawg_slug: formData.rawg_slug,
               metacritic_rating: formData.metacritic_rating,
               release_date: formData.release_date,
@@ -510,7 +511,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
                     src={formData.image}
                     alt={formData.title}
                     className="object-cover w-full h-full"
-                    onError={(e) => {
+                    onError={(_e) => {
                       console.error('Image failed to load:', formData.image)
                       setError(
                         'Failed to load image. Please check the URL and try again.'

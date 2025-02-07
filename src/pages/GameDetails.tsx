@@ -32,6 +32,7 @@ const GameDetails = () => {
     null
   )
   const [showEditModal, setShowEditModal] = useState(false)
+  const [userId, setUserId] = useState<string | null>(null)
 
   const fetchRawgDetails = async (gameTitle: string) => {
     try {
@@ -77,56 +78,75 @@ const GameDetails = () => {
       const user_id = userData.user?.id
 
       if (!user_id) {
-        console.error('No user ID found')
+
         return
       }
 
       // Fetch game details and user-specific data
+      // First get user game data with platforms and moods
       const { data: userGameData, error: gameError } = await supabase
         .from('user_games')
-        .select(
-          `
+        .select(`
           id,
           status,
           progress,
+          platforms,
+          image,
           game:games (
             id,
             title,
-            rawg_id,
+            provider,
+            external_id,
             rawg_slug,
             metacritic_rating,
             release_date,
             background_image,
-            description
+            description,
+            game_genres (genre_id, genres(id, name))
           )
-        `
-        )
+        `)
         .eq('user_id', user_id)
         .eq('game_id', id)
         .single()
 
+
+      // Get user's selected moods for this game
+      const { data: gameMoods, error: moodsError } = await supabase
+        .from('game_moods')
+        .select('mood:moods(id, name)')
+        .eq('game_id', id)
+        .eq('user_id', user_id)
+
+
       if (gameError) {
-        console.error('Error fetching game:', gameError)
+
         return
       }
 
       if (!userGameData) {
-        console.error('Game not found')
+
         return
       }
 
-      setGame({
+      // Format game exactly like GameCard does
+      const formattedGame = {
         id: userGameData.game.id,
         title: userGameData.game.title,
         status: userGameData.status,
         progress: userGameData.progress,
-        rawg_id: userGameData.game.rawg_id,
+        platforms: userGameData.platforms || [],
+        genres: userGameData.game.game_genres?.map(gg => gg.genres.name) || [],
+        moods: gameMoods?.map(gm => gm.mood.name) || [],
+        image: userGameData.game.background_image,
+        external_id: userGameData.game.external_id,
         rawg_slug: userGameData.game.rawg_slug,
         metacritic_rating: userGameData.game.metacritic_rating,
         release_date: userGameData.game.release_date,
-        background_image: userGameData.game.background_image,
-        description: userGameData.game.description,
-      })
+        description: userGameData.game.description
+      }
+
+
+      setGame(formattedGame)
 
       if (userGameData.game) {
         fetchRawgDetails(userGameData.game.title)
@@ -143,15 +163,28 @@ const GameDetails = () => {
       if (notesError) throw notesError
       setNotes(notesData || [])
     } catch (error) {
-      console.error('Error:', error)
+      console.error('Error fetching game and notes:', error)
     } finally {
       setLoading(false)
     }
   }
 
+  // Get user ID on component mount
   useEffect(() => {
-    fetchGameAndNotes()
-  }, [id])
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        setUserId(user.id)
+      }
+    }
+    getUser()
+  }, [])
+
+  useEffect(() => {
+    if (userId) {
+      fetchGameAndNotes()
+    }
+  }, [id, userId])
 
   const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB in bytes
   const MAX_FILES_PER_NOTE = 6 // Reasonable limit per note
@@ -1152,12 +1185,15 @@ const GameDetails = () => {
         </div>
       )}
       {/* Edit Game Modal */}
-      <EditGameModal
-        game={game}
-        showModal={showEditModal}
-        setShowModal={setShowEditModal}
-        onGameUpdated={fetchGameAndNotes}
-      />
+      {userId && game && showEditModal && (
+        <EditGameModal
+          game={game}
+          userId={userId}
+          showModal={showEditModal}
+          setShowModal={setShowEditModal}
+          onGameUpdated={fetchGameAndNotes}
+        />
+      )}
     </div>
   )
 }
