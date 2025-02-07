@@ -31,9 +31,10 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     progress: game.progress || 0,
     title: game.title || '',
     genres: game.genres || [],
-    image: game.image,
+    image: game.image || '',
     moods: game.moods || [],
-    platforms: game.platforms || []
+    // Initialize with user's previously selected platforms
+    platforms: Array.isArray(game.platforms) ? game.platforms : []
   })
 
   // Update formData and selections when game prop changes
@@ -43,9 +44,9 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
       progress: game.progress || 0,
       title: game.title || '',
       genres: game.genres || [],
-      image: game.image,
+      image: game.image || '',
       moods: game.moods || [],
-      platforms: game.platforms || []
+      platforms: Array.isArray(game.platforms) ? game.platforms : []
     })
     // Platforms are managed in formData.platforms
     // Update moods
@@ -54,7 +55,10 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
   }, [game])
   const [platformOptions, setPlatformOptions] = useState<GamePlatform[]>([])
   const [genreOptions, setGenreOptions] = useState<GameGenre[]>([])
-  const [availablePlatforms, setAvailablePlatforms] = useState<Platform[]>([])
+  // Use the availablePlatforms passed from the game object
+  const [availablePlatforms, setAvailablePlatforms] = useState<Platform[]>(
+    game.availablePlatforms?.map(name => ({ id: name, name })) || []
+  )
   // Platforms are managed in formData.platforms
   const [availableMoods, setAvailableMoods] = useState<Mood[]>([])
   const [selectedMoods, setSelectedMoods] = useState<string[]>(game.moods || [])
@@ -89,81 +93,31 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
   useEffect(() => {
     const loadGamePlatforms = async () => {
       try {
-        // Only try to load IGDB details if this is an IGDB game
-        if (game.provider === 'igdb') {
-          let gameDetails;
-          
-          if (game.external_id) {
-            gameDetails = await gameService.getGameDetails(game.external_id);
-          } else {
-            const searchResult = await gameService.searchGames(game.title);
+        if (game.provider === 'igdb' && game.external_id) {
+          // Get game details from IGDB to get available platforms
+          const gameDetails = await gameService.getGameDetails(game.external_id);
+          if (gameDetails?.platforms?.length) {
+            // Convert IGDB platforms to our platform format
+            const platforms = gameDetails.platforms.map(p => ({
+              id: p.name,  // Use name as id since it's unique
+              name: p.name
+            }));
             
-            // Find the most relevant match
-            const exactMatch = searchResult.results.find(g => 
-              g.name.toLowerCase() === game.title.toLowerCase()
-            );
-            const bestMatch = exactMatch || searchResult.results[0];
-            
-            if (bestMatch) {
-              gameDetails = await gameService.getGameDetails(bestMatch.id);
+            // Set the available platforms from IGDB
+            setAvailablePlatforms(platforms);
+
+            // If we have user-selected platforms that aren't in IGDB's list,
+            // add them to available platforms to preserve user's selections
+            const igdbPlatformNames = platforms.map(p => p.name);
+            const userPlatforms = Array.isArray(game.platforms) ? game.platforms : [];
+            const missingPlatforms = userPlatforms
+              .filter(p => !igdbPlatformNames.includes(p))
+              .map(name => ({ id: name, name }));
+
+            if (missingPlatforms.length > 0) {
+              setAvailablePlatforms(prev => [...prev, ...missingPlatforms]);
             }
           }
-
-          if (gameDetails) {
-            const igdbPlatforms = gameDetails.platforms || [];
-            setPlatformOptions(igdbPlatforms);
-            setGenreOptions(gameDetails.genres || []);
-
-            // Get our platform records that match these IGDB platforms
-            const { data: platforms, error: platformsError } = await supabase
-              .from('platforms')
-              .select('*')
-              .in('name', igdbPlatforms.map(p => p.name));
-
-            if (platformsError) {
-              console.error('Error loading platforms:', platformsError);
-              return;
-            }
-
-            // Set the available platforms
-            setAvailablePlatforms(platforms || []);
-          }
-          return; // Exit after setting IGDB options
-        }
-
-        // For RAWG games, get platforms from RAWG API
-        const apiKey = import.meta.env.VITE_RAWG_API_KEY;
-        const searchResponse = await fetch(
-          `https://api.rawg.io/api/games?search=${encodeURIComponent(game.title)}&key=${apiKey}`
-        );
-        const searchData = await searchResponse.json();
-
-        if (searchData.results && searchData.results.length > 0) {
-          const gameId = searchData.results[0].id;
-          // Get detailed game information including platforms
-          const detailsResponse = await fetch(
-            `https://api.rawg.io/api/games/${gameId}?key=${apiKey}`
-          );
-          const gameDetails = await detailsResponse.json();
-
-          // Get platform names from RAWG response
-          const rawgPlatforms = gameDetails.platforms?.map(p => p.platform.name) || [];
-
-          // Get our platform records that match these RAWG platforms
-          const { data: platforms, error: platformsError } = await supabase
-            .from('platforms')
-            .select('*')
-            .in('name', rawgPlatforms);
-
-          if (platformsError) {
-            console.error('Error loading platforms:', platformsError);
-            return;
-          }
-
-          // Set the available platforms
-          setAvailablePlatforms(platforms || []);
-          
-          // No need to set selected platforms as they're managed in formData
         }
       } catch (error) {
         console.error('Error in loadGamePlatforms:', error);
@@ -387,7 +341,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
         .update({
           status: formData.status,
           progress: formData.progress,
-          platforms: formData.platforms, // Keep this for backward compatibility
+          platforms: Array.isArray(formData.platforms) ? formData.platforms : [], // Ensure platforms is always an array
           image: formData.image,
           updated_at: new Date().toISOString()
         })
@@ -721,7 +675,12 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
 
           {/* Platform Selection */}
           <div className="card bg-base-200 shadow-sm p-6 space-y-6">
-            <h2 className="card-title text-base-content text-lg">Platforms</h2>
+            <div className="flex justify-between items-center">
+              <h2 className="card-title text-base-content text-lg">Platforms</h2>
+              <span className="text-xs text-base-content/60">
+                Select the platforms you own or plan to play this game on
+              </span>
+            </div>
             <div className="flex flex-wrap gap-2">
               {availablePlatforms.map((platform) => {
                 const isSelected = formData.platforms.includes(platform.name)
