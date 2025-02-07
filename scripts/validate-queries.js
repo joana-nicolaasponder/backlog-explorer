@@ -57,9 +57,8 @@ async function validateQueries() {
       const { data, error } = await client
         .from('columns')
         .select('column_name, data_type')
-        .eq('table_name', table)
         .eq('table_schema', 'public')
-        .schema('information_schema');
+        .eq('table_name', table);
       if (error) throw error;
       return data;
     };
