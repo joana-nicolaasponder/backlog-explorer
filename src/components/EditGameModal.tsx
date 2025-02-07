@@ -109,14 +109,14 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
 
         if (userGameError) throw userGameError;
         if (userGame?.platforms) {
-          console.log('Found user platforms:', userGame.platforms);
+
           setSelectedPlatforms(userGame.platforms);
           setOriginalPlatforms(userGame.platforms);
         } else {
-          console.log('No user platforms found in user_games');
+
           // If no platforms in user_games, use the ones from the game object
           if (game.platforms && game.platforms.length > 0) {
-            console.log('Using platforms from game object:', game.platforms);
+
             setSelectedPlatforms(game.platforms);
             setOriginalPlatforms(game.platforms);
           }
@@ -154,7 +154,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           .select('rawg_name, platform_id')
         
         if (allMappingsError) {
-          console.error('Error fetching all mappings:', allMappingsError)
+
           return
         }
 
@@ -197,7 +197,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           .in('rawg_name', mappedPlatforms)
 
         if (mappingError) {
-          console.error('Error fetching platform mappings:', mappingError)
+
           return
         }
 
