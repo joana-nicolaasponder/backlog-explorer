@@ -101,18 +101,45 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           return; // Exit after setting IGDB options
         }
 
-        // For non-IGDB games, load platforms from database
-        const { data: allMappings, error: allMappingsError } = await supabase
-          .from('rawg_platform_mappings')
-          .select('rawg_name, platform_id');
+        // For RAWG games, get platforms from RAWG API
+        const apiKey = import.meta.env.VITE_RAWG_API_KEY;
+        const searchResponse = await fetch(
+          `https://api.rawg.io/api/games?search=${encodeURIComponent(game.title)}&key=${apiKey}`
+        );
+        const searchData = await searchResponse.json();
 
-        if (allMappingsError) {
-          console.error('Error loading platform mappings:', allMappingsError);
-          return;
+        if (searchData.results && searchData.results.length > 0) {
+          const gameId = searchData.results[0].id;
+          // Get detailed game information including platforms
+          const detailsResponse = await fetch(
+            `https://api.rawg.io/api/games/${gameId}?key=${apiKey}`
+          );
+          const gameDetails = await detailsResponse.json();
+
+          // Get platform names from RAWG response
+          const rawgPlatforms = gameDetails.platforms?.map(p => p.platform.name) || [];
+
+          // Get our platform records that match these RAWG platforms
+          const { data: platforms, error: platformsError } = await supabase
+            .from('platforms')
+            .select('*')
+            .in('name', rawgPlatforms);
+
+          if (platformsError) {
+            console.error('Error loading platforms:', platformsError);
+            return;
+          }
+
+          // Set the available platforms
+          setAvailablePlatforms(platforms || []);
+          
+          // Set selected platforms from game data
+          if (game.platforms) {
+            setSelectedPlatforms(game.platforms);
+            setOriginalPlatforms(game.platforms);
+            setFormData(prev => ({ ...prev, platforms: game.platforms }));
+          }
         }
-
-        // Set the available platforms from the database
-        setAvailablePlatforms(allMappings || []);
       } catch (error) {
         console.error('Error in loadGamePlatforms:', error);
       }
@@ -616,13 +643,16 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                     { value: 'Owned', icon: '💫', desc: 'In collection' },
                     { value: 'Come back!', icon: '⏰', desc: 'Return later' }
                   ].map((status) => (
-                    <label
-                      key={status.value}
-                      className={`
-                        btn btn-sm justify-start gap-2 normal-case
-                        ${formData.status === status.value ? 'btn-primary' : 'btn-ghost'}
-                      `}
+                    <div
+                      key={`status-${status.value}`}
+                      className="join-item"
                     >
+                      <label
+                        className={`
+                          btn btn-sm justify-start gap-2 normal-case w-full
+                          ${formData.status === status.value ? 'btn-primary' : 'btn-ghost'}
+                        `}
+                      >
                       <input
                         type="radio"
                         name="status"
@@ -636,6 +666,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                       <span>{status.value}</span>
                       <span className="text-xs opacity-70">{status.desc}</span>
                     </label>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -671,7 +702,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                 const isSelected = formData.platforms.includes(platform.name)
                 return (
                   <label
-                    key={platform.id}
+                    key={`platform-${platform.id}`}
                     className="cursor-pointer"
                   >
                     <span

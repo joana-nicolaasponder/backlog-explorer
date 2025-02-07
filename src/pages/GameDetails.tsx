@@ -41,8 +41,8 @@ const GameDetails = () => {
     if (game.provider === 'igdb' && game.external_id) {
       try {
         const [gameDetails, screenshots] = await Promise.all([
-          gameService.getGameDetails(game.external_id),
-          gameService.getGameScreenshots(game.external_id),
+          gameService.getGameDetails(game.external_id.toString()),
+          gameService.getGameScreenshots(game.external_id.toString()),
         ])
         console.log('IGDB details:', gameDetails)
         console.log('IGDB screenshots:', screenshots)
@@ -144,20 +144,25 @@ const GameDetails = () => {
         return
       }
 
-      setGame({
+      const gameData: Game = {
         id: userGameData.game.id,
         title: userGameData.game.title,
         status: userGameData.status,
         progress: userGameData.progress,
-        external_id: userGameData.game.external_id,
-        provider: userGameData.game.provider,
+        provider: userGameData.game.provider || 'rawg',  // Ensure provider is set
+        external_id: userGameData.game.external_id || 0,  // Default to 0 if not set
         metacritic_rating: userGameData.game.metacritic_rating,
         release_date: userGameData.game.release_date,
         background_image: userGameData.game.background_image,
         description: userGameData.game.description,
-      })
+        game_genres: [],  // Initialize as empty arrays
+        game_platforms: [],
+        game_moods: []
+      }
+      
+      setGame(gameData)
 
-      // Only fetch RAWG details for RAWG games
+      // Fetch additional details from external provider
       if (userGameData.game) {
         fetchGameDetails(userGameData.game)
       }
