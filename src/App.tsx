@@ -182,8 +182,7 @@ const App: React.FC = () => {
     getSession()
 
     const { data: listener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-
+      (_event, session) => {
         setSession(session)
       }
     )
@@ -191,7 +190,7 @@ const App: React.FC = () => {
     return () => {
       listener?.subscription.unsubscribe()
     }
-  }, [])
+  }, [navigate])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
