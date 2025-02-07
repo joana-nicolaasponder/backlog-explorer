@@ -8,6 +8,7 @@ import { gameService } from '../services/gameService'
 
 const GameDetails = () => {
   const { id } = useParams()
+  const [userId, setUserId] = useState<string>('')
   const [game, setGame] = useState<Game | null>(null)
   const [notes, setNotes] = useState<GameNote[]>([])
   const [rawgDetails, setRawgDetails] = useState<RawgGameDetails | null>(null)
@@ -15,6 +16,17 @@ const GameDetails = () => {
   const [loading, setLoading] = useState(true)
   const [showAddNote, setShowAddNote] = useState(false)
   const [editingNote, setEditingNote] = useState<GameNote | null>(null)
+
+  // Get current user
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        setUserId(user.id)
+      }
+    }
+    getCurrentUser()
+  }, [])
   const [noteForm, setNoteForm] = useState<Partial<GameNote>>({
     content: '',
     play_session_date: null,
@@ -35,17 +47,54 @@ const GameDetails = () => {
   )
   const [showEditModal, setShowEditModal] = useState(false)
 
+  const migrateToIGDB = async (game: Game) => {
+    try {
+      // Search for game in IGDB
+      const searchResult = await gameService.searchGames(game.title);
+      if (searchResult.results.length === 0) return null;
+
+      const igdbGame = searchResult.results[0];
+      
+      // Update game in database
+      const { error } = await supabase
+        .from('games')
+        .update({
+          provider: 'igdb',
+          external_id: igdbGame.id,
+          description: igdbGame.summary || game.description,
+          metacritic_rating: igdbGame.metacritic || game.metacritic_rating,
+          release_date: igdbGame.released || game.release_date,
+          background_image: igdbGame.background_image || game.background_image
+        })
+        .eq('id', game.id);
+
+      if (error) {
+        console.error('Error migrating to IGDB:', error);
+        return null;
+      }
+
+      return {
+        ...game,
+        provider: 'igdb',
+        external_id: igdbGame.id
+      };
+    } catch (error) {
+      console.error('Error in IGDB migration:', error);
+      return null;
+    }
+  };
+
   const fetchGameDetails = async (game: Game) => {
     if (!game) return
 
+    // If it's already an IGDB game or was successfully migrated
     if (game.provider === 'igdb' && game.external_id) {
       try {
         const [gameDetails, screenshots] = await Promise.all([
           gameService.getGameDetails(game.external_id.toString()),
           gameService.getGameScreenshots(game.external_id.toString()),
         ])
-        console.log('IGDB details:', gameDetails)
-        console.log('IGDB screenshots:', screenshots)
+
         setDetails(gameDetails)
         const rawgDetails = {
           description_raw: gameDetails.summary || '',
@@ -54,7 +103,7 @@ const GameDetails = () => {
           background_image: gameDetails.background_image || '',
           screenshots: screenshots.map((url) => ({ image: url })),
         }
-        console.log('Setting rawgDetails to:', rawgDetails)
+
         setRawgDetails(rawgDetails)
       } catch (error) {
         console.error('Error fetching IGDB details:', error)
@@ -62,7 +111,18 @@ const GameDetails = () => {
       return
     }
 
-    // Fallback to RAWG for existing RAWG games
+    // Try to migrate RAWG game to IGDB
+    if (game.provider === 'rawg') {
+      const migratedGame = await migrateToIGDB(game);
+      if (migratedGame) {
+        setGame(migratedGame);
+        // Fetch details for the newly migrated IGDB game
+        await fetchGameDetails(migratedGame);
+        return;
+      }
+    }
+
+    // Fallback to RAWG if migration failed or for legacy support
     try {
       const apiKey = import.meta.env.VITE_RAWG_API_KEY
       // Search for the game first
@@ -102,10 +162,7 @@ const GameDetails = () => {
 
   const fetchGameAndNotes = async () => {
     try {
-      const { data: userData } = await supabase.auth.getUser()
-      const user_id = userData.user?.id
-
-      if (!user_id) {
+      if (!userId) {
         console.error('No user ID found')
         return
       }
@@ -118,6 +175,7 @@ const GameDetails = () => {
           id,
           status,
           progress,
+          platforms,
           game:games (
             id,
             title,
@@ -126,11 +184,12 @@ const GameDetails = () => {
             metacritic_rating,
             release_date,
             background_image,
-            description
+            description,
+            game_moods (moods (*))
           )
         `
         )
-        .eq('user_id', user_id)
+        .eq('user_id', userId)
         .eq('game_id', id)
         .single()
 
@@ -144,20 +203,20 @@ const GameDetails = () => {
         return
       }
 
-      const gameData: Game = {
+      const gameData = {
         id: userGameData.game.id,
         title: userGameData.game.title,
         status: userGameData.status,
         progress: userGameData.progress,
-        provider: userGameData.game.provider || 'rawg',  // Ensure provider is set
-        external_id: userGameData.game.external_id || 0,  // Default to 0 if not set
+        provider: userGameData.game.provider || 'rawg',
+        external_id: userGameData.game.external_id || 0,
         metacritic_rating: userGameData.game.metacritic_rating,
         release_date: userGameData.game.release_date,
         background_image: userGameData.game.background_image,
         description: userGameData.game.description,
-        game_genres: [],  // Initialize as empty arrays
-        game_platforms: [],
-        game_moods: []
+        platforms: userGameData.platforms || [],
+        genres: [],
+        image: userGameData.game.background_image
       }
       
       setGame(gameData)
@@ -172,7 +231,7 @@ const GameDetails = () => {
         .from('game_notes')
         .select('*')
         .eq('game_id', id)
-        .eq('user_id', user_id)
+        .eq('user_id', userId)
         .order('created_at', { ascending: false })
 
       if (notesError) throw notesError
@@ -185,8 +244,10 @@ const GameDetails = () => {
   }
 
   useEffect(() => {
-    fetchGameAndNotes()
-  }, [id])
+    if (userId) {
+      fetchGameAndNotes()
+    }
+  }, [id, userId])
 
   const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB in bytes
   const MAX_FILES_PER_NOTE = 6 // Reasonable limit per note
@@ -733,9 +794,9 @@ const GameDetails = () => {
                   <div>
                     <h3 className="font-semibold text-lg mb-2">Screenshots</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {rawgDetails.screenshots.map((screenshot) => (
+                      {rawgDetails.screenshots.map((screenshot, index) => (
                         <img
-                          key={screenshot.id}
+                          key={`screenshot-${index}`}
                           src={screenshot.image}
                           alt="Game Screenshot"
                           className="rounded-lg w-full h-40 object-cover cursor-pointer hover:opacity-90 transition-opacity"
@@ -1249,12 +1310,13 @@ const GameDetails = () => {
         </div>
       )}
       {/* Edit Game Modal */}
-      <EditGameModal
+      {game && <EditGameModal
         game={game}
+        userId={userId}
         showModal={showEditModal}
         setShowModal={setShowEditModal}
         onGameUpdated={fetchGameAndNotes}
-      />
+      />}
     </div>
   )
 }

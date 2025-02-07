@@ -57,6 +57,10 @@ export interface Game {
   game_genres?: GameGenre[];
   game_platforms?: GamePlatform[];
   game_moods?: GameMood[];
+  // Simple arrays of names for the EditGameModal
+  platforms?: string[];
+  genres?: string[];
+  moods?: string[];
 }
 
 export interface UserGameResponse {

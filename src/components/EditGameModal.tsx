@@ -26,7 +26,6 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
   showModal,
   setShowModal,
 }) => {
-
   const [formData, setFormData] = useState({
     status: game.status || '',
     progress: game.progress || 0,
@@ -36,14 +35,33 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     moods: game.moods || [],
     platforms: game.platforms || []
   })
+
+  // Update formData and selections when game prop changes
+  useEffect(() => {
+    setFormData({
+      status: game.status || '',
+      progress: game.progress || 0,
+      title: game.title || '',
+      genres: game.genres || [],
+      image: game.image,
+      moods: game.moods || [],
+      platforms: game.platforms || []
+    })
+    // Update platforms
+    setSelectedPlatforms(game.platforms || [])
+    setOriginalPlatforms(game.platforms || [])
+    // Update moods
+    setSelectedMoods(game.moods || [])
+    setOriginalMoods(game.moods || [])
+  }, [game])
   const [platformOptions, setPlatformOptions] = useState<GamePlatform[]>([])
   const [genreOptions, setGenreOptions] = useState<GameGenre[]>([])
   const [availablePlatforms, setAvailablePlatforms] = useState<Platform[]>([])
-  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([])
-  const [originalPlatforms, setOriginalPlatforms] = useState<string[]>([])
+  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(game.platforms || [])
+  const [originalPlatforms, setOriginalPlatforms] = useState<string[]>(game.platforms || [])
   const [availableMoods, setAvailableMoods] = useState<Mood[]>([])
-  const [selectedMoods, setSelectedMoods] = useState<string[]>([])
-  const [originalMoods, setOriginalMoods] = useState<string[]>([])
+  const [selectedMoods, setSelectedMoods] = useState<string[]>(game.moods || [])
+  const [originalMoods, setOriginalMoods] = useState<string[]>(game.moods || [])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
@@ -95,8 +113,23 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           }
 
           if (gameDetails) {
-            setPlatformOptions(gameDetails.platforms || []);
+            const igdbPlatforms = gameDetails.platforms || [];
+            setPlatformOptions(igdbPlatforms);
             setGenreOptions(gameDetails.genres || []);
+
+            // Get our platform records that match these IGDB platforms
+            const { data: platforms, error: platformsError } = await supabase
+              .from('platforms')
+              .select('*')
+              .in('name', igdbPlatforms.map(p => p.name));
+
+            if (platformsError) {
+              console.error('Error loading platforms:', platformsError);
+              return;
+            }
+
+            // Set the available platforms
+            setAvailablePlatforms(platforms || []);
           }
           return; // Exit after setting IGDB options
         }
@@ -133,11 +166,10 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           // Set the available platforms
           setAvailablePlatforms(platforms || []);
           
-          // Set selected platforms from game data
-          if (game.platforms) {
+          // Keep existing selected platforms
+          if (!selectedPlatforms.length && game.platforms) {
             setSelectedPlatforms(game.platforms);
             setOriginalPlatforms(game.platforms);
-            setFormData(prev => ({ ...prev, platforms: game.platforms }));
           }
         }
       } catch (error) {
@@ -154,7 +186,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
   useEffect(() => {
     const loadMoods = async () => {
       try {
-        // console.log('Loading moods...')
+
         // Get the current session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession()
         
@@ -168,7 +200,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           return
         }
 
-        // console.log('Got session, fetching moods...', session)
+
         const { data: moods, error: moodsError } = await supabase
           .from('moods')
           .select('*')
@@ -179,7 +211,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           throw moodsError
         }
 
-        // console.log('Raw moods response:', moods)
+
         
         if (!moods) {
           console.warn('No moods data received')
@@ -195,7 +227,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           return a.name.localeCompare(b.name)
         })
 
-        // console.log('Sorted moods:', sortedMoods)
+
         setAvailableMoods(sortedMoods)
       } catch (error) {
         console.error('Error in loadMoods:', error)
