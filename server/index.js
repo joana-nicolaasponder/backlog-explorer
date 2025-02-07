@@ -9,7 +9,7 @@ const port = process.env.PORT || 3001;
 // Configure CORS
 const corsOptions = {
   origin: [
-    'https://backlogexplorer.com',
+    process.env.CORS_ORIGIN,
     'http://localhost:5173',
     'http://127.0.0.1:5173'
   ],
