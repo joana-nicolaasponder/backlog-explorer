@@ -84,6 +84,18 @@ const GameDetails = () => {
 
       // Fetch game details and user-specific data
       // First get user game data with platforms and moods
+      // Define columns based on environment
+      const gameColumns = [
+        'id',
+        'title',
+        ...(import.meta.env.DEV ? ['external_id', 'provider'] : ['rawg_id']),
+        'rawg_slug',
+        'metacritic_rating',
+        'release_date',
+        'background_image',
+        'description'
+      ].join(',');
+
       const { data: userGameData, error: gameError } = await supabase
         .from('user_games')
         .select(`
@@ -93,16 +105,7 @@ const GameDetails = () => {
           platforms,
           image,
           game:games (
-            id,
-            title,
-            rawg_id,
-            external_id,
-            provider,
-            rawg_slug,
-            metacritic_rating,
-            release_date,
-            background_image,
-            description,
+            ${gameColumns},
             game_genres (genre_id, genres(id, name))
           )
         `)
@@ -139,7 +142,7 @@ const GameDetails = () => {
         genres: userGameData.game.game_genres?.map(gg => gg.genres.name) || [],
         moods: gameMoods?.map(gm => gm.mood.name) || [],
         image: userGameData.game.background_image,
-        rawg_id: userGameData.game.external_id || userGameData.game.rawg_id,
+        rawg_id: userGameData.game[import.meta.env.DEV ? 'external_id' : 'rawg_id'],
         rawg_slug: userGameData.game.rawg_slug,
         metacritic_rating: userGameData.game.metacritic_rating,
         release_date: userGameData.game.release_date,
