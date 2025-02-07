@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react'
 import supabase from '../supabaseClient'
 import GameSearch from './GameSearch'
-import { RAWGGame } from '../types/rawg'
-import { mapRAWGGameToIds } from '../services/rawgMappings'
-
+import { GameBasic, GameDetailed } from '../types/game'
+import { GAME_PROVIDER, gameService } from '../services/gameService'
 import { Mood } from '../types'
 
 interface GameFormData {
@@ -14,8 +13,8 @@ interface GameFormData {
   progress: number
   image: string
   moods: string[] // Mood IDs are strings from the database
-  rawg_id?: number
-  rawg_slug?: string
+  external_id?: string
+  provider?: string
   metacritic_rating?: number
   release_date?: string
   background_image?: string
@@ -47,7 +46,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
   const [platformOptions, setPlatformOptions] = useState<string[]>([])
   const [genreOptions, setGenreOptions] = useState<string[]>([])
   const [availableMoods, setAvailableMoods] = useState<Mood[]>([])
-  const [selectedGame, setSelectedGame] = useState<RAWGGame | null>(null)
+  const [selectedGame, setSelectedGame] = useState<GameDetailed | null>(null)
   const [statusOptions] = useState<string[]>([
     'Endless',
     'Satisfied',
@@ -110,20 +109,23 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
     }
   }
 
-  const handleGameSelect = async (game: RAWGGame) => {
-    setSelectedGame(game)
+  const handleGameSelect = async (game: GameBasic) => {
+    try {
+      const gameDetails = await gameService.getGameDetails(game.id)
+      setSelectedGame(gameDetails)
 
-    // Check if user already has this game
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) throw new Error('No user found')
+      // Check if user already has this game
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) throw new Error('No user found')
 
     // First check if the game exists
     const { data: existingGames } = await supabase
       .from('games')
       .select('id')
-      .eq('rawg_id', game.id)
+      .eq('external_id', game.id)
+      .eq('provider', GAME_PROVIDER)
 
     const existingGame = existingGames?.[0]
 
@@ -169,30 +171,50 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
         description: undefined,
       })
     } else {
-      // Get available platforms from RAWG
-      const availablePlatforms = game.platforms.map((p) => p.platform.name)
+      // Get available platforms from IGDB
+      const availablePlatforms = (game.platforms || []).map((p) => p.name)
       setPlatformOptions(availablePlatforms)
 
-      // Set form data with RAWG data
+      // Set form data with IGDB data
       setFormData({
         title: game.name,
         platforms: [], // User will select from availablePlatforms
-        genres: game.genres.map((g) => g.name), // Use RAWG genres directly
+        genres: (game.genres || []).map((g) => g.name), // Use IGDB genres
         status: 'Not Started',
         progress: 0,
         moods: [],
-        image: game.background_image || '',
-        rawg_id: game.id,
-        rawg_slug: game.slug,
+        image: game.background_image || '',  // IGDB image is already set in background_image
+        external_id: game.id.toString(),
+        provider: GAME_PROVIDER,
         metacritic_rating: game.metacritic || undefined,
         release_date: game.released || undefined,
         background_image: game.background_image || undefined,
-        description: game.description || undefined,
+        description: game.summary || undefined,
       })
     }
 
     // Close search after selection
     setIsSearching(false)
+    } catch (error) {
+      console.error('Error in handleGameSelect:', error)
+      setError(error instanceof Error ? error.message : 'Failed to handle game selection')
+      setSelectedGame(null)
+      setFormData({
+        title: '',
+        platforms: [],
+        genres: [],
+        status: 'Not Started',
+        progress: 0,
+        moods: [],
+        image: '',
+        external_id: undefined,
+        provider: undefined,
+        metacritic_rating: undefined,
+        release_date: undefined,
+        background_image: undefined,
+        description: undefined,
+      })
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -213,7 +235,8 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
       const { data: existingGames } = await supabase
         .from('games')
         .select('id')
-        .eq('external_id', formData.rawg_id)
+        .eq('external_id', formData.external_id)
+        .eq('provider', formData.provider)
 
       const existingGame = existingGames?.[0]
 
@@ -226,9 +249,8 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
           .insert([
             {
               title: formData.title,
-              external_id: formData.rawg_id,
-              provider: 'rawg',
-              rawg_slug: formData.rawg_slug,
+              external_id: formData.external_id,
+              provider: formData.provider,
               metacritic_rating: formData.metacritic_rating,
               release_date: formData.release_date,
               background_image: formData.background_image,
@@ -245,8 +267,19 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
 
       // For new games, add all available platforms and genres from RAWG
       if (selectedGame && !existingGame) {
-        // Map all platforms and genres from RAWG
-        const { platformIds, genreIds } = await mapRAWGGameToIds(selectedGame)
+        // Get platform and genre IDs from the database based on names
+        const { data: platforms } = await supabase
+          .from('platforms')
+          .select('id, name')
+          .in('name', selectedGame.platforms.map(p => p.name))
+
+        const { data: genres } = await supabase
+          .from('genres')
+          .select('id, name')
+          .in('name', selectedGame.genres.map(g => g.name))
+
+        const platformIds = platforms?.map(p => p.id) || []
+        const genreIds = genres?.map(g => g.id) || []
 
         // Add all available platforms
         for (const platformId of platformIds) {
