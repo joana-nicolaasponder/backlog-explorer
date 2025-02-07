@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import supabase from '../supabaseClient'
 import { Game } from '../types'
-import { getGameDetails, searchGames } from '../services/rawg'
-import { RAWGPlatform, RAWGGenre } from '../types/rawg'
+import { gameService } from '../services/gameService'
+import { Platform as GamePlatform, Genre as GameGenre } from '../types/game'
 
 import { Mood, Platform } from '../types'
 
@@ -26,29 +26,6 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
   showModal,
   setShowModal,
 }) => {
-
-
-  // Initialize form data when modal opens
-  useEffect(() => {
-    if (showModal) {
-
-      setFormData({
-        status: game.status || '',
-        progress: game.progress || 0,
-        title: game.title || '',
-        genres: game.genres || [],
-        image: game.image,
-        moods: game.moods || [],
-        platforms: game.platforms || []
-      })
-      // Also set initial platforms and moods
-      setSelectedPlatforms(game.platforms || [])
-      setOriginalPlatforms(game.platforms || [])
-      setSelectedMoods(game.moods || [])
-      setOriginalMoods(game.moods || [])
-    }
-  }, [showModal, game])
-
   const [formData, setFormData] = useState({
     status: game.status || '',
     progress: game.progress || 0,
@@ -58,12 +35,33 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     moods: game.moods || [],
     platforms: game.platforms || []
   })
+
+  // Update formData and selections when game prop changes
+  useEffect(() => {
+    setFormData({
+      status: game.status || '',
+      progress: game.progress || 0,
+      title: game.title || '',
+      genres: game.genres || [],
+      image: game.image,
+      moods: game.moods || [],
+      platforms: game.platforms || []
+    })
+    // Update platforms
+    setSelectedPlatforms(game.platforms || [])
+    setOriginalPlatforms(game.platforms || [])
+    // Update moods
+    setSelectedMoods(game.moods || [])
+    setOriginalMoods(game.moods || [])
+  }, [game])
+  const [platformOptions, setPlatformOptions] = useState<GamePlatform[]>([])
+  const [genreOptions, setGenreOptions] = useState<GameGenre[]>([])
   const [availablePlatforms, setAvailablePlatforms] = useState<Platform[]>([])
-  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([])
-  const [originalPlatforms, setOriginalPlatforms] = useState<string[]>([])
+  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(game.platforms || [])
+  const [originalPlatforms, setOriginalPlatforms] = useState<string[]>(game.platforms || [])
   const [availableMoods, setAvailableMoods] = useState<Mood[]>([])
-  const [selectedMoods, setSelectedMoods] = useState<string[]>([])
-  const [originalMoods, setOriginalMoods] = useState<string[]>([])
+  const [selectedMoods, setSelectedMoods] = useState<string[]>(game.moods || [])
+  const [originalMoods, setOriginalMoods] = useState<string[]>(game.moods || [])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
@@ -90,7 +88,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     return sortedA.length === sortedB.length && sortedA.every((value, index) => value === sortedB[index]);
   };
 
-  // Load available platforms for this game from RAWG
+  // Load available platforms for this game
   useEffect(() => {
     const loadGamePlatforms = async () => {
       if (!showModal) return; // Only load when modal is shown
@@ -99,138 +97,95 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
       if (!game.id || !userId) return;
 
       try {
-        // First get user's selected platforms
-        const { data: userGame, error: userGameError } = await supabase
-          .from('user_games')
-          .select('platforms')
-          .eq('game_id', game.id)
-          .eq('user_id', userId)
-          .single();
+        // Only try to load IGDB details if this is an IGDB game
+        if (game.provider === 'igdb') {
+          let gameDetails;
+          
+          if (game.external_id) {
+            gameDetails = await gameService.getGameDetails(game.external_id);
+          } else {
+            const searchResult = await gameService.searchGames(game.title);
+            
+            // Find the most relevant match
+            const exactMatch = searchResult.results.find(g => 
+              g.name.toLowerCase() === game.title.toLowerCase()
+            );
+            const bestMatch = exactMatch || searchResult.results[0];
+            
+            if (bestMatch) {
+              gameDetails = await gameService.getGameDetails(bestMatch.id);
+            }
+          }
 
-        if (userGameError) throw userGameError;
-        if (userGame?.platforms) {
+          if (gameDetails) {
+            const igdbPlatforms = gameDetails.platforms || [];
+            setPlatformOptions(igdbPlatforms);
+            setGenreOptions(gameDetails.genres || []);
 
-          setSelectedPlatforms(userGame.platforms);
-          setOriginalPlatforms(userGame.platforms);
-        } else {
+            // Get our platform records that match these IGDB platforms
+            const { data: platforms, error: platformsError } = await supabase
+              .from('platforms')
+              .select('*')
+              .in('name', igdbPlatforms.map(p => p.name));
 
-          // If no platforms in user_games, use the ones from the game object
-          if (game.platforms && game.platforms.length > 0) {
+            if (platformsError) {
+              console.error('Error loading platforms:', platformsError);
+              return;
+            }
 
+            // Set the available platforms
+            setAvailablePlatforms(platforms || []);
+          }
+          return; // Exit after setting IGDB options
+        }
+
+        // For RAWG games, get platforms from RAWG API
+        const apiKey = import.meta.env.VITE_RAWG_API_KEY;
+        const searchResponse = await fetch(
+          `https://api.rawg.io/api/games?search=${encodeURIComponent(game.title)}&key=${apiKey}`
+        );
+        const searchData = await searchResponse.json();
+
+        if (searchData.results && searchData.results.length > 0) {
+          const gameId = searchData.results[0].id;
+          // Get detailed game information including platforms
+          const detailsResponse = await fetch(
+            `https://api.rawg.io/api/games/${gameId}?key=${apiKey}`
+          );
+          const gameDetails = await detailsResponse.json();
+
+          // Get platform names from RAWG response
+          const rawgPlatforms = gameDetails.platforms?.map(p => p.platform.name) || [];
+
+          // Get our platform records that match these RAWG platforms
+          const { data: platforms, error: platformsError } = await supabase
+            .from('platforms')
+            .select('*')
+            .in('name', rawgPlatforms);
+
+          if (platformsError) {
+            console.error('Error loading platforms:', platformsError);
+            return;
+          }
+
+          // Set the available platforms
+          setAvailablePlatforms(platforms || []);
+          
+          // Keep existing selected platforms
+          if (!selectedPlatforms.length && game.platforms) {
             setSelectedPlatforms(game.platforms);
             setOriginalPlatforms(game.platforms);
           }
         }
-
-        // Then get available platforms from RAWG
-        let gameDetails;
-        
-        if (game.external_id) {
-          gameDetails = await getGameDetails(Number(game.external_id))
-        } else {
-          const searchResults = await searchGames(game.title)
-          
-          // Find the most relevant match
-          const exactMatch = searchResults.find(g => 
-            g.name.toLowerCase() === game.title.toLowerCase()
-          )
-          const bestMatch = exactMatch || searchResults[0]
-          
-          if (bestMatch) {
-            gameDetails = await getGameDetails(bestMatch.id)
-          }
-        }
-
-        if (!gameDetails?.platforms) {
-          return
-        }
-
-        // Get the platform names from RAWG
-        const rawgPlatformNames = gameDetails.platforms.map(p => p.platform.name)
-
-        // Get all platform mappings
-        const { data: allMappings, error: allMappingsError } = await supabase
-          .from('rawg_platform_mappings')
-          .select('rawg_name, platform_id')
-        
-        if (allMappingsError) {
-
-          return
-        }
-
-        // Find which RAWG platforms we have mappings for using normalized comparison
-        const mappedPlatforms = rawgPlatformNames.filter(name => {
-          const normalized = name.toLowerCase().replace(/[^a-z0-9]/g, '')
-          return allMappings?.some(mapping => 
-            mapping.rawg_name.toLowerCase().replace(/[^a-z0-9]/g, '') === normalized
-          )
-        })
-
-        if (mappedPlatforms.length === 0) {
-          // If no mappings found, let's at least show the platform from the game data
-          const { data: platforms, error: platformsError } = await supabase
-            .from('platforms')
-            .select('*')
-            .order('name')
-
-          if (!platformsError && platforms) {
-            // Find platforms that match the RAWG names (case-insensitive, ignore spaces)
-            const matchingPlatforms = platforms.filter(p => 
-              rawgPlatformNames.some(rawgName => 
-                p.name.toLowerCase().replace(/[^a-z0-9]/g, '') === 
-                rawgName.toLowerCase().replace(/[^a-z0-9]/g, '')
-              )
-            )
-            
-            if (matchingPlatforms.length > 0) {
-              setAvailablePlatforms(matchingPlatforms)
-              return
-            }
-          }
-          return
-        }
-
-        // Get the corresponding platform records from our database
-        const { data: platformMappings, error: mappingError } = await supabase
-          .from('rawg_platform_mappings')
-          .select('platform_id, rawg_name')
-          .in('rawg_name', mappedPlatforms)
-
-        if (mappingError) {
-
-          return
-        }
-
-        if (!platformMappings || platformMappings.length === 0) {
-          return
-        }
-
-        if (platformMappings && platformMappings.length > 0) {
-          // Get the actual platform records
-          const platformIds = platformMappings.map(m => m.platform_id)
-
-          const { data: platforms, error: platformsError } = await supabase
-            .from('platforms')
-            .select('*')
-            .in('id', platformIds)
-            .order('name')
-
-          if (platformsError) {
-            console.error('Error loading platforms:', platformsError)
-            return
-          }
-
-          if (platforms && platforms.length > 0) {
-            setAvailablePlatforms(platforms)
-          }
-        }
       } catch (error) {
-        console.error('Error in loadGamePlatforms:', error)
+        console.error('Error in loadGamePlatforms:', error);
       }
-    }
+    };
 
-    loadGamePlatforms()
-  }, [game.rawg_id, game.title])
+    // Load platforms when the component mounts
+    loadGamePlatforms();
+
+  }, [game.external_id, game.title])
 
   // Load available moods from Supabase
   useEffect(() => {
@@ -238,7 +193,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
       if (!showModal) return; // Only load when modal is shown
 
       try {
-        // console.log('Loading moods...')
+
         // Get the current session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession()
         
@@ -252,7 +207,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           return
         }
 
-        // console.log('Got session, fetching moods...', session)
+
         const { data: moods, error: moodsError } = await supabase
           .from('moods')
           .select('*')
@@ -263,7 +218,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           throw moodsError
         }
 
-        // console.log('Raw moods response:', moods)
+
         
         if (!moods) {
           console.warn('No moods data received')
@@ -279,7 +234,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           return a.name.localeCompare(b.name)
         })
 
-        // console.log('Sorted moods:', sortedMoods)
+
         setAvailableMoods(sortedMoods)
       } catch (error) {
         console.error('Error in loadMoods:', error)
@@ -729,13 +684,16 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                     { value: 'Owned', icon: '💫', desc: 'In collection' },
                     { value: 'Come back!', icon: '⏰', desc: 'Return later' }
                   ].map((status) => (
-                    <label
-                      key={status.value}
-                      className={`
-                        btn btn-sm justify-start gap-2 normal-case
-                        ${formData.status === status.value ? 'btn-primary' : 'btn-ghost'}
-                      `}
+                    <div
+                      key={`status-${status.value}`}
+                      className="join-item"
                     >
+                      <label
+                        className={`
+                          btn btn-sm justify-start gap-2 normal-case w-full
+                          ${formData.status === status.value ? 'btn-primary' : 'btn-ghost'}
+                        `}
+                      >
                       <input
                         type="radio"
                         name="status"
@@ -749,6 +707,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                       <span>{status.value}</span>
                       <span className="text-xs opacity-70">{status.desc}</span>
                     </label>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -784,7 +743,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                 const isSelected = formData.platforms.includes(platform.name)
                 return (
                   <label
-                    key={platform.id}
+                    key={`platform-${platform.id}`}
                     className="cursor-pointer"
                   >
                     <span
