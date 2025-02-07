@@ -27,6 +27,28 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
   setShowModal,
 }) => {
 
+
+  // Initialize form data when modal opens
+  useEffect(() => {
+    if (showModal) {
+
+      setFormData({
+        status: game.status || '',
+        progress: game.progress || 0,
+        title: game.title || '',
+        genres: game.genres || [],
+        image: game.image,
+        moods: game.moods || [],
+        platforms: game.platforms || []
+      })
+      // Also set initial platforms and moods
+      setSelectedPlatforms(game.platforms || [])
+      setOriginalPlatforms(game.platforms || [])
+      setSelectedMoods(game.moods || [])
+      setOriginalMoods(game.moods || [])
+    }
+  }, [showModal, game])
+
   const [formData, setFormData] = useState({
     status: game.status || '',
     progress: game.progress || 0,
@@ -71,11 +93,40 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
   // Load available platforms for this game from RAWG
   useEffect(() => {
     const loadGamePlatforms = async () => {
+      if (!showModal) return; // Only load when modal is shown
+
+      if (!showModal) return; // Only load when modal is shown
+      if (!game.id || !userId) return;
+
       try {
+        // First get user's selected platforms
+        const { data: userGame, error: userGameError } = await supabase
+          .from('user_games')
+          .select('platforms')
+          .eq('game_id', game.id)
+          .eq('user_id', userId)
+          .single();
+
+        if (userGameError) throw userGameError;
+        if (userGame?.platforms) {
+
+          setSelectedPlatforms(userGame.platforms);
+          setOriginalPlatforms(userGame.platforms);
+        } else {
+
+          // If no platforms in user_games, use the ones from the game object
+          if (game.platforms && game.platforms.length > 0) {
+
+            setSelectedPlatforms(game.platforms);
+            setOriginalPlatforms(game.platforms);
+          }
+        }
+
+        // Then get available platforms from RAWG
         let gameDetails;
         
-        if (game.rawg_id) {
-          gameDetails = await getGameDetails(Number(game.rawg_id))
+        if (game.external_id) {
+          gameDetails = await getGameDetails(Number(game.external_id))
         } else {
           const searchResults = await searchGames(game.title)
           
@@ -103,7 +154,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           .select('rawg_name, platform_id')
         
         if (allMappingsError) {
-          console.error('Error fetching all mappings:', allMappingsError)
+
           return
         }
 
@@ -146,7 +197,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           .in('rawg_name', mappedPlatforms)
 
         if (mappingError) {
-          console.error('Error fetching platform mappings:', mappingError)
+
           return
         }
 
@@ -184,6 +235,8 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
   // Load available moods from Supabase
   useEffect(() => {
     const loadMoods = async () => {
+      if (!showModal) return; // Only load when modal is shown
+
       try {
         // console.log('Loading moods...')
         // Get the current session
@@ -234,7 +287,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     }
 
     loadMoods()
-  }, [])
+  }, [showModal, game.id, userId])
 
   // Load game's existing moods when modal opens
   useEffect(() => {
@@ -292,9 +345,11 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
 
   useEffect(() => {
     const loadRawgData = async () => {
-      if (game.rawg_id) {
+      if (!showModal) return; // Only load when modal is shown
+      
+      if (game.external_id) {
         try {
-          const gameDetails = await getGameDetails(Number(game.rawg_id))
+          const gameDetails = await getGameDetails(Number(game.external_id))
           if (gameDetails) {
             // Update form data with RAWG data while preserving user's status and progress
             setFormData((prev) => ({
@@ -531,7 +586,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
               updated_at: new Date().toISOString()
             })
             .eq('game_id', game.id)
-            .eq('user_id', user.id)
+            .eq('user_id', userId)
 
           if (rollbackError) {
             console.error('Error rolling back game status:', rollbackError)
