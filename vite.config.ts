@@ -7,12 +7,26 @@ export default defineConfig(({ mode }) => {
   // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
   const env = loadEnv(mode, process.cwd(), '')
   
+  // Determine environment based on git branch
+  const getBranchEnv = () => {
+    try {
+      const branch = process.env.GITHUB_REF_NAME || 'develop'
+      if (branch === 'deploy') return 'production'
+      if (branch === 'main') return 'staging'
+      return 'development'
+    } catch (error) {
+      return 'development'
+    }
+  }
+
+  const environment = getBranchEnv()
+  
   return {
     plugins: [react()],
     define: {
-      __DEV__: mode === 'development'
+      __DEV__: environment === 'development'
     },
     envDir: './',
-    mode: 'development'
+    mode: environment
   }
 })
