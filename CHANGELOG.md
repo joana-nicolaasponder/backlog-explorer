@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.14] - 2025-02-07
+
+### Added
+- Integrate IGDB API for more accurate game data
+- Add proxy server for IGDB API calls
+- Improve platform selection in EditGameModal
+
+### Changed
+- Temporarily disable database validation in CI
+
 ## [1.0.12] - 2025-02-07
 
 ### Fixed
