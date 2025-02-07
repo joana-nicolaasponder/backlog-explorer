@@ -54,9 +54,11 @@ async function validateQueries() {
 
     // Get table info from both environments
     const getTableInfo = async (client, table) => {
-      const { data, error } = await client.rpc('exec_sql', {
-        sql: `SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '${table}'`
-      });
+      const { data, error } = await client
+        .from('information_schema.columns')
+        .select('column_name, data_type')
+        .eq('table_name', table)
+        .eq('table_schema', 'public');
       if (error) throw error;
       return data;
     };
