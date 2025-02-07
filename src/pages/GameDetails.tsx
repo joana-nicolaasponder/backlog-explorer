@@ -68,7 +68,7 @@ const GameDetails = () => {
         })
       }
     } catch (error) {
-      console.error('Error fetching RAWG details:', error)
+
     }
   }
 
@@ -78,7 +78,7 @@ const GameDetails = () => {
       const user_id = userData.user?.id
 
       if (!user_id) {
-        console.error('No user ID found')
+
         return
       }
 
@@ -119,12 +119,12 @@ const GameDetails = () => {
 
 
       if (gameError) {
-        console.error('Error fetching game:', gameError)
+
         return
       }
 
       if (!userGameData) {
-        console.error('Game not found')
+
         return
       }
 
@@ -163,7 +163,7 @@ const GameDetails = () => {
       if (notesError) throw notesError
       setNotes(notesData || [])
     } catch (error) {
-      console.error('Error:', error)
+
     } finally {
       setLoading(false)
     }
