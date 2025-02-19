@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Session } from '@supabase/supabase-js'
 import { Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom'
 import supabase from './supabaseClient'
+import { ThemeProvider } from './contexts/ThemeContext'
 import Auth from './components/Auth'
 import Library from './pages/Library'
 import Explore from './pages/Explore'
@@ -211,8 +212,9 @@ const App: React.FC = () => {
   }
 
   return (
-    <div>
-      <Routes>
+    <ThemeProvider>
+      <div className="min-h-screen">
+        <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Auth onAuth={setSession} />} />
         <Route path="/reset-password" element={<ResetPassword />} />
@@ -220,7 +222,7 @@ const App: React.FC = () => {
         {/* Protected Routes */}
         <Route path="/app" element={
           <ProtectedRoute>
-            <div className="flex min-h-screen bg-base-200">
+            <div className="flex h-screen bg-base-200">
               <SideBar onLogout={handleLogout} onAddGame={() => setShowAddGame(true)} />
               <main className="flex-1 overflow-auto pt-16 lg:pt-0">
                 <HomePage />
@@ -237,7 +239,7 @@ const App: React.FC = () => {
         } />
         <Route path="/app/dashboard" element={
           <ProtectedRoute>
-            <div className="flex min-h-screen bg-base-200">
+            <div className="flex h-screen bg-base-200">
               <SideBar onLogout={handleLogout} onAddGame={() => setShowAddGame(true)} />
               <main className="flex-1 overflow-auto pt-16 lg:pt-0">
                 <Dashboard />
@@ -254,7 +256,7 @@ const App: React.FC = () => {
         } />
         <Route path="/app/library" element={
           <ProtectedRoute>
-            <div className="flex min-h-screen bg-base-200">
+            <div className="flex h-screen bg-base-200">
               <SideBar onLogout={handleLogout} onAddGame={() => setShowAddGame(true)} />
               <main className="flex-1 overflow-auto pt-16 lg:pt-0">
                 <Library ref={libraryRef} />
@@ -271,7 +273,7 @@ const App: React.FC = () => {
         } />
         <Route path="/app/explore" element={
           <ProtectedRoute>
-            <div className="flex min-h-screen bg-base-200">
+            <div className="flex h-screen bg-base-200">
               <SideBar onLogout={handleLogout} onAddGame={() => setShowAddGame(true)} />
               <main className="flex-1 overflow-auto pt-16 lg:pt-0">
                 <Explore />
@@ -288,7 +290,7 @@ const App: React.FC = () => {
         } />
         <Route path="/app/profile" element={
           <ProtectedRoute>
-            <div className="flex min-h-screen bg-base-200">
+            <div className="flex h-screen bg-base-200">
               <SideBar onLogout={handleLogout} onAddGame={() => setShowAddGame(true)} />
               <main className="flex-1 overflow-auto pt-16 lg:pt-0">
                 <ProfilePage />
@@ -306,7 +308,7 @@ const App: React.FC = () => {
 
         <Route path="/app/feedback" element={
           <ProtectedRoute>
-            <div className="flex min-h-screen bg-base-200">
+            <div className="flex h-screen bg-base-200">
               <SideBar onLogout={handleLogout} onAddGame={() => setShowAddGame(true)} />
               <main className="flex-1 overflow-auto pt-16 lg:pt-0">
                 <FeedbackPage />
@@ -323,7 +325,7 @@ const App: React.FC = () => {
         } />
         <Route path="/app/game/:id" element={
           <ProtectedRoute>
-            <div className="flex min-h-screen bg-base-200">
+            <div className="flex h-screen bg-base-200">
               <SideBar onLogout={handleLogout} onAddGame={() => setShowAddGame(true)} />
               <main className="flex-1 overflow-auto pt-16 lg:pt-0">
                 <GameDetails />
@@ -338,8 +340,19 @@ const App: React.FC = () => {
             </div>
           </ProtectedRoute>
         } />
-      </Routes>
-    </div>
+        </Routes>
+        <div id="success-toast" className="toast toast-end hidden">
+          <div className="alert alert-success">
+            <span>Changes saved successfully!</span>
+          </div>
+        </div>
+        <div id="error-toast" className="toast toast-end hidden">
+          <div className="alert alert-error">
+            <span>Error saving changes. Please try again.</span>
+          </div>
+        </div>
+      </div>
+    </ThemeProvider>
   )
 }
 
