@@ -480,9 +480,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
                   Can't find your game? Try searching by the game's official
                   title. If you still can't find it,
                   <a
-                    href="https://rawg.io/apidocs"
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    href="/app/feedback"
                     className="link link-primary"
                   >
                     let us know
