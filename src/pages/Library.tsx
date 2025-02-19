@@ -9,7 +9,7 @@ export interface LibraryHandle {
   refreshGames: () => Promise<void>
 }
 
-const Library: React.ForwardRefRenderFunction<LibraryHandle, {}> = (props, ref) => {
+const Library: React.ForwardRefRenderFunction<LibraryHandle, Record<string, never>> = (props, ref) => {
   const location = useLocation()
   const [filterStatus, setFilterStatus] = useState<string>(
     Array.isArray(location.state?.filterStatus) 
@@ -74,7 +74,7 @@ const Library: React.ForwardRefRenderFunction<LibraryHandle, {}> = (props, ref) 
       }
 
       // Format games with platform and genre names
-      let formattedGames = userGames.map(userGame => ({
+      const formattedGames = userGames.map(userGame => ({
         id: userGame.game.id,
         title: userGame.game.title,
         status: userGame.status,
