@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import supabase from '../supabaseClient'
 import { Game, GameNote, RawgGameDetails } from '../types'
 import EditGameModal from '../components/EditGameModal'
+import ExpandableText from '../components/ExpandableText'
 import imageCompression from 'browser-image-compression'
 import { gameService } from '../services/gameService'
 
@@ -763,9 +764,10 @@ const GameDetails = () => {
                           <h3 className="font-semibold text-lg mb-2">
                             Summary
                           </h3>
-                          <p className="text-sm opacity-70 whitespace-pre-line">
-                            {details.summary}
-                          </p>
+                          <ExpandableText
+                            text={details.summary}
+                            className="text-sm opacity-70 whitespace-pre-line"
+                          />
                         </div>
                       )}
                       {details?.storyline && (
@@ -773,9 +775,10 @@ const GameDetails = () => {
                           <h3 className="font-semibold text-lg mb-2">
                             Storyline
                           </h3>
-                          <p className="text-sm opacity-70 whitespace-pre-line">
-                            {details.storyline}
-                          </p>
+                          <ExpandableText
+                            text={details.storyline}
+                            className="text-sm opacity-70 whitespace-pre-line"
+                          />
                         </div>
                       )}
                     </>
@@ -783,9 +786,10 @@ const GameDetails = () => {
                     rawgDetails?.description_raw && (
                       <div>
                         <h3 className="font-semibold text-lg mb-2">About</h3>
-                        <p className="text-sm opacity-70 whitespace-pre-line">
-                          {rawgDetails.description_raw}
-                        </p>
+                        <ExpandableText
+                          text={rawgDetails.description_raw}
+                          className="text-sm opacity-70 whitespace-pre-line"
+                        />
                       </div>
                     )
                   )}
