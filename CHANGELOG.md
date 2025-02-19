@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.19] - 2025-02-19
+
+### Added
+- add theme customization with DaisyUI
+- add read more functionality to game descriptions
+
+### Fixed
+- support multiple status filters in library
+- improve game card status badge alignment
+- resolve ESLint errors in Library component
+- refresh library after adding new game
+- update 'let us know' link to point to feedback form instead of RAWG API docs
+- preserve custom images when editing games
+
+
 ## [1.0.18] - 2025-02-19
 
 
