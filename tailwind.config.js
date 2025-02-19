@@ -6,6 +6,23 @@ export default {
   },
   plugins: [require('daisyui')],
   daisyui: {
-    themes: ['light', 'dark', 'cupcake', 'pastel', 'dracula', 'wireframe'], // Add the themes you want to use
+    themes: [
+      'light',
+      'dark',
+      'cupcake',
+      'pastel',
+      'dracula',
+      'wireframe',
+      'cyberpunk',
+      'forest',
+      'luxury',
+      'retro',
+      'synthwave',
+      'valentine',
+      'halloween',
+      'garden',
+      'lofi',
+      'fantasy',
+    ], // Add the themes you want to use
   },
 }
