@@ -176,6 +176,7 @@ const GameDetails = () => {
           status,
           progress,
           platforms,
+          image,
           game:games (
             id,
             title,
@@ -212,11 +213,12 @@ const GameDetails = () => {
         external_id: userGameData.game.external_id || 0,
         metacritic_rating: userGameData.game.metacritic_rating,
         release_date: userGameData.game.release_date,
-        background_image: userGameData.game.background_image,
+        // Use custom image if available, otherwise fall back to game's background image
+        background_image: userGameData.image || userGameData.game.background_image,
         description: userGameData.game.description,
         platforms: userGameData.platforms || [],
         genres: [],
-        image: userGameData.game.background_image
+        image: userGameData.image || userGameData.game.background_image
       }
       
       setGame(gameData)
