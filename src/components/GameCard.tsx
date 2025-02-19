@@ -160,14 +160,14 @@ const GameCard = ({ games, userId, onRefresh }: GameCardProps) => {
               />
             </figure>
             <div className="card-body">
-              <h2 className="card-title flex justify-between items-center">
-                {game.title}{' '}
+              <div className="flex justify-between items-start gap-2">
+                <h2 className="card-title flex-1 break-words">{game.title}</h2>
                 <div
-                  className={`badge ${getStatusBadgeColor(game.status || '')}`}
+                  className={`badge ${getStatusBadgeColor(game.status || '')} whitespace-nowrap flex-shrink-0`}
                 >
                   {game.status}
                 </div>
-              </h2>
+              </div>
               <div className="flex gap-2 items-center flex-wrap">
                 {/* Display platforms from user_games */}
                 {game.platforms?.map((platform, index) => (
