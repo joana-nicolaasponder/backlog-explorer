@@ -11,10 +11,10 @@ export interface LibraryHandle {
 
 const Library: React.ForwardRefRenderFunction<LibraryHandle, Record<string, never>> = (props, ref) => {
   const location = useLocation()
-  const [filterStatus, setFilterStatus] = useState<string>(
-    Array.isArray(location.state?.filterStatus) 
-      ? location.state.filterStatus[0] || ''
-      : location.state?.filterStatus || ''
+  const [filterStatus, setFilterStatus] = useState<string[]>(
+    Array.isArray(location.state?.filterStatus)
+      ? location.state.filterStatus
+      : location.state?.filterStatus ? [location.state.filterStatus] : []
   )
   const [filterPlatform, setFilterPlatform] = useState<string>('')
   const [filterGenre, setFilterGenre] = useState<string>('')
@@ -203,9 +203,9 @@ const Library: React.ForwardRefRenderFunction<LibraryHandle, Record<string, neve
           )
         }
 
-        if (filterStatus) {
+        if (filterStatus.length > 0) {
           formattedGames = formattedGames.filter(game =>
-            game.status === filterStatus
+            filterStatus.includes(game.status)
           )
         }
 
@@ -261,18 +261,32 @@ const Library: React.ForwardRefRenderFunction<LibraryHandle, Record<string, neve
       {/* Filters Section */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
         <div className="flex flex-wrap gap-4">
-          <select
-            className="select select-bordered"
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-          >
-            <option value="">All Statuses</option>
-            {statusOptions.map((status) => (
-              <option key={status} value={status}>
-                {status}
-              </option>
-            ))}
-          </select>
+          <div className="dropdown dropdown-hover">
+            <div tabIndex={0} role="button" className="btn m-1">
+              {filterStatus.length === 0 ? 'All Statuses' : `${filterStatus.length} Selected`}
+            </div>
+            <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
+              {statusOptions.map((status) => (
+                <li key={status}>
+                  <label className="label cursor-pointer justify-start gap-2">
+                    <input
+                      type="checkbox"
+                      className="checkbox"
+                      checked={filterStatus.includes(status)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setFilterStatus([...filterStatus, status])
+                        } else {
+                          setFilterStatus(filterStatus.filter(s => s !== status))
+                        }
+                      }}
+                    />
+                    <span>{status}</span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          </div>
 
           <select
             className="select select-bordered"
