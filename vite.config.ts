@@ -4,11 +4,11 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
-  // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
   const env = loadEnv(mode, process.cwd(), '')
-  
-  // Determine environment based on git branch
-  const getBranchEnv = () => {
+
+  // Determine environment based on mode or git branch
+  const getEnvironment = () => {
+    if (mode === 'production') return 'production'
     try {
       const branch = process.env.GITHUB_REF_NAME || 'develop'
       if (branch === 'deploy') return 'production'
@@ -19,14 +19,20 @@ export default defineConfig(({ mode }) => {
     }
   }
 
-  const environment = getBranchEnv()
-  
+  const environment = getEnvironment()
+
   return {
     plugins: [react()],
     define: {
-      __DEV__: environment === 'development'
+      __DEV__: environment === 'development',
+      // Ensure environment variables are properly replaced
+      'process.env.VITE_API_URL': JSON.stringify(env.VITE_API_URL),
+      'process.env.VITE_APP_ENV': JSON.stringify(environment),
     },
     envDir: './',
-    mode: environment
+    mode: environment,
+    build: {
+      sourcemap: environment !== 'production',
+    },
   }
 })
