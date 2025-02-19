@@ -384,9 +384,10 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
       setIsLoading(false)
     }
 
-    // Only close modal and notify if we succeeded
+    // Only close modal, notify, and navigate if we succeeded
     setShowModal(false)
     onGameAdded()
+    navigate('/app/library')
   }
 
   return (
