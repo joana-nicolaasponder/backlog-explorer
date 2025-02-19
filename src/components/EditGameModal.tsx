@@ -34,7 +34,9 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     image: game.image || '',
     moods: game.moods || [],
     // Initialize with user's previously selected platforms
-    platforms: Array.isArray(game.platforms) ? game.platforms : []
+    platforms: Array.isArray(game.platforms) ? game.platforms : [],
+    // Track if the image is custom
+    hasCustomImage: !!game.image
   })
 
   // Update formData and selections when game prop changes
@@ -46,7 +48,8 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
       genres: game.genres || [],
       image: game.image || '',
       moods: game.moods || [],
-      platforms: Array.isArray(game.platforms) ? game.platforms : []
+      platforms: Array.isArray(game.platforms) ? game.platforms : [],
+      hasCustomImage: !!game.image
     })
     // Platforms are managed in formData.platforms
     // Update moods
@@ -249,7 +252,9 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
               ...prev,
               title: gameDetails.name,
               genres: gameDetails.genres.map((g: RAWGGenre) => g.name), // Set genres from RAWG
-              image: gameDetails.image || undefined,
+              // Only update image if there's no custom image
+              image: prev.hasCustomImage ? prev.image : (gameDetails.image || undefined),
+              hasCustomImage: prev.hasCustomImage
             }))
           }
         } catch (error) {
