@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import supabase from '../supabaseClient';
+import { useTheme } from '../contexts/ThemeContext';
 
 const ProfilePage = () => {
   const navigate = useNavigate();
@@ -30,9 +31,34 @@ const ProfilePage = () => {
     loadUserProfile();
   }, []);
 
+  const { theme, setTheme } = useTheme();
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     navigate('/');
+  };
+
+  const themes = [
+    'light',
+    'dark',
+    'cupcake',
+    'pastel',
+    'dracula',
+    'wireframe',
+    'cyberpunk',
+    'forest',
+    'luxury',
+    'retro',
+    'synthwave',
+    'valentine',
+    'halloween',
+    'garden',
+    'lofi',
+    'fantasy',
+  ];
+
+  const handleThemeChange = async (newTheme: string) => {
+    await setTheme(newTheme);
   };
 
   if (loading) {
@@ -195,6 +221,29 @@ const ProfilePage = () => {
           <div className="card-body">
             <h2 className="card-title mb-4">Settings</h2>
             <div className="space-y-4">
+              <div className="form-control w-full max-w-xs">
+                <label className="label">
+                  <span className="label-text">Theme</span>
+                </label>
+                <select 
+                  className="select select-bordered w-full" 
+                  value={theme}
+                  onChange={(e) => handleThemeChange(e.target.value)}
+                >
+                  {themes.map((t) => (
+                    <option key={t} value={t}>
+                      {t.charAt(0).toUpperCase() + t.slice(1)}
+                    </option>
+                  ))}
+                </select>
+                <label className="label">
+                  <span className="label-text-alt">Choose your preferred theme</span>
+                  <span className="label-text-alt text-xs opacity-50">Powered by DaisyUI</span>
+                </label>
+              </div>
+
+              <div className="divider"></div>
+
               <button 
                 className="btn btn-error"
                 onClick={handleSignOut}
