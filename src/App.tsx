@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Session } from '@supabase/supabase-js'
 import { Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom'
 import supabase from './supabaseClient'
@@ -168,6 +168,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 }
 
 const App: React.FC = () => {
+  const libraryRef = useRef<{ refreshGames: () => Promise<void> }>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [showAddGame, setShowAddGame] = useState(false)
   const location = useLocation()
@@ -198,10 +199,15 @@ const App: React.FC = () => {
     navigate('/')
   }
 
-  const handleGameAdded = () => {
+  const handleGameAdded = async () => {
     setShowAddGame(false)
-    // Refresh the current page by re-navigating to it
-    navigate(location.pathname)
+    // If we're on the library page, refresh it
+    if (location.pathname === '/app/library' && libraryRef.current) {
+      await libraryRef.current.refreshGames()
+    } else {
+      // Otherwise navigate to library
+      navigate('/app/library')
+    }
   }
 
   return (
@@ -251,7 +257,7 @@ const App: React.FC = () => {
             <div className="flex min-h-screen bg-base-200">
               <SideBar onLogout={handleLogout} onAddGame={() => setShowAddGame(true)} />
               <main className="flex-1 overflow-auto pt-16 lg:pt-0">
-                <Library />
+                <Library ref={libraryRef} />
                 {showAddGame && (
                   <AddGameModal 
                     onGameAdded={handleGameAdded}
