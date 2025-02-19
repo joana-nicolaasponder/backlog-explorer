@@ -1,11 +1,15 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect, useImperativeHandle, forwardRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import supabase from '../supabaseClient'
 import GameCard from '../components/GameCard'
 import SearchBar from '../components/SearchBar'
 import { UserGame } from '../types'
 
-const Library = () => {
+export interface LibraryHandle {
+  refreshGames: () => Promise<void>
+}
+
+const Library: React.ForwardRefRenderFunction<LibraryHandle, Record<string, never>> = (props, ref) => {
   const location = useLocation()
   const [filterStatus, setFilterStatus] = useState<string>(
     Array.isArray(location.state?.filterStatus) 
@@ -31,6 +35,80 @@ const Library = () => {
     }
     getCurrentUser()
   }, [])
+
+  const fetchGames = async () => {
+    if (!userId) return
+
+    try {
+      // Get all games with their relationships
+      const { data: userGames, error: gamesError } = await supabase
+        .from('user_games')
+        .select(`
+          id,
+          status,
+          progress,
+          platforms,
+          image,
+          game:games (
+            id,
+            title,
+            background_image,
+            created_at,
+            provider,
+            external_id,
+            game_genres (
+              genre_id,
+              genres (
+                id,
+                name
+              )
+            )
+          )
+        `)
+        .eq('user_id', userId)
+        .order('game(title)', { ascending: true })
+
+      if (gamesError) {
+        console.error('Error fetching games:', gamesError)
+        return
+      }
+
+      // Format games with platform and genre names
+      const formattedGames = userGames.map(userGame => ({
+        id: userGame.game.id,
+        title: userGame.game.title,
+        status: userGame.status,
+        progress: userGame.progress,
+        image: userGame.image || userGame.game.background_image,
+        created_at: userGame.game.created_at,
+        platforms: userGame.platforms || [],
+        genres: userGame.game.game_genres.map(gg => gg.genres.name),
+        provider: userGame.game.provider || 'rawg',
+        external_id: userGame.game.external_id || 0
+      }))
+
+      setGames(formattedGames)
+
+      // Extract unique platforms and genres
+      const platforms = new Set<string>()
+      const genres = new Set<string>()
+
+      formattedGames.forEach(game => {
+        game.platforms?.forEach(platform => platforms.add(platform))
+        game.genres?.forEach(genre => genres.add(genre))
+      })
+
+      setPlatformOptions(Array.from(platforms).sort())
+      setGenreOptions(Array.from(genres).sort())
+    } catch (error) {
+      console.error('Error in fetchGames:', error)
+    }
+  }
+
+  // Expose the refresh function through the ref
+  useImperativeHandle(ref, () => ({
+    refreshGames: fetchGames
+  }))
 
   useEffect(() => {
     const fetchOptions = async () => {
@@ -249,4 +327,4 @@ const Library = () => {
   )
 }
 
-export default Library
+export default forwardRef(Library)
