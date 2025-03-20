@@ -152,6 +152,30 @@ const LandingPage = () => {
               </div>
               <p className="text-lg font-medium">Hi! I'm Joana 👋</p>
               <p className="text-base-content/70">Full-stack Developer & Gaming Enthusiast</p>
+              <div className="flex justify-center gap-4 mt-4">
+                <a
+                  href="https://www.linkedin.com/in/joanaponder/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-base-content/70 hover:text-primary transition-colors"
+                  aria-label="LinkedIn Profile"
+                >
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+                  </svg>
+                </a>
+                <a
+                  href="https://bsky.app/profile/levelupjo.bsky.social"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-base-content/70 hover:text-primary transition-colors"
+                  aria-label="Bluesky Profile"
+                >
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 512 512">
+                    <path d="M111.8 62.2C170.2 105.9 233 194.7 256 242.4c23-47.6 85.8-136.4 144.2-180.2c42.1-31.6 110.3-56 110.3 21.8c0 15.5-8.9 130.5-14.1 149.2C478.2 298 412 314.6 353.1 304.5c102.9 17.5 129.1 75.5 72.5 133.5c-107.4 110.2-154.3-27.6-166.3-62.9l0 0c-1.7-4.9-2.6-7.8-3.3-7.8s-1.6 3-3.3 7.8l0 0c-12 35.3-59 173.1-166.3 62.9c-56.5-58-30.4-116 72.5-133.5C100 314.6 33.8 298 15.7 233.1C10.4 214.4 1.5 99.4 1.5 83.9c0-77.8 68.2-53.4 110.3-21.8z" />
+                  </svg>
+                </a>
+              </div>
             </div>
 
             <div className="grid md:grid-cols-2 gap-8">
