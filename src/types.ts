@@ -68,6 +68,7 @@ export interface UserGameResponse {
   progress: number;
   game_id: string;
   updated_at: string;
+  platforms: string[];
   game: {
     id: string;
     title: string;
