@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import supabase from '../supabaseClient'
 import { UserGameResponse } from '../types'
@@ -51,6 +51,7 @@ const Dashboard = () => {
             progress,
             game_id,
             updated_at,
+            platforms,
             game:games (
               id,
               title,
@@ -96,6 +97,10 @@ const Dashboard = () => {
 
         const recentNote = recentNotes?.[0]
 
+        if (!userGames) {
+          throw new Error('No user games found')
+        }
+
         const completedGames = userGames.filter(game => 
           ['Endless', 'Done', 'Satisfied', 'DNF'].includes(game.status)
         ).length
@@ -119,14 +124,22 @@ const Dashboard = () => {
           return acc
         }, {})
 
-        // Count platform occurrences
+        // Log user games platforms for debugging
+        console.log('User games with platforms:', userGames.map(game => ({
+          title: game.game.title,
+          platforms: game.platforms || []
+        })))
+
+        // Count platform occurrences from user's selected platforms
         const platformCounts = userGames.reduce((acc: { [key: string]: number }, userGame) => {
-          userGame.game.game_platforms.forEach((gp) => {
-            const platformName = gp.platforms.name
+          (userGame.platforms || []).forEach((platformName: string) => {
             acc[platformName] = (acc[platformName] || 0) + 1
           })
           return acc
         }, {})
+
+        // Log platform counts for debugging
+        console.log('Platform counts:', platformCounts)
 
         // Count mood occurrences
         const moodCounts = userGames.reduce((acc: { [key: string]: number }, userGame) => {
@@ -144,9 +157,9 @@ const Dashboard = () => {
         }
 
         setStats({
-          totalLibrary: userGames.length,
-          backlog: userGames.filter(game => ['Try Again', 'Started', 'Owned', 'Come back!'].includes(game.status)).length,
-          currentlyPlaying: userGames.filter(game => game.status === 'Currently Playing').length,
+          totalLibrary: userGames?.length || 0,
+          backlog: userGames?.filter(game => ['Try Again', 'Started', 'Owned', 'Come back!'].includes(game.status)).length || 0,
+          currentlyPlaying: userGames?.filter(game => game.status === 'Currently Playing').length || 0,
           completed: completedGames,
           // completedThisYear: completedThisYear,
           topGenre: getTopItem(genreCounts),
