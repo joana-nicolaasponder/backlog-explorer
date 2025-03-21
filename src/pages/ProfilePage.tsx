@@ -280,6 +280,31 @@ const ProfilePage = () => {
     }
   }, [])
 
+  const handleDisconnectSteam = async () => {
+    try {
+      // Remove Steam profile from database
+      const { error } = await supabase
+        .from('user_steam_profiles')
+        .delete()
+        .eq('user_id', user.id)
+
+      if (error) throw error
+
+      // Clear Steam games from state
+      setSteamGames([])
+      setSelectedGames(new Set())
+
+      // Update user state to remove Steam info
+      setUser({
+        ...user,
+        steamId: null,
+      })
+    } catch (error) {
+      console.error('Error disconnecting Steam:', error)
+      setError('Failed to disconnect Steam account')
+    }
+  }
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8 flex items-center justify-center">
@@ -478,10 +503,32 @@ const ProfilePage = () => {
         {/* Connect to Steam Section */}
         <div className="card bg-base-200 shadow-xl mb-8">
           <div className="card-body">
-            <h2 className="card-title mb-4">Connect to Steam</h2>
-            <button className="btn btn-primary" onClick={handleConnectToSteam}>
-              Connect to Steam
-            </button>
+            <h2 className="card-title mb-4">Steam Connection</h2>
+            {steamGames.length > 0 ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <p className="text-success">✓ Connected to Steam</p>
+                    <p className="text-sm opacity-70">
+                      {steamGames.length} games found
+                    </p>
+                  </div>
+                  <button
+                    className="btn btn-error btn-sm"
+                    onClick={handleDisconnectSteam}
+                  >
+                    Disconnect
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                className="btn btn-primary"
+                onClick={handleConnectToSteam}
+              >
+                Connect to Steam
+              </button>
+            )}
           </div>
         </div>
 
