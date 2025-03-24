@@ -14,91 +14,91 @@ export interface RawgScreenshot {
 }
 
 export interface Genre {
-  id: number;
-  name: string;
+  id: number
+  name: string
 }
 
 export interface Platform {
-  id: number;
-  name: string;
+  id: number
+  name: string
 }
 
 export interface GameGenre {
-  genres: Genre;
+  genres: Genre
 }
 
 export interface GamePlatform {
-  platforms: Platform;
+  platforms: Platform
 }
 
 export interface Mood {
-  id: string;
-  name: string;
-  category: 'primary' | 'secondary';
-  description: string;
-  created_at: string;
+  id: string
+  name: string
+  category: 'primary' | 'secondary'
+  description: string
+  created_at: string
 }
 
 export interface GameMood {
-  moods: Mood;
+  moods: Mood
 }
 
 export interface Game {
-  id: string;
-  title: string;
-  status: string;
-  progress: number;
-  provider: string;
-  external_id: number;
-  metacritic_rating?: number;
-  release_date?: string;
-  background_image?: string;
-  description?: string;
-  game_genres?: GameGenre[];
-  game_platforms?: GamePlatform[];
-  game_moods?: GameMood[];
+  id: string
+  title: string
+  status: string
+  progress: number
+  provider: string
+  igdb_id: number
+  metacritic_rating?: number
+  release_date?: string
+  background_image?: string
+  description?: string
+  game_genres?: GameGenre[]
+  game_platforms?: GamePlatform[]
+  game_moods?: GameMood[]
   // Simple arrays of names for the EditGameModal
-  platforms?: string[];
-  genres?: string[];
-  moods?: string[];
+  platforms?: string[]
+  genres?: string[]
+  moods?: string[]
 }
 
 export interface UserGameResponse {
-  status: string;
-  progress: number;
-  game_id: string;
-  updated_at: string;
-  platforms: string[];
+  status: string
+  progress: number
+  game_id: string
+  updated_at: string
+  platforms: string[]
   game: {
-    id: string;
-    title: string;
+    id: string
+    title: string
     game_genres: {
       genres: {
-        name: string;
-      };
-    }[];
+        name: string
+      }
+    }[]
     game_platforms: {
       platforms: {
-        name: string;
-      };
-    }[];
+        name: string
+      }
+    }[]
     game_moods?: {
       moods: {
-        name: string;
-      };
-    }[];
-  };
+        name: string
+      }
+    }[]
+  }
 }
 
 export interface UserGame {
-  id: string;
-  user_id: string;
-  game_id: string;
-  status: string;
-  progress: number;
-  created_at: string;
-  updated_at: string;
-  game: Game;
+  id: string
+  user_id: string
+  game_id: string
+  status: string
+  progress: number
+  created_at: string
+  updated_at: string
+  game: Game
 }
 
 export type SessionAccomplishment =
@@ -110,7 +110,7 @@ export type SessionAccomplishment =
   | 'Grinding'
   | 'Boss Fight'
   | 'Achievement Hunting'
-  | 'Learning Game Mechanics';
+  | 'Learning Game Mechanics'
 
 export type SessionMood =
   | 'Amazing'
@@ -131,32 +131,32 @@ export type SessionIntent =
   | 'Beat That Boss'
   | 'Grind Items/Levels'
   | 'Try Different Character'
-  | 'Complete Side Content';
+  | 'Complete Side Content'
 
 export interface GameNote {
   // Required fields
-  id: string;
-  game_id: string;
-  user_id: string;
-  content: string;
-  created_at: string;
+  id: string
+  game_id: string
+  user_id: string
+  content: string
+  created_at: string
 
   // Session Context
-  play_session_date: string | null;
-  duration: number | null; // in minutes
-  accomplishments: string[];
-  
+  play_session_date: string | null
+  duration: number | null // in minutes
+  accomplishments: string[]
+
   // Reflection & Future Intent
-  mood: SessionMood | null;
+  mood: SessionMood | null
   next_session_plan: {
-    intent: string | null;
-    note: string | null;
-  };
-  
+    intent: string | null
+    note: string | null
+  }
+
   // Media
-  screenshots: string[];
-  
+  screenshots: string[]
+
   // Metadata
-  is_completion_entry: boolean;
-  completion_date: string | null;
+  is_completion_entry: boolean
+  completion_date: string | null
 }

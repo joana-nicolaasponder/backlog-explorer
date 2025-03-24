@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import supabase from '../supabaseClient'
 import GameSearch from './GameSearch'
 import { GameBasic, GameDetailed } from '../types/game'
 import { GAME_PROVIDER, gameService } from '../services/gameService'
 import { Mood } from '../types'
+// import { useToast } from '../hooks/useToast'
 
 interface GameFormData {
   title: string
@@ -13,7 +15,7 @@ interface GameFormData {
   progress: number
   image: string
   moods: string[] // Mood IDs are strings from the database
-  external_id?: string
+  igdb_id?: string
   provider?: string
   metacritic_rating?: number
   release_date?: string
@@ -34,6 +36,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
   showModal,
   setShowModal,
 }) => {
+  const navigate = useNavigate()
   const [formData, setFormData] = useState<GameFormData>({
     title: '',
     platforms: [],
@@ -44,10 +47,10 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
     moods: [] as string[],
   })
   const [platformOptions, setPlatformOptions] = useState<string[]>([])
-  const [genreOptions, setGenreOptions] = useState<string[]>([])
+  const [_genreOptions, setGenreOptions] = useState<string[]>([])
   const [availableMoods, setAvailableMoods] = useState<Mood[]>([])
   const [selectedGame, setSelectedGame] = useState<GameDetailed | null>(null)
-  const [statusOptions] = useState<string[]>([
+  const [_statusOptions] = useState<string[]>([
     'Endless',
     'Satisfied',
     'DNF',
@@ -65,6 +68,43 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
   const [existingGameMessage, setExistingGameMessage] = useState<string | null>(
     null
   )
+  // Direct DOM manipulation for toast
+  const showToast = ({ 
+    message, 
+    type = 'warning', 
+    duration = 10000 
+  }: { 
+    message: string; 
+    type?: string; 
+    duration?: number 
+  }) => {
+    console.log('SHOWING TOAST:', message, type)
+    
+    // Create a toast element using DaisyUI
+    const toastContainer = document.createElement('div')
+    toastContainer.className = 'toast toast-top toast-center z-[9999]'
+    
+    const alertClass = type === 'error' ? 'alert-error' : 
+                      type === 'success' ? 'alert-success' : 
+                      type === 'warning' ? 'alert-warning' : 'alert-info'
+    
+    toastContainer.innerHTML = `
+      <div class="alert ${alertClass} shadow-xl font-bold text-lg border-2 border-black p-4">
+        <span>${message}</span>
+      </div>
+    `
+    
+    // Add to document
+    document.body.appendChild(toastContainer)
+    
+    // Remove after duration
+    setTimeout(() => {
+      console.log('HIDING TOAST')
+      if (document.body.contains(toastContainer)) {
+        document.body.removeChild(toastContainer)
+      }
+    }, duration)
+  }
 
   useEffect(() => {
     fetchOptions()
@@ -120,84 +160,114 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
       } = await supabase.auth.getUser()
       if (!user) throw new Error('No user found')
 
-    // First check if the game exists
-    const { data: existingGames } = await supabase
-      .from('games')
-      .select('id')
-      .eq('external_id', game.id)
-      .eq('provider', GAME_PROVIDER)
+      // First check if the game exists in IGDB provider (only if igdb_id is defined)
+      let existingGames = null;
+      if (game.igdb_id) {
+        const { data } = await supabase
+          .from('games')
+          .select('id')
+          .eq('igdb_id', game.igdb_id)
+          .eq('provider', GAME_PROVIDER)
+        existingGames = data;
+      }
 
-    const existingGame = existingGames?.[0]
+      // Also check if the game exists in RAWG provider with the same title
+      // This handles legacy RAWG games that might not have igdb_id yet
+      const { data: rawgGames } = await supabase
+        .from('games')
+        .select('id')
+        .eq('title', game.name)
+        .eq('provider', 'rawg')
 
-    // Only check for user game if we found an existing game
-    let existingUserGame = null
-    if (existingGame) {
-      const { data: userGames } = await supabase
-        .from('user_games')
-        .select(
+      // Combine both results to check for existing games
+      const allExistingGames = [...(existingGames || []), ...(rawgGames || [])]
+      const existingGame = allExistingGames[0]
+
+      // Only check for user game if we found an existing game
+      let existingUserGame = null
+      if (existingGame) {
+        const { data: userGames } = await supabase
+          .from('user_games')
+          .select(
+            `
+            id,
+            status,
+            progress,
+            game_id
           `
-          id,
-          status,
-          progress,
-          game_id
-        `
+          )
+          .eq('game_id', existingGame.id)
+          .eq('user_id', user.id)
+
+        existingUserGame = userGames?.[0]
+      }
+
+      if (existingUserGame) {
+        // If user already has this game, show a message
+        setExistingGameMessage(
+          `You already have ${game.name} in your library with status: ${existingUserGame.status}. You can edit it in your library.`
         )
-        .eq('game_id', existingGame.id)
-        .eq('user_id', user.id)
 
-      existingUserGame = userGames?.[0]
-    }
+        console.log('GAME ALREADY EXISTS IN LIBRARY:', game.name)
+        
+        // Force a small delay to ensure state updates properly
+        setTimeout(() => {
+          // Show toast notification with more prominent styling
+          showToast({
+            message: `ALERT: Game "${game.name}" is already in your library!`,
+            type: 'error',  // Changed to error for maximum visibility
+            duration: 10000,   // Increased duration to 10 seconds
+          })
+        }, 100)
+        // Clear the form and selected game
+        setSelectedGame(null)
+        setFormData({
+          title: '',
+          platforms: [],
+          genres: [],
+          status: '',
+          progress: 0,
+          moods: [],
+          image: '',
+          igdb_id: undefined,
+          provider: undefined,
+          metacritic_rating: undefined,
+          release_date: undefined,
+          background_image: undefined,
+          description: undefined,
+        })
+      } else {
+        // Get available platforms from IGDB
+        const availablePlatforms = (game.platforms || []).map((p) => p.name)
+        setPlatformOptions(availablePlatforms)
 
-    if (existingUserGame) {
-      // If user already has this game, show a message
-      setExistingGameMessage(
-        `You already have ${game.name} in your library with status: ${existingUserGame.status}`
-      )
-      // Clear the form and selected game
-      setSelectedGame(null)
-      setFormData({
-        title: '',
-        platforms: [],
-        genres: [],
-        status: '',
-        progress: 0,
-        moods: [],
-        image: '',
-        rawg_id: undefined,
-        rawg_slug: undefined,
-        metacritic_rating: undefined,
-        release_date: undefined,
-        background_image: undefined,
-        description: undefined,
-      })
-    } else {
-      // Get available platforms from IGDB
-      const availablePlatforms = (game.platforms || []).map((p) => p.name)
-      setPlatformOptions(availablePlatforms)
+        // Set form data with IGDB data
+        setFormData({
+          title: game.name,
+          platforms: [], // User will select from availablePlatforms
+          genres: (game.genres || []).map((g) => g.name), // Use IGDB genres
+          status: 'Not Started',
+          progress: 0,
+          moods: [],
+          image: game.background_image || '', // IGDB image is already set in background_image
+          igdb_id: game.igdb_id?.toString(),
+          provider: GAME_PROVIDER,
+          metacritic_rating: game.metacritic || undefined,
+          release_date: game.released || undefined,
+          background_image: game.background_image || undefined,
+          description: game.summary || undefined,
+        })
+      }
 
-      // Set form data with IGDB data
-      setFormData({
-        title: game.name,
-        platforms: [], // User will select from availablePlatforms
-        genres: (game.genres || []).map((g) => g.name), // Use IGDB genres
-        status: 'Not Started',
-        progress: 0,
-        moods: [],
-        image: game.background_image || '',  // IGDB image is already set in background_image
-        external_id: game.id.toString(),
-        provider: GAME_PROVIDER,
-        metacritic_rating: game.metacritic || undefined,
-        release_date: game.released || undefined,
-        background_image: game.background_image || undefined,
-        description: game.summary || undefined,
-      })
-    }
-
-    // Close search after selection
-    setIsSearching(false)
+      // Close search after selection
+      setIsSearching(false)
     } catch (error) {
       console.error('Error in handleGameSelect:', error)
-      setError(error instanceof Error ? error.message : 'Failed to handle game selection')
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to handle game selection'
+      )
       setSelectedGame(null)
       setFormData({
         title: '',
@@ -207,7 +277,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
         progress: 0,
         moods: [],
         image: '',
-        external_id: undefined,
+        igdb_id: undefined,
         provider: undefined,
         metacritic_rating: undefined,
         release_date: undefined,
@@ -231,100 +301,218 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
       // First, get or create the game
       let gameId: string
 
-      // Check if game exists by external_id
-      const { data: existingGames } = await supabase
-        .from('games')
-        .select('id')
-        .eq('external_id', formData.external_id)
-        .eq('provider', formData.provider)
+      // Check if we have a selected game with IGDB data
+      if (selectedGame) {
+        // If we have a selected game but no igdb_id/provider, this is likely a legacy RAWG game
+        // that needs to be migrated to IGDB
+        const igdbId = formData.igdb_id || selectedGame.id?.toString()
+        const provider = formData.provider || GAME_PROVIDER
 
-      const existingGame = existingGames?.[0]
+        // Check if game exists by igdb_id and provider (only if igdbId is defined)
+        let existingGames = null;
+        if (igdbId) {
+          const { data } = await supabase
+            .from('games')
+            .select('id, provider, igdb_id')
+            .eq('igdb_id', igdbId)
+            .eq('provider', provider)
+          existingGames = data;
+        }
 
-      if (existingGame) {
-        gameId = existingGame.id
-      } else {
-        // Create new game
-        const { data: newGame, error: gameError } = await supabase
+        // Also check if this game exists as a RAWG game by title
+        const { data: rawgGames } = await supabase
           .from('games')
-          .insert([
-            {
-              title: formData.title,
-              external_id: formData.external_id,
-              provider: formData.provider,
-              metacritic_rating: formData.metacritic_rating,
-              release_date: formData.release_date,
-              background_image: formData.background_image,
-              description: formData.description,
-            },
-          ])
-          .select()
-          .single()
+          .select('id, provider, igdb_id')
+          .eq('title', formData.title)
+          .eq('provider', 'rawg')
 
-        if (gameError) throw gameError
-        if (!newGame) throw new Error('Failed to create game')
-        gameId = newGame.id
+        // Check if the user already has this game (from either provider)
+        const allExistingGames = [
+          ...(existingGames || []),
+          ...(rawgGames || []),
+        ]
+        const existingGame = allExistingGames[0]
+
+        if (existingGame) {
+          // If it's a RAWG game, migrate it to IGDB
+          if (existingGame.provider === 'rawg') {
+            // Upgrade to IGDB
+            const { error: updateError } = await supabase
+              .from('games')
+              .update({
+                provider: GAME_PROVIDER,
+                igdb_id: igdbId,
+                metacritic_rating: formData.metacritic_rating,
+                release_date: formData.release_date,
+                background_image: formData.background_image,
+                description: formData.description,
+              })
+              .eq('id', existingGame.id)
+
+            if (updateError) throw updateError
+          }
+          gameId = existingGame.id
+        } else {
+          // Create new game - ensure we have a valid title at minimum
+          if (!formData.title) {
+            throw new Error('Game title is required');
+          }
+          
+          // Create the game object with required fields
+          const gameData: {
+            title: string;
+            provider: string;
+            igdb_id?: string;
+            metacritic_rating?: number;
+            release_date?: string;
+            background_image?: string;
+            description?: string;
+          } = {
+            title: formData.title,
+            provider: provider
+          };
+          
+          // Only add igdb_id if it's defined
+          if (igdbId) {
+            gameData.igdb_id = igdbId;
+          }
+          
+          // Add optional fields if they exist
+          if (formData.metacritic_rating) gameData.metacritic_rating = formData.metacritic_rating;
+          if (formData.release_date) gameData.release_date = formData.release_date;
+          if (formData.background_image) gameData.background_image = formData.background_image;
+          if (formData.description) gameData.description = formData.description;
+          
+          const { data: newGame, error: gameError } = await supabase
+            .from('games')
+            .insert([gameData])
+            .select()
+            .single()
+
+          if (gameError) throw gameError
+          if (!newGame) throw new Error('Failed to create game')
+          gameId = newGame.id
+        }
+      } else {
+        // If no selected game, we can't proceed
+        throw new Error('No game selected')
       }
 
       // For new games, add all available platforms and genres from RAWG
-      if (selectedGame && !existingGame) {
+      if (selectedGame && gameId) {
         // Get platform and genre IDs from the database based on names
         const { data: platforms } = await supabase
           .from('platforms')
           .select('id, name')
-          .in('name', selectedGame.platforms.map(p => p.name))
+          .in(
+            'name',
+            selectedGame.platforms.map((p) => p.name)
+          )
 
         const { data: genres } = await supabase
           .from('genres')
           .select('id, name')
-          .in('name', selectedGame.genres.map(g => g.name))
+          .in(
+            'name',
+            selectedGame.genres.map((g) => g.name)
+          )
 
-        const platformIds = platforms?.map(p => p.id) || []
-        const genreIds = genres?.map(g => g.id) || []
+        const platformIds = platforms?.map((p) => p.id) || []
+        const genreIds = genres?.map((g) => g.id) || []
 
-        // Add all available platforms
-        for (const platformId of platformIds) {
-          const { error } = await supabase.from('game_platforms').insert({
-            game_id: gameId,
-            platform_id: platformId,
-          })
-          if (error && error.code !== '23505') {
-            // Ignore duplicate key errors
-            throw error
+        // Add all available platforms - check if they exist first to avoid 409 errors
+        try {
+          for (const platformId of platformIds) {
+            // Check if this platform is already associated with the game
+            const { data: existingPlatform } = await supabase
+              .from('game_platforms')
+              .select('*')
+              .eq('game_id', gameId)
+              .eq('platform_id', platformId)
+              .maybeSingle()
+              
+            // Only insert if it doesn't already exist
+            if (!existingPlatform) {
+              await supabase.from('game_platforms').insert({
+                game_id: gameId,
+                platform_id: platformId,
+              })
+            }
           }
+        } catch (error) {
+          console.error('Error adding platforms:', error)
+          // Continue execution even if platform insertion fails
         }
 
-        // Add genres
-        for (const genreId of genreIds) {
-          const { error } = await supabase.from('game_genres').insert({
-            game_id: gameId,
-            genre_id: genreId,
-          })
-          if (error && error.code !== '23505') {
-            // Ignore duplicate key errors
-            throw error
+        // Add genres - check if they exist first to avoid 409 errors
+        try {
+          for (const genreId of genreIds) {
+            // Check if this genre is already associated with the game
+            const { data: existingGenre } = await supabase
+              .from('game_genres')
+              .select('*')
+              .eq('game_id', gameId)
+              .eq('genre_id', genreId)
+              .maybeSingle()
+              
+            // Only insert if it doesn't already exist
+            if (!existingGenre) {
+              await supabase.from('game_genres').insert({
+                game_id: gameId,
+                genre_id: genreId,
+              })
+            }
           }
+        } catch (error) {
+          console.error('Error adding genres:', error)
+          // Continue execution even if genre insertion fails
         }
       }
 
-      // Now create or update the user_game relationship
+      // Now check if the user already has this game in their library
       const { data: existingUserGames } = await supabase
         .from('user_games')
-        .select('id')
+        .select('id, status, platforms')
         .eq('user_id', user.id)
         .eq('game_id', gameId)
 
       const existingUserGame = existingUserGames?.[0]
 
       if (existingUserGame) {
-        // Update existing user_game
+        // Get existing platforms and merge with new ones (avoiding duplicates)
+        const existingPlatforms = existingUserGame.platforms || [];
+        const mergedPlatforms = [...new Set([...existingPlatforms, ...formData.platforms])];
+        
+        // Update platforms for existing user_game
         await supabase
           .from('user_games')
           .update({
-            status: formData.status,
-            progress: formData.progress,
-            platforms: formData.platforms, // Store user's selected platforms
+            platforms: mergedPlatforms,
           })
           .eq('id', existingUserGame.id)
+
+        // Set a message but don't throw an error
+        setExistingGameMessage(
+          `You already have this game in your library with status: ${existingUserGame.status}. Platforms have been updated.`
+        )
+
+        console.log('UPDATING EXISTING GAME PLATFORMS')
+        
+        // Force a small delay to ensure state updates properly
+        setTimeout(() => {
+          // Show toast notification with more prominent styling
+          showToast({
+            message: `ALERT: Game is already in your library. Platforms updated.`,
+            type: 'error',  // Changed to error for maximum visibility
+            duration: 10000,   // Increased duration to 10 seconds
+          })
+        }, 100)
+
+        // Navigate to the library instead of throwing an error
+        onGameAdded()
+        setShowModal(false)
+        navigate('/app/library')
+        return
       } else {
         // Create new user_game
         await supabase.from('user_games').insert({
@@ -342,22 +530,32 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
 
       // Insert moods if any are selected
       if (formData.moods.length > 0) {
-        const moodData = formData.moods.map((moodId) => ({
-          user_id: user.id,
-          game_id: gameId,
-          mood_id: moodId,
-          weight: 1,
-          created_at: new Date().toISOString(),
-        }))
-
-        const { error: moodError } = await supabase
-          .from('game_moods')
-          .insert(moodData)
-          .throwOnError()
-
-        if (moodError) {
-          console.error('Failed to insert moods:', moodError)
-          throw moodError
+        try {
+          for (const moodId of formData.moods) {
+            // Check if this mood is already associated with the game for this user
+            const { data: existingMood } = await supabase
+              .from('game_moods')
+              .select('*')
+              .eq('user_id', user.id)
+              .eq('game_id', gameId)
+              .eq('mood_id', moodId)
+              .maybeSingle()
+              
+            // Only insert if it doesn't already exist
+            if (!existingMood) {
+              await supabase.from('game_moods').insert({
+                user_id: user.id,
+                game_id: gameId,
+                mood_id: moodId,
+                weight: 1,
+                created_at: new Date().toISOString(),
+              })
+            }
+          }
+        } catch (error) {
+          console.error('Failed to insert moods:', error)
+          // Continue execution even if mood insertion fails
+          // Don't throw the error to prevent the whole transaction from failing
         }
       }
 
@@ -480,10 +678,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
                 <span>
                   Can't find your game? Try searching by the game's official
                   title. If you still can't find it,
-                  <a
-                    href="/app/feedback"
-                    className="link link-primary"
-                  >
+                  <a href="/app/feedback" className="link link-primary">
                     let us know
                   </a>
                   !
@@ -935,6 +1130,8 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
         )}
       </div>
       <div className="modal-backdrop" onClick={() => onGameAdded()}></div>
+
+      {/* Toast is now handled via direct DOM manipulation */}
     </div>
   )
 }

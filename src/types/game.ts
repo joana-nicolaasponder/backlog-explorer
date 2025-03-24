@@ -19,6 +19,7 @@ export interface GameBasic {
   metacritic?: number;
   platforms: Platform[];
   genres: Genre[];
+  igdb_id: number; 
 }
 
 export interface GameDetailed extends GameBasic {

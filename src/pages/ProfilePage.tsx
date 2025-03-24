@@ -12,10 +12,16 @@ const ProfilePage = () => {
   const [editedName, setEditedName] = useState('')
   const [steamGames, setSteamGames] = useState<any[]>([])
   const [loadingGames, setLoadingGames] = useState(false)
-  const [selectedGames, setSelectedGames] = useState<Set<number>>(new Set())
+  const [selectedGames, setSelectedGames] = useState<Set<string>>(new Set())
   const [userLibraryGames, setUserLibraryGames] = useState<Set<number>>(
     new Set()
   )
+  const [steamProfile, setSteamProfile] = useState<{
+    steamId: string
+    nickname: string
+    avatar: string
+    profileUrl: string
+  } | null>(null)
 
   useEffect(() => {
     const loadUserProfile = async () => {
@@ -91,16 +97,12 @@ const ProfilePage = () => {
 
   const handleOpenIDResponse = async () => {
     try {
-      // Get all URL parameters
       const urlParams = new URLSearchParams(window.location.search)
-
-      // Debug log
       console.log(
         'OpenID response params:',
         Object.fromEntries(urlParams.entries())
       )
 
-      // Send all OpenID parameters to the backend
       const response = await fetch('http://localhost:3001/api/verify-openid', {
         method: 'POST',
         headers: {
@@ -119,10 +121,22 @@ const ProfilePage = () => {
         )
       }
 
-      console.log('Steam verification response:', responseData) // Debug log
+      console.log('Steam verification response:', responseData)
 
-      // After successful verification, fetch the user's Steam games
+      // Save the Steam profile data
+      setSteamProfile(responseData)
+
+      // Save Steam ID to user state
       if (responseData.steamId) {
+        setUser((prevUser) => ({
+          ...prevUser,
+          steamId: responseData.steamId,
+          nickname: responseData.nickname,
+          avatar: responseData.avatar,
+          profileUrl: responseData.profileUrl,
+        }))
+
+        // Then fetch games
         const gamesResponse = await fetch(
           `http://localhost:3001/api/steam/games/${responseData.steamId}`
         )
@@ -132,7 +146,7 @@ const ProfilePage = () => {
         }
         const games = await gamesResponse.json()
         setSteamGames(games)
-        console.log('Steam games:', games) // Debug log
+        console.log('Steam games:', games)
       }
     } catch (error) {
       console.error('Error handling OpenID response:', error)
@@ -140,38 +154,38 @@ const ProfilePage = () => {
     }
   }
 
-  const toggleGameSelection = (appId: number) => {
-    const newSelected = new Set(selectedGames)
-    if (newSelected.has(appId)) {
-      newSelected.delete(appId)
-    } else {
-      newSelected.add(appId)
-    }
-    setSelectedGames(newSelected)
+  const toggleGameSelection = (appId: string) => {
+    console.log('Toggling game selection:', appId)
+    setSelectedGames((prevSelected) => {
+      const newSelected = new Set(prevSelected)
+      if (newSelected.has(appId)) {
+        console.log('Removing game from selection')
+        newSelected.delete(appId)
+      } else {
+        console.log('Adding game to selection')
+        newSelected.add(appId)
+      }
+      console.log('Current selected games:', Array.from(newSelected))
+      return newSelected
+    })
   }
 
   const addSelectedGamesToLibrary = async () => {
-    try {
-      // First, ensure we have the user's Steam profile stored
-      const { data: steamProfile, error: steamProfileError } = await supabase
-        .from('user_steam_profiles')
-        .upsert({
-          user_id: user.id,
-          steam_id: user.steamId,
-          steam_username: user.nickname,
-          steam_avatar: user.avatar,
-          steam_profile_url: user.profileUrl,
-          last_updated: new Date().toISOString(),
-        })
-        .select()
-        .single()
+    console.log('=== addSelectedGamesToLibrary started ===')
 
-      if (steamProfileError) throw steamProfileError
+    if (!user?.id) {
+      console.error('No user ID found')
+      return
+    }
+
+    try {
+      // Skip Steam profile handling since it already exists
 
       // Get the selected games data
       const selectedGamesData = steamGames.filter((game) =>
-        selectedGames.has(game.appId)
+        selectedGames.has(game.appId.toString())
       )
+      console.log('Selected games to add:', selectedGamesData)
 
       // Insert games into games table
       const { data: insertedGames, error: gamesError } = await supabase
@@ -179,56 +193,51 @@ const ProfilePage = () => {
         .upsert(
           selectedGamesData.map((game) => ({
             title: game.name,
-            external_id: game.appId,
+            igdb_id: game.appId.toString(), // Make sure it's a string
             provider: 'steam',
             background_image: game.iconUrl,
             created_at: new Date().toISOString(),
           })),
-          {
-            onConflict: 'external_id,provider',
-            ignoreDuplicates: false,
-          }
+          { onConflict: 'igdb_id,provider' }
         )
         .select()
 
-      if (gamesError) throw gamesError
+      if (gamesError) {
+        console.error('Games insert error:', gamesError)
+        throw gamesError
+      }
+      console.log('Games inserted successfully:', insertedGames)
 
-      // Link games to user in user_games table
+      // Link games to user
       const userGamesData = insertedGames.map((game) => ({
         user_id: user.id,
         game_id: game.id,
         status: 'backlog',
         playtime_minutes:
-          selectedGamesData.find((g) => g.appId === game.external_id)
+          selectedGamesData.find((g) => g.appId.toString() === game.igdb_id)
             ?.playtime || 0,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }))
+      console.log('Preparing to insert user_games:', userGamesData)
 
       const { error: userGamesError } = await supabase
         .from('user_games')
         .upsert(userGamesData, {
           onConflict: 'user_id,game_id',
-          ignoreDuplicates: false,
         })
 
-      if (userGamesError) throw userGamesError
+      if (userGamesError) {
+        console.error('User games link error:', userGamesError)
+        throw userGamesError
+      }
 
-      // Show success message
-      const toast = document.createElement('div')
-      toast.className = 'alert alert-success'
-      toast.innerHTML = `Successfully added ${insertedGames.length} games to your library!`
-      document.body.appendChild(toast)
-      setTimeout(() => toast.remove(), 3000)
-
-      // Clear selection
+      console.log('Games successfully added to library!')
       setSelectedGames(new Set())
-
-      // Refresh the games list
       await fetchUserLibrary()
     } catch (error) {
       console.error('Error adding games to library:', error)
-      setError('Failed to add games to library')
+      throw error
     }
   }
 
@@ -241,7 +250,7 @@ const ProfilePage = () => {
           game_id,
           games (
             id,
-            external_id,
+            igdb_id,
             provider,
             title
           )
@@ -255,7 +264,7 @@ const ProfilePage = () => {
       const steamGameIds = new Set(
         data
           .filter((item) => item.games?.provider === 'steam')
-          .map((item) => item.games.external_id)
+          .map((item) => item.games.igdb_id)
       )
       setUserLibraryGames(steamGameIds)
     } catch (error) {
@@ -552,13 +561,13 @@ const ProfilePage = () => {
                             ? 'opacity-50 cursor-not-allowed'
                             : 'cursor-pointer'
                         } ${
-                          selectedGames.has(game.appId)
+                          selectedGames.has(game.appId.toString())
                             ? 'ring-2 ring-primary'
                             : ''
                         }`}
                         onClick={() => {
                           if (!userLibraryGames.has(game.appId)) {
-                            toggleGameSelection(game.appId)
+                            toggleGameSelection(game.appId.toString())
                           }
                         }}
                       >
@@ -589,7 +598,14 @@ const ProfilePage = () => {
                     <div className="mt-4 flex justify-end">
                       <button
                         className="btn btn-primary"
-                        onClick={addSelectedGamesToLibrary}
+                        onClick={() => {
+                          console.log('Add button clicked (first section)')
+                          console.log(
+                            'Selected games at click:',
+                            Array.from(selectedGames)
+                          )
+                          addSelectedGamesToLibrary()
+                        }}
                       >
                         Add {selectedGames.size} Games to Library
                       </button>
@@ -632,9 +648,11 @@ const ProfilePage = () => {
                           </p>
                           <button
                             className="btn btn-sm btn-primary mt-2"
-                            onClick={() => toggleGameSelection(game.appId)}
+                            onClick={() =>
+                              toggleGameSelection(game.appId.toString())
+                            }
                           >
-                            {selectedGames.has(game.appId)
+                            {selectedGames.has(game.appId.toString())
                               ? 'Remove'
                               : 'Add to Library'}
                           </button>
@@ -648,7 +666,14 @@ const ProfilePage = () => {
                 <div className="mt-4 flex justify-end">
                   <button
                     className="btn btn-primary"
-                    onClick={addSelectedGamesToLibrary}
+                    onClick={() => {
+                      console.log('Add button clicked (second section)')
+                      console.log(
+                        'Selected games at click:',
+                        Array.from(selectedGames)
+                      )
+                      addSelectedGamesToLibrary()
+                    }}
                   >
                     Add {selectedGames.size} Games to Library
                   </button>
