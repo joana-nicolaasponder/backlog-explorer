@@ -6,7 +6,17 @@ import { Platform as GamePlatform, Genre as GameGenre } from '../types/game'
 
 import { Mood, Platform } from '../types'
 
-interface EditableGame extends Omit<Game, 'game_genres' | 'game_platforms' | 'game_moods' | 'genre' | 'user_id' | 'created_at' | 'updated_at'> {
+interface EditableGame
+  extends Omit<
+    Game,
+    | 'game_genres'
+    | 'game_platforms'
+    | 'game_moods'
+    | 'genre'
+    | 'user_id'
+    | 'created_at'
+    | 'updated_at'
+  > {
   genres: string[]
   platforms: string[]
 }
@@ -36,7 +46,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     // Initialize with user's previously selected platforms
     platforms: Array.isArray(game.platforms) ? game.platforms : [],
     // Track if the image is custom
-    hasCustomImage: !!game.image
+    hasCustomImage: !!game.image,
   })
 
   // Update formData and selections when game prop changes
@@ -49,7 +59,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
       image: game.image || '',
       moods: game.moods || [],
       platforms: Array.isArray(game.platforms) ? game.platforms : [],
-      hasCustomImage: !!game.image
+      hasCustomImage: !!game.image,
     })
     // Platforms are managed in formData.platforms
     // Update moods
@@ -60,7 +70,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
   const [genreOptions, setGenreOptions] = useState<GameGenre[]>([])
   // Use the availablePlatforms passed from the game object
   const [availablePlatforms, setAvailablePlatforms] = useState<Platform[]>(
-    game.availablePlatforms?.map(name => ({ id: name, name })) || []
+    game.availablePlatforms?.map((name) => ({ id: name, name })) || []
   )
   // Platforms are managed in formData.platforms
   const [availableMoods, setAvailableMoods] = useState<Mood[]>([])
@@ -72,7 +82,8 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
   const [isLoadingMoods, setIsLoadingMoods] = useState(false)
   const [imageError, setImageError] = useState<string | null>(null)
   const [isValidatingImage, setIsValidatingImage] = useState(false)
-  const [validationTimeout, setValidationTimeout] = useState<NodeJS.Timeout | null>(null)
+  const [validationTimeout, setValidationTimeout] =
+    useState<NodeJS.Timeout | null>(null)
   const [statusOptions] = useState<string[]>([
     'Endless',
     'Satisfied',
@@ -87,59 +98,65 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
   ])
 
   const arraysEqual = (a: string[], b: string[]): boolean => {
-    const sortedA = [...a].sort();
-    const sortedB = [...b].sort();
-    return sortedA.length === sortedB.length && sortedA.every((value, index) => value === sortedB[index]);
-  };
+    const sortedA = [...a].sort()
+    const sortedB = [...b].sort()
+    return (
+      sortedA.length === sortedB.length &&
+      sortedA.every((value, index) => value === sortedB[index])
+    )
+  }
 
   // Load available platforms for this game
   useEffect(() => {
     const loadGamePlatforms = async () => {
       try {
-        if (game.provider === 'igdb' && game.external_id) {
+        if (game.provider === 'igdb' && game.igdb_id) {
           // Get game details from IGDB to get available platforms
-          const gameDetails = await gameService.getGameDetails(game.external_id);
+          const gameDetails = await gameService.getGameDetails(game.igdb_id)
           if (gameDetails?.platforms?.length) {
             // Convert IGDB platforms to our platform format
-            const platforms = gameDetails.platforms.map(p => ({
-              id: p.name,  // Use name as id since it's unique
-              name: p.name
-            }));
-            
+            const platforms = gameDetails.platforms.map((p) => ({
+              id: p.name, // Use name as id since it's unique
+              name: p.name,
+            }))
+
             // Set the available platforms from IGDB
-            setAvailablePlatforms(platforms);
+            setAvailablePlatforms(platforms)
 
             // If we have user-selected platforms that aren't in IGDB's list,
             // add them to available platforms to preserve user's selections
-            const igdbPlatformNames = platforms.map(p => p.name);
-            const userPlatforms = Array.isArray(game.platforms) ? game.platforms : [];
+            const igdbPlatformNames = platforms.map((p) => p.name)
+            const userPlatforms = Array.isArray(game.platforms)
+              ? game.platforms
+              : []
             const missingPlatforms = userPlatforms
-              .filter(p => !igdbPlatformNames.includes(p))
-              .map(name => ({ id: name, name }));
+              .filter((p) => !igdbPlatformNames.includes(p))
+              .map((name) => ({ id: name, name }))
 
             if (missingPlatforms.length > 0) {
-              setAvailablePlatforms(prev => [...prev, ...missingPlatforms]);
+              setAvailablePlatforms((prev) => [...prev, ...missingPlatforms])
             }
           }
         }
       } catch (error) {
-        console.error('Error in loadGamePlatforms:', error);
+        console.error('Error in loadGamePlatforms:', error)
       }
-    };
+    }
 
     // Load platforms when the component mounts
-    loadGamePlatforms();
-
-  }, [game.external_id, game.title])
+    loadGamePlatforms()
+  }, [game.igdb_id, game.title])
 
   // Load available moods from Supabase
   useEffect(() => {
     const loadMoods = async () => {
       try {
-
         // Get the current session
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-        
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession()
+
         if (sessionError) {
           console.error('Session error:', sessionError)
           return
@@ -149,7 +166,6 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           console.warn('No active session')
           return
         }
-
 
         const { data: moods, error: moodsError } = await supabase
           .from('moods')
@@ -161,8 +177,6 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           throw moodsError
         }
 
-
-        
         if (!moods) {
           console.warn('No moods data received')
           return
@@ -177,7 +191,6 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           return a.name.localeCompare(b.name)
         })
 
-
         setAvailableMoods(sortedMoods)
       } catch (error) {
         console.error('Error in loadMoods:', error)
@@ -189,57 +202,53 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
 
   // Load game's existing moods when modal opens
   useEffect(() => {
-    let mounted = true;
-    
+    let mounted = true
+
     const loadGameMoods = async () => {
-      if (!showModal || !mounted) return;
-      
+      if (!showModal || !mounted) return
+
       // Reset states first
-      setSelectedMoods([]);
-      setOriginalMoods([]);
+      setSelectedMoods([])
+      setOriginalMoods([])
       // Don't try to load moods if we don't have both game.id and userId
       if (!game.id || !userId) {
-        return;
+        return
       }
       try {
-  
         const { data: gameMoods, error } = await supabase
           .from('game_moods')
           .select('mood_id')
           .eq('game_id', game.id)
-          .eq('user_id', userId);
+          .eq('user_id', userId)
 
-        if (error) throw error;
+        if (error) throw error
         if (gameMoods) {
           if (mounted) {
-            const moodIds = gameMoods.map(gm => gm.mood_id);
+            const moodIds = gameMoods.map((gm) => gm.mood_id)
 
-            setSelectedMoods(moodIds);
-            setOriginalMoods(moodIds);
+            setSelectedMoods(moodIds)
+            setOriginalMoods(moodIds)
           }
         } else {
           // No moods found, reset to empty if modal is open
           if (showModal) {
-
-            setSelectedMoods([]);
-            setOriginalMoods([]);
+            setSelectedMoods([])
+            setOriginalMoods([])
           }
         }
       } catch (error) {
-        setError('Failed to load game moods. Please try again.');
+        setError('Failed to load game moods. Please try again.')
       }
     }
 
     if (game.id && showModal) {
-      loadGameMoods();
+      loadGameMoods()
     }
-    
+
     return () => {
-      mounted = false;
-    };
+      mounted = false
+    }
   }, [game.id, userId, showModal])
-
-
 
   useEffect(() => {
     const loadRawgData = async () => {
@@ -253,12 +262,14 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
               title: gameDetails.name,
               genres: gameDetails.genres.map((g: RAWGGenre) => g.name), // Set genres from RAWG
               // Only update image if there's no custom image
-              image: prev.hasCustomImage ? prev.image : (gameDetails.image || undefined),
-              hasCustomImage: prev.hasCustomImage
+              image: prev.hasCustomImage
+                ? prev.image
+                : gameDetails.image || undefined,
+              hasCustomImage: prev.hasCustomImage,
             }))
           }
         } catch (error) {
-          setError('Failed to load game details. Please try again.');
+          setError('Failed to load game details. Please try again.')
         }
       }
     }
@@ -266,51 +277,53 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
   }, [game.rawg_id])
 
   const handleMoodChange = (moods: string[]) => {
-    setSelectedMoods(moods);
-  };
+    setSelectedMoods(moods)
+  }
 
-
-  const validateImageUrl = async (url: string, isSubmit: boolean = false): Promise<boolean> => {
+  const validateImageUrl = async (
+    url: string,
+    isSubmit: boolean = false
+  ): Promise<boolean> => {
     // Clear any existing validation timeout
     if (validationTimeout) {
-      clearTimeout(validationTimeout);
-      setValidationTimeout(null);
+      clearTimeout(validationTimeout)
+      setValidationTimeout(null)
     }
-    if (!url) return true; // Empty URL is valid (optional field)
-    
+    if (!url) return true // Empty URL is valid (optional field)
+
     // Basic URL format validation
     try {
-      new URL(url);
+      new URL(url)
     } catch {
-      setImageError('Please enter a valid URL');
-      return false;
+      setImageError('Please enter a valid URL')
+      return false
     }
 
     // Check if image can be loaded in the browser
     try {
-      setIsValidatingImage(true);
-      
+      setIsValidatingImage(true)
+
       const result = await new Promise((resolve) => {
-        const img = new Image();
-        img.onload = () => resolve(true);
-        img.onerror = () => resolve(false);
-        img.src = url;
-      });
+        const img = new Image()
+        img.onload = () => resolve(true)
+        img.onerror = () => resolve(false)
+        img.src = url
+      })
 
       if (!result) {
-        setImageError('Could not load image from URL');
-        return false;
+        setImageError('Could not load image from URL')
+        return false
       }
     } catch (err) {
-      setImageError('Failed to validate image URL');
-      return false;
+      setImageError('Failed to validate image URL')
+      return false
     } finally {
-      setIsValidatingImage(false);
+      setIsValidatingImage(false)
     }
 
-    setImageError(null);
-    return true;
-  };
+    setImageError(null)
+    return true
+  }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -320,19 +333,22 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
 
     // Store original form state to revert on error
     const originalFormState = { ...formData }
-    
+
     try {
       // Validate image URL if one is provided
       if (formData.image) {
-        const isValidImage = await validateImageUrl(formData.image, true);
+        const isValidImage = await validateImageUrl(formData.image, true)
         if (!isValidImage) {
-          setIsLoading(false);
-          return;
+          setIsLoading(false)
+          return
         }
       }
 
       // Get current user
-      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser()
       if (userError) {
         throw new Error('Authentication error. Please try again.')
       }
@@ -346,9 +362,11 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
         .update({
           status: formData.status,
           progress: formData.progress,
-          platforms: Array.isArray(formData.platforms) ? formData.platforms : [], // Ensure platforms is always an array
+          platforms: Array.isArray(formData.platforms)
+            ? formData.platforms
+            : [], // Ensure platforms is always an array
           image: formData.image,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .eq('game_id', game.id)
         .eq('user_id', user.id)
@@ -379,15 +397,17 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
 
         if (platformError) {
           console.error('Error fetching platform IDs:', platformError)
-          throw new Error('Failed to fetch platform information. Please try again.')
+          throw new Error(
+            'Failed to fetch platform information. Please try again.'
+          )
         }
 
         // Insert new platform relationships
         if (platformData && platformData.length > 0) {
-          const platformRelations = platformData.map(platform => ({
+          const platformRelations = platformData.map((platform) => ({
             game_id: game.id,
             platform_id: platform.id,
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
           }))
 
           const { error: insertPlatformsError } = await supabase
@@ -396,7 +416,9 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
 
           if (insertPlatformsError) {
             console.error('Error inserting platforms:', insertPlatformsError)
-            throw new Error('Failed to save new game platforms. Please try again.')
+            throw new Error(
+              'Failed to save new game platforms. Please try again.'
+            )
           }
         }
       } catch (platformError) {
@@ -407,7 +429,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
             status: originalFormState.status,
             progress: originalFormState.progress,
             platforms: originalFormState.platforms,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
           })
           .eq('game_id', game.id)
           .eq('user_id', user.id)
@@ -426,7 +448,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
       const hasExistingMoods = originalMoods.length > 0
       const moodsCleared = selectedMoods.length === 0 && hasExistingMoods
       const moodsChanged = !arraysEqual(selectedMoods, originalMoods)
-      
+
       if (moodsCleared || moodsChanged) {
         try {
           // Step 2: Delete existing moods
@@ -443,12 +465,12 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
 
           // Step 3: Insert new moods if any are selected
           if (selectedMoods.length > 0) {
-            const moodData = selectedMoods.map(moodId => ({
+            const moodData = selectedMoods.map((moodId) => ({
               user_id: userId,
               game_id: game.id,
               mood_id: moodId,
               weight: 1,
-              created_at: new Date().toISOString()
+              created_at: new Date().toISOString(),
             }))
 
             const { error: insertError } = await supabase
@@ -457,7 +479,9 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
 
             if (insertError) {
               console.error('Error inserting moods:', insertError)
-              throw new Error('Failed to save new game moods. Please try again.')
+              throw new Error(
+                'Failed to save new game moods. Please try again.'
+              )
             }
           }
 
@@ -469,10 +493,12 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
 
           if (moodsError) {
             console.error('Error verifying moods:', moodsError)
-            throw new Error('Failed to verify mood updates. Please check your library.')
+            throw new Error(
+              'Failed to verify mood updates. Please check your library.'
+            )
           }
 
-          setSelectedMoods(newMoods ? newMoods.map(m => m.mood_id) : [])
+          setSelectedMoods(newMoods ? newMoods.map((m) => m.mood_id) : [])
         } catch (moodError) {
           // If mood update fails, we should roll back the game status update
           const { error: rollbackError } = await supabase
@@ -481,7 +507,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
               status: originalFormState.status,
               progress: originalFormState.progress,
               platforms: originalFormState.platforms,
-              updated_at: new Date().toISOString()
+              updated_at: new Date().toISOString(),
             })
             .eq('game_id', game.id)
             .eq('user_id', user.id)
@@ -505,7 +531,11 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
       }, 1000)
     } catch (error) {
       console.error('Submit error:', error)
-      setError(error instanceof Error ? error.message : 'Failed to update game. Please try again.')
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to update game. Please try again.'
+      )
       // Reset form state on error
       setFormData(originalFormState)
     } finally {
@@ -524,12 +554,16 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
         >
           ✕
         </button>
-        <h3 className="font-bold text-xl mb-6 text-base-content">Edit Game Progress</h3>
+        <h3 className="font-bold text-xl mb-6 text-base-content">
+          Edit Game Progress
+        </h3>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Game Details Section */}
           <div className="card bg-base-200 shadow-sm p-6 space-y-4">
-            <h2 className="card-title text-base-content text-lg">Game Details</h2>
+            <h2 className="card-title text-base-content text-lg">
+              Game Details
+            </h2>
 
             {formData.image && (
               <div className="relative aspect-video w-full rounded-lg overflow-hidden bg-base-300">
@@ -542,7 +576,9 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
             )}
 
             <div className="space-y-3">
-              <h4 className="text-lg font-medium text-base-content">{formData.title}</h4>
+              <h4 className="text-lg font-medium text-base-content">
+                {formData.title}
+              </h4>
               <div className="flex flex-wrap gap-2">
                 {formData.genres.map((genre) => (
                   <span
@@ -558,10 +594,15 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
 
           {/* Custom Image Section */}
           <div className="card bg-base-200 shadow-sm p-6 space-y-6">
-            <h2 className="card-title text-base-content text-lg">Custom Cover Image</h2>
+            <h2 className="card-title text-base-content text-lg">
+              Custom Cover Image
+            </h2>
             <div className="space-y-4">
               <div className="flex flex-col space-y-2">
-                <label htmlFor="image" className="text-sm font-medium text-base-content">
+                <label
+                  htmlFor="image"
+                  className="text-sm font-medium text-base-content"
+                >
                   Custom Cover Image URL (optional)
                 </label>
                 <input
@@ -570,27 +611,29 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                   name="image"
                   value={formData.image || ''}
                   onChange={(e) => {
-                    const newUrl = e.target.value;
-                    setFormData({ ...formData, image: newUrl });
-                    
+                    const newUrl = e.target.value
+                    setFormData({ ...formData, image: newUrl })
+
                     // Clear any existing timeout
                     if (validationTimeout) {
-                      clearTimeout(validationTimeout);
+                      clearTimeout(validationTimeout)
                     }
-                    
+
                     if (newUrl) {
                       // Set a new timeout for validation
                       const timeout = setTimeout(() => {
-                        validateImageUrl(newUrl);
-                      }, 500); // 500ms debounce
-                      setValidationTimeout(timeout);
+                        validateImageUrl(newUrl)
+                      }, 500) // 500ms debounce
+                      setValidationTimeout(timeout)
                     } else {
-                      setImageError(null);
-                      setIsValidatingImage(false);
+                      setImageError(null)
+                      setIsValidatingImage(false)
                     }
                   }}
                   placeholder="Enter a URL for a custom cover image"
-                  className={`input input-bordered w-full ${imageError ? 'input-error' : ''}`}
+                  className={`input input-bordered w-full ${
+                    imageError ? 'input-error' : ''
+                  }`}
                   disabled={isValidatingImage}
                 />
                 {isValidatingImage && (
@@ -599,9 +642,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                   </div>
                 )}
                 {imageError && (
-                  <div className="text-sm text-error">
-                    {imageError}
-                  </div>
+                  <div className="text-sm text-error">{imageError}</div>
                 )}
               </div>
             </div>
@@ -609,47 +650,66 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
 
           {/* Game Progress Section */}
           <div className="card bg-base-200 shadow-sm p-6 space-y-6">
-            <h2 className="card-title text-base-content text-lg">Game Progress</h2>
-            
+            <h2 className="card-title text-base-content text-lg">
+              Game Progress
+            </h2>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
-                <label className="text-sm font-medium text-base-content">Status</label>
+                <label className="text-sm font-medium text-base-content">
+                  Status
+                </label>
                 <div className="join join-vertical w-full">
                   {[
                     { value: 'Wishlist', icon: '🎮', desc: 'Want to play' },
-                    { value: 'Currently Playing', icon: '▶️', desc: 'In progress' },
+                    {
+                      value: 'Currently Playing',
+                      icon: '▶️',
+                      desc: 'In progress',
+                    },
                     { value: 'Done', icon: '✅', desc: 'Completed main story' },
                     { value: 'DNF', icon: '⏹️', desc: 'Did not finish' },
                     { value: 'Endless', icon: '♾️', desc: 'No definite end' },
-                    { value: 'Satisfied', icon: '🌟', desc: 'Happy with progress' },
-                    { value: 'Try Again', icon: '🔄', desc: 'Give it another shot' },
+                    {
+                      value: 'Satisfied',
+                      icon: '🌟',
+                      desc: 'Happy with progress',
+                    },
+                    {
+                      value: 'Try Again',
+                      icon: '🔄',
+                      desc: 'Give it another shot',
+                    },
                     { value: 'Started', icon: '🎯', desc: 'Just began' },
                     { value: 'Owned', icon: '💫', desc: 'In collection' },
-                    { value: 'Come back!', icon: '⏰', desc: 'Return later' }
+                    { value: 'Come back!', icon: '⏰', desc: 'Return later' },
                   ].map((status) => (
-                    <div
-                      key={`status-${status.value}`}
-                      className="join-item"
-                    >
+                    <div key={`status-${status.value}`} className="join-item">
                       <label
                         className={`
                           btn btn-sm justify-start gap-2 normal-case w-full
-                          ${formData.status === status.value ? 'btn-primary' : 'btn-ghost'}
+                          ${
+                            formData.status === status.value
+                              ? 'btn-primary'
+                              : 'btn-ghost'
+                          }
                         `}
                       >
-                      <input
-                        type="radio"
-                        name="status"
-                        className="hidden"
-                        checked={formData.status === status.value}
-                        onChange={() => {
-                           setFormData({ ...formData, status: status.value });
-                         }}
-                      />
-                      <span className="text-lg">{status.icon}</span>
-                      <span>{status.value}</span>
-                      <span className="text-xs opacity-70">{status.desc}</span>
-                    </label>
+                        <input
+                          type="radio"
+                          name="status"
+                          className="hidden"
+                          checked={formData.status === status.value}
+                          onChange={() => {
+                            setFormData({ ...formData, status: status.value })
+                          }}
+                        />
+                        <span className="text-lg">{status.icon}</span>
+                        <span>{status.value}</span>
+                        <span className="text-xs opacity-70">
+                          {status.desc}
+                        </span>
+                      </label>
                     </div>
                   ))}
                 </div>
@@ -657,8 +717,12 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
 
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <label className="text-sm font-medium text-base-content">Completion</label>
-                  <span className="badge badge-primary">{formData.progress}%</span>
+                  <label className="text-sm font-medium text-base-content">
+                    Completion
+                  </label>
+                  <span className="badge badge-primary">
+                    {formData.progress}%
+                  </span>
                 </div>
                 <input
                   type="range"
@@ -667,7 +731,12 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                   value={formData.progress}
                   className="range range-primary"
                   step="5"
-                  onChange={(e) => setFormData({ ...formData, progress: parseInt(e.target.value) })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      progress: parseInt(e.target.value),
+                    })
+                  }
                 />
                 <div className="w-full flex justify-between text-xs text-base-content/60">
                   <span>Just Started</span>
@@ -681,7 +750,9 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           {/* Platform Selection */}
           <div className="card bg-base-200 shadow-sm p-6 space-y-6">
             <div className="flex justify-between items-center">
-              <h2 className="card-title text-base-content text-lg">Platforms</h2>
+              <h2 className="card-title text-base-content text-lg">
+                Platforms
+              </h2>
               <span className="text-xs text-base-content/60">
                 Select the platforms you own or plan to play this game on
               </span>
@@ -697,7 +768,11 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                     <span
                       className={`
                         btn btn-sm normal-case
-                        ${isSelected ? 'btn-primary' : 'btn-ghost border border-base-300'}
+                        ${
+                          isSelected
+                            ? 'btn-primary'
+                            : 'btn-ghost border border-base-300'
+                        }
                       `}
                     >
                       <input
@@ -707,7 +782,9 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                         onChange={(e) => {
                           const newPlatforms = e.target.checked
                             ? [...formData.platforms, platform.name]
-                            : formData.platforms.filter(p => p !== platform.name)
+                            : formData.platforms.filter(
+                                (p) => p !== platform.name
+                              )
                           setFormData({ ...formData, platforms: newPlatforms })
                         }}
                       />
@@ -722,25 +799,34 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           {/* Mood Selection */}
           <div className="card bg-base-200 shadow-sm p-6 space-y-6">
             <h2 className="card-title text-base-content text-lg">Game Moods</h2>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Primary Moods */}
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-sm font-medium text-base-content/70">Primary Moods</h3>
+                  <h3 className="text-sm font-medium text-base-content/70">
+                    Primary Moods
+                  </h3>
                   <span className="text-xs text-base-content/60">
-                    {selectedMoods.filter(id => 
-                      availableMoods.find(m => m.id === id)?.category === 'primary'
-                    ).length} / 2 max
+                    {
+                      selectedMoods.filter(
+                        (id) =>
+                          availableMoods.find((m) => m.id === id)?.category ===
+                          'primary'
+                      ).length
+                    }{' '}
+                    / 2 max
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {availableMoods
-                    .filter(mood => mood.category === 'primary')
+                    .filter((mood) => mood.category === 'primary')
                     .map((mood) => {
                       const isSelected = selectedMoods.includes(mood.id)
-                      const primaryCount = selectedMoods.filter(id => 
-                        availableMoods.find(m => m.id === id)?.category === 'primary'
+                      const primaryCount = selectedMoods.filter(
+                        (id) =>
+                          availableMoods.find((m) => m.id === id)?.category ===
+                          'primary'
                       ).length
                       const disabled = !isSelected && primaryCount >= 2
 
@@ -757,11 +843,13 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                           <span
                             className={`
                               btn btn-sm normal-case px-4
-                              ${isSelected 
-                                ? 'bg-primary text-primary-content hover:bg-primary-focus border-primary'
-                                : disabled
+                              ${
+                                isSelected
+                                  ? 'bg-primary text-primary-content hover:bg-primary-focus border-primary'
+                                  : disabled
                                   ? 'btn-disabled opacity-50'
-                                  : 'btn-ghost hover:bg-base-200 border border-base-300'}
+                                  : 'btn-ghost hover:bg-base-200 border border-base-300'
+                              }
                               transition-all duration-200
                             `}
                           >
@@ -771,10 +859,10 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                               checked={isSelected}
                               disabled={disabled}
                               onChange={(e) => {
-                                setSelectedMoods(prev =>
+                                setSelectedMoods((prev) =>
                                   e.target.checked
                                     ? [...prev, mood.id]
-                                    : prev.filter(id => id !== mood.id)
+                                    : prev.filter((id) => id !== mood.id)
                                 )
                               }}
                             />
@@ -789,20 +877,29 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
               {/* Secondary Moods */}
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-sm font-medium text-base-content/70">Secondary Moods</h3>
+                  <h3 className="text-sm font-medium text-base-content/70">
+                    Secondary Moods
+                  </h3>
                   <span className="text-xs text-base-content/60">
-                    {selectedMoods.filter(id => 
-                      availableMoods.find(m => m.id === id)?.category === 'secondary'
-                    ).length} / 3 max
+                    {
+                      selectedMoods.filter(
+                        (id) =>
+                          availableMoods.find((m) => m.id === id)?.category ===
+                          'secondary'
+                      ).length
+                    }{' '}
+                    / 3 max
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {availableMoods
-                    .filter(mood => mood.category === 'secondary')
+                    .filter((mood) => mood.category === 'secondary')
                     .map((mood) => {
                       const isSelected = selectedMoods.includes(mood.id)
-                      const secondaryCount = selectedMoods.filter(id => 
-                        availableMoods.find(m => m.id === id)?.category === 'secondary'
+                      const secondaryCount = selectedMoods.filter(
+                        (id) =>
+                          availableMoods.find((m) => m.id === id)?.category ===
+                          'secondary'
                       ).length
                       const disabled = !isSelected && secondaryCount >= 3
 
@@ -819,11 +916,13 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                           <span
                             className={`
                               btn btn-sm normal-case px-4
-                              ${isSelected
-                                ? 'bg-secondary text-secondary-content hover:bg-secondary-focus border-secondary'
-                                : disabled
+                              ${
+                                isSelected
+                                  ? 'bg-secondary text-secondary-content hover:bg-secondary-focus border-secondary'
+                                  : disabled
                                   ? 'btn-disabled opacity-50'
-                                  : 'btn-ghost hover:bg-base-200 border border-base-300'}
+                                  : 'btn-ghost hover:bg-base-200 border border-base-300'
+                              }
                               transition-all duration-200
                             `}
                           >
@@ -833,10 +932,10 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                               checked={isSelected}
                               disabled={disabled}
                               onChange={(e) => {
-                                setSelectedMoods(prev =>
+                                setSelectedMoods((prev) =>
                                   e.target.checked
                                     ? [...prev, mood.id]
-                                    : prev.filter(id => id !== mood.id)
+                                    : prev.filter((id) => id !== mood.id)
                                 )
                               }}
                             />
@@ -853,15 +952,39 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           <div className="space-y-4">
             {/* Error and Success Messages */}
             {(error || imageError || success) && (
-              <div className={`alert ${error || imageError ? 'alert-error' : 'alert-success'} mb-2`}>
+              <div
+                className={`alert ${
+                  error || imageError ? 'alert-error' : 'alert-success'
+                } mb-2`}
+              >
                 {(error || imageError) && (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-4 w-4" fill="none" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="stroke-current shrink-0 h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
                   </svg>
                 )}
                 {success && (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-4 w-4" fill="none" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="stroke-current shrink-0 h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
                   </svg>
                 )}
                 <span>{error || imageError || success}</span>
@@ -881,7 +1004,11 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                 type="submit"
                 className="btn btn-primary"
                 disabled={isLoading || !!imageError}
-                title={imageError ? 'Please fix the image URL error before saving' : undefined}
+                title={
+                  imageError
+                    ? 'Please fix the image URL error before saving'
+                    : undefined
+                }
               >
                 {isLoading ? (
                   <>
