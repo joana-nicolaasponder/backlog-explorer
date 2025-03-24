@@ -21,7 +21,9 @@ const GameDetails = () => {
   // Get current user
   useEffect(() => {
     const getCurrentUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
       if (user) {
         setUserId(user.id)
       }
@@ -51,49 +53,49 @@ const GameDetails = () => {
   const migrateToIGDB = async (game: Game) => {
     try {
       // Search for game in IGDB
-      const searchResult = await gameService.searchGames(game.title);
-      if (searchResult.results.length === 0) return null;
+      const searchResult = await gameService.searchGames(game.title)
+      if (searchResult.results.length === 0) return null
 
-      const igdbGame = searchResult.results[0];
-      
+      const igdbGame = searchResult.results[0]
+
       // Update game in database
       const { error } = await supabase
         .from('games')
         .update({
           provider: 'igdb',
-          external_id: igdbGame.id,
+          igdb_id: igdbGame.id,
           description: igdbGame.summary || game.description,
           metacritic_rating: igdbGame.metacritic || game.metacritic_rating,
           release_date: igdbGame.released || game.release_date,
-          background_image: igdbGame.background_image || game.background_image
+          background_image: igdbGame.background_image || game.background_image,
         })
-        .eq('id', game.id);
+        .eq('id', game.id)
 
       if (error) {
-        console.error('Error migrating to IGDB:', error);
-        return null;
+        console.error('Error migrating to IGDB:', error)
+        return null
       }
 
       return {
         ...game,
         provider: 'igdb',
-        external_id: igdbGame.id
-      };
+        igdb_id: igdbGame.id,
+      }
     } catch (error) {
-      console.error('Error in IGDB migration:', error);
-      return null;
+      console.error('Error in IGDB migration:', error)
+      return null
     }
-  };
+  }
 
   const fetchGameDetails = async (game: Game) => {
     if (!game) return
 
     // If it's already an IGDB game or was successfully migrated
-    if (game.provider === 'igdb' && game.external_id) {
+    if (game.provider === 'igdb' && game.igdb_id) {
       try {
         const [gameDetails, screenshots] = await Promise.all([
-          gameService.getGameDetails(game.external_id.toString()),
-          gameService.getGameScreenshots(game.external_id.toString()),
+          gameService.getGameDetails(game.igdb_id.toString()),
+          gameService.getGameScreenshots(game.igdb_id.toString()),
         ])
 
         setDetails(gameDetails)
@@ -114,12 +116,12 @@ const GameDetails = () => {
 
     // Try to migrate RAWG game to IGDB
     if (game.provider === 'rawg') {
-      const migratedGame = await migrateToIGDB(game);
+      const migratedGame = await migrateToIGDB(game)
       if (migratedGame) {
-        setGame(migratedGame);
+        setGame(migratedGame)
         // Fetch details for the newly migrated IGDB game
-        await fetchGameDetails(migratedGame);
-        return;
+        await fetchGameDetails(migratedGame)
+        return
       }
     }
 
@@ -181,7 +183,7 @@ const GameDetails = () => {
           game:games (
             id,
             title,
-            external_id,
+            igdb_id,
             provider,
             metacritic_rating,
             release_date,
@@ -211,17 +213,18 @@ const GameDetails = () => {
         status: userGameData.status,
         progress: userGameData.progress,
         provider: userGameData.game.provider || 'rawg',
-        external_id: userGameData.game.external_id || 0,
+        igdb_id: userGameData.game.igdb_id || 0,
         metacritic_rating: userGameData.game.metacritic_rating,
         release_date: userGameData.game.release_date,
         // Use custom image if available, otherwise fall back to game's background image
-        background_image: userGameData.image || userGameData.game.background_image,
+        background_image:
+          userGameData.image || userGameData.game.background_image,
         description: userGameData.game.description,
         platforms: userGameData.platforms || [],
         genres: [],
-        image: userGameData.image || userGameData.game.background_image
+        image: userGameData.image || userGameData.game.background_image,
       }
-      
+
       setGame(gameData)
 
       // Fetch additional details from external provider
@@ -1316,13 +1319,15 @@ const GameDetails = () => {
         </div>
       )}
       {/* Edit Game Modal */}
-      {game && <EditGameModal
-        game={game}
-        userId={userId}
-        showModal={showEditModal}
-        setShowModal={setShowEditModal}
-        onGameUpdated={fetchGameAndNotes}
-      />}
+      {game && (
+        <EditGameModal
+          game={game}
+          userId={userId}
+          showModal={showEditModal}
+          setShowModal={setShowEditModal}
+          onGameUpdated={fetchGameAndNotes}
+        />
+      )}
     </div>
   )
 }
