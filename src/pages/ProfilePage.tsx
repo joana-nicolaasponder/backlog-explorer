@@ -213,19 +213,41 @@ const ProfilePage = () => {
         user_id: user.id,
         game_id: game.id,
         status: 'backlog',
-        playtime_minutes:
+        steam_playtime:
           selectedGamesData.find((g) => g.appId.toString() === game.igdb_id)
             ?.playtime || 0,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }))
       console.log('Preparing to insert user_games:', userGamesData)
-
-      const { error: userGamesError } = await supabase
+      
+      // First check if any of these user_games already exist
+      const { data: existingUserGames, error: checkError } = await supabase
         .from('user_games')
-        .upsert(userGamesData, {
-          onConflict: 'user_id,game_id',
-        })
+        .select('user_id, game_id')
+        .in('game_id', insertedGames.map(game => game.id))
+        .eq('user_id', user.id)
+      
+      if (checkError) {
+        console.error('Error checking existing user games:', checkError)
+        throw checkError
+      }
+      
+      // Filter out any games that already exist in the user's library
+      const newUserGames = userGamesData.filter(newGame => 
+        !existingUserGames?.some(existing => 
+          existing.game_id === newGame.game_id && existing.user_id === newGame.user_id
+        )
+      )
+      
+      // Only insert if there are new games to add
+      let userGamesError = null
+      if (newUserGames.length > 0) {
+        const { error } = await supabase
+          .from('user_games')
+          .insert(newUserGames)
+        userGamesError = error
+      }
 
       if (userGamesError) {
         console.error('User games link error:', userGamesError)
