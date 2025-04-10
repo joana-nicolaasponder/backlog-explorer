@@ -110,36 +110,88 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
   useEffect(() => {
     const loadGamePlatforms = async () => {
       try {
-        if (game.provider === 'igdb' && game.igdb_id) {
+        // Check if this is a Steam game (igdb_id is a Steam app ID)
+        const isSteamGame = game.igdb_id && /^\d+$/.test(game.igdb_id.toString()) && game.igdb_id.toString().length >= 5;
+        
+        // If it's a Steam game, ensure 'Steam' is in the available platforms
+        if (isSteamGame || game.provider === 'steam') {
+          const steamPlatform = { id: 'Steam', name: 'Steam' };
+          setAvailablePlatforms(prev => {
+            // Check if Steam is already in the list
+            if (!prev.some(p => p.name === 'Steam')) {
+              return [...prev, steamPlatform];
+            }
+            return prev;
+          });
+          
+          // Try to find a matching game on IGDB by title for additional platforms
+          try {
+            const searchResult = await gameService.searchGames(game.title);
+            if (searchResult.results.length > 0) {
+              const igdbGame = searchResult.results[0];
+              const gameDetails = await gameService.getGameDetails(igdbGame.id);
+              
+              if (gameDetails?.platforms?.length) {
+                // Convert IGDB platforms to our platform format
+                const platforms = gameDetails.platforms.map((p) => ({
+                  id: p.name,
+                  name: p.name,
+                }));
+                
+                // Add Steam if it's not already in the list
+                if (!platforms.some(p => p.name === 'Steam')) {
+                  platforms.push(steamPlatform);
+                }
+                
+                // Set the available platforms from IGDB
+                setAvailablePlatforms(platforms);
+                
+                // If we have user-selected platforms that aren't in IGDB's list,
+                // add them to available platforms to preserve user's selections
+                const igdbPlatformNames = platforms.map((p) => p.name);
+                const userPlatforms = Array.isArray(game.platforms) ? game.platforms : [];
+                const missingPlatforms = userPlatforms
+                  .filter((p) => !igdbPlatformNames.includes(p))
+                  .map((name) => ({ id: name, name }));
+                
+                if (missingPlatforms.length > 0) {
+                  setAvailablePlatforms((prev) => [...prev, ...missingPlatforms]);
+                }
+              }
+            }
+          } catch (searchError) {
+            console.log('Could not find matching IGDB game for Steam game:', searchError);
+          }
+        }
+        // Regular IGDB game handling
+        else if (game.provider === 'igdb' && game.igdb_id) {
           // Get game details from IGDB to get available platforms
-          const gameDetails = await gameService.getGameDetails(game.igdb_id)
+          const gameDetails = await gameService.getGameDetails(game.igdb_id.toString());
           if (gameDetails?.platforms?.length) {
             // Convert IGDB platforms to our platform format
             const platforms = gameDetails.platforms.map((p) => ({
               id: p.name, // Use name as id since it's unique
               name: p.name,
-            }))
+            }));
 
             // Set the available platforms from IGDB
-            setAvailablePlatforms(platforms)
+            setAvailablePlatforms(platforms);
 
             // If we have user-selected platforms that aren't in IGDB's list,
             // add them to available platforms to preserve user's selections
-            const igdbPlatformNames = platforms.map((p) => p.name)
-            const userPlatforms = Array.isArray(game.platforms)
-              ? game.platforms
-              : []
+            const igdbPlatformNames = platforms.map((p) => p.name);
+            const userPlatforms = Array.isArray(game.platforms) ? game.platforms : [];
             const missingPlatforms = userPlatforms
               .filter((p) => !igdbPlatformNames.includes(p))
-              .map((name) => ({ id: name, name }))
+              .map((name) => ({ id: name, name }));
 
             if (missingPlatforms.length > 0) {
-              setAvailablePlatforms((prev) => [...prev, ...missingPlatforms])
+              setAvailablePlatforms((prev) => [...prev, ...missingPlatforms]);
             }
           }
         }
       } catch (error) {
-        console.error('Error in loadGamePlatforms:', error)
+        console.error('Error in loadGamePlatforms:', error);
       }
     }
 
