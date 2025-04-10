@@ -69,34 +69,39 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
     null
   )
   // Direct DOM manipulation for toast
-  const showToast = ({ 
-    message, 
-    type = 'warning', 
-    duration = 10000 
-  }: { 
-    message: string; 
-    type?: string; 
-    duration?: number 
+  const showToast = ({
+    message,
+    type = 'warning',
+    duration = 10000,
+  }: {
+    message: string
+    type?: string
+    duration?: number
   }) => {
     console.log('SHOWING TOAST:', message, type)
-    
+
     // Create a toast element using DaisyUI
     const toastContainer = document.createElement('div')
     toastContainer.className = 'toast toast-top toast-center z-[9999]'
-    
-    const alertClass = type === 'error' ? 'alert-error' : 
-                      type === 'success' ? 'alert-success' : 
-                      type === 'warning' ? 'alert-warning' : 'alert-info'
-    
+
+    const alertClass =
+      type === 'error'
+        ? 'alert-error'
+        : type === 'success'
+        ? 'alert-success'
+        : type === 'warning'
+        ? 'alert-warning'
+        : 'alert-info'
+
     toastContainer.innerHTML = `
       <div class="alert ${alertClass} shadow-xl font-bold text-lg border-2 border-black p-4">
         <span>${message}</span>
       </div>
     `
-    
+
     // Add to document
     document.body.appendChild(toastContainer)
-    
+
     // Remove after duration
     setTimeout(() => {
       console.log('HIDING TOAST')
@@ -161,14 +166,14 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
       if (!user) throw new Error('No user found')
 
       // First check if the game exists in IGDB provider (only if igdb_id is defined)
-      let existingGames = null;
+      let existingGames = null
       if (game.igdb_id) {
         const { data } = await supabase
           .from('games')
           .select('id')
           .eq('igdb_id', game.igdb_id)
           .eq('provider', GAME_PROVIDER)
-        existingGames = data;
+        existingGames = data
       }
 
       // Also check if the game exists in RAWG provider with the same title
@@ -209,14 +214,14 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
         )
 
         console.log('GAME ALREADY EXISTS IN LIBRARY:', game.name)
-        
+
         // Force a small delay to ensure state updates properly
         setTimeout(() => {
           // Show toast notification with more prominent styling
           showToast({
-            message: `ALERT: Game "${game.name}" is already in your library!`,
-            type: 'error',  // Changed to error for maximum visibility
-            duration: 10000,   // Increased duration to 10 seconds
+            message: `Game "${game.name}" is already in your library!`,
+            type: 'error', // Changed to error for maximum visibility
+            duration: 10000, // Increased duration to 10 seconds
           })
         }, 100)
         // Clear the form and selected game
@@ -309,14 +314,14 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
         const provider = formData.provider || GAME_PROVIDER
 
         // Check if game exists by igdb_id and provider (only if igdbId is defined)
-        let existingGames = null;
+        let existingGames = null
         if (igdbId) {
           const { data } = await supabase
             .from('games')
             .select('id, provider, igdb_id')
             .eq('igdb_id', igdbId)
             .eq('provider', provider)
-          existingGames = data;
+          existingGames = data
         }
 
         // Also check if this game exists as a RAWG game by title
@@ -355,34 +360,37 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
         } else {
           // Create new game - ensure we have a valid title at minimum
           if (!formData.title) {
-            throw new Error('Game title is required');
+            throw new Error('Game title is required')
           }
-          
+
           // Create the game object with required fields
           const gameData: {
-            title: string;
-            provider: string;
-            igdb_id?: string;
-            metacritic_rating?: number;
-            release_date?: string;
-            background_image?: string;
-            description?: string;
+            title: string
+            provider: string
+            igdb_id?: string
+            metacritic_rating?: number
+            release_date?: string
+            background_image?: string
+            description?: string
           } = {
             title: formData.title,
-            provider: provider
-          };
-          
+            provider: provider,
+          }
+
           // Only add igdb_id if it's defined
           if (igdbId) {
-            gameData.igdb_id = igdbId;
+            gameData.igdb_id = igdbId
           }
-          
+
           // Add optional fields if they exist
-          if (formData.metacritic_rating) gameData.metacritic_rating = formData.metacritic_rating;
-          if (formData.release_date) gameData.release_date = formData.release_date;
-          if (formData.background_image) gameData.background_image = formData.background_image;
-          if (formData.description) gameData.description = formData.description;
-          
+          if (formData.metacritic_rating)
+            gameData.metacritic_rating = formData.metacritic_rating
+          if (formData.release_date)
+            gameData.release_date = formData.release_date
+          if (formData.background_image)
+            gameData.background_image = formData.background_image
+          if (formData.description) gameData.description = formData.description
+
           const { data: newGame, error: gameError } = await supabase
             .from('games')
             .insert([gameData])
@@ -430,7 +438,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
               .eq('game_id', gameId)
               .eq('platform_id', platformId)
               .maybeSingle()
-              
+
             // Only insert if it doesn't already exist
             if (!existingPlatform) {
               await supabase.from('game_platforms').insert({
@@ -454,7 +462,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
               .eq('game_id', gameId)
               .eq('genre_id', genreId)
               .maybeSingle()
-              
+
             // Only insert if it doesn't already exist
             if (!existingGenre) {
               await supabase.from('game_genres').insert({
@@ -480,9 +488,11 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
 
       if (existingUserGame) {
         // Get existing platforms and merge with new ones (avoiding duplicates)
-        const existingPlatforms = existingUserGame.platforms || [];
-        const mergedPlatforms = [...new Set([...existingPlatforms, ...formData.platforms])];
-        
+        const existingPlatforms = existingUserGame.platforms || []
+        const mergedPlatforms = [
+          ...new Set([...existingPlatforms, ...formData.platforms]),
+        ]
+
         // Update platforms for existing user_game
         await supabase
           .from('user_games')
@@ -497,14 +507,14 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
         )
 
         console.log('UPDATING EXISTING GAME PLATFORMS')
-        
+
         // Force a small delay to ensure state updates properly
         setTimeout(() => {
           // Show toast notification with more prominent styling
           showToast({
-            message: `ALERT: Game is already in your library. Platforms updated.`,
-            type: 'error',  // Changed to error for maximum visibility
-            duration: 10000,   // Increased duration to 10 seconds
+            message: `Game is already in your library. Platforms updated.`,
+            type: 'error', // Changed to error for maximum visibility
+            duration: 10000, // Increased duration to 10 seconds
           })
         }, 100)
 
@@ -540,7 +550,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
               .eq('game_id', gameId)
               .eq('mood_id', moodId)
               .maybeSingle()
-              
+
             // Only insert if it doesn't already exist
             if (!existingMood) {
               await supabase.from('game_moods').insert({
