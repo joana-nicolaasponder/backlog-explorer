@@ -27,6 +27,7 @@ export default defineConfig(({ mode }) => {
       __DEV__: environment === 'development',
       // Ensure environment variables are properly replaced
       'process.env.VITE_API_URL': JSON.stringify(env.VITE_API_URL),
+      'process.env.VITE_BACKLOG_EXPLORER_URL': JSON.stringify(env.VITE_BACKLOG_EXPLORER_URL),
       'process.env.VITE_APP_ENV': JSON.stringify(environment),
     },
     envDir: './',
