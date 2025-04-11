@@ -129,6 +129,24 @@ const ProfilePage = () => {
           avatar: responseData.avatar,
           profileUrl: responseData.profileUrl,
         }))
+        
+        // Upsert user preferences if not exists
+        if (user?.id) {
+          const { error: upsertPrefError } = await supabase
+            .from('user_preferences')
+            .upsert(
+              {
+                user_id: user.id,
+                theme: 'light', // default theme or derive from elsewhere
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: 'user_id' }
+            );
+        
+          if (upsertPrefError) {
+            console.error('Error upserting user preferences:', upsertPrefError);
+          }
+        }
 
         const gamesResponse = await fetch(
           `${API_BASE_URL}/api/steam/games/${responseData.steamId}`
