@@ -32,13 +32,6 @@ app.post('/api/igdb/:endpoint', async (req, res) => {
     const { endpoint } = req.params
     const { query } = req.body
 
-    console.log('IGDB Request:', {
-      endpoint,
-      query,
-      clientId: process.env.TWITCH_CLIENT_ID,
-      accessToken: process.env.TWITCH_APP_ACCESS_TOKEN?.slice(0, 10) + '...',
-    })
-
     // Map client-side endpoint names to IGDB API endpoints
     const endpointMap = {
       time_to_beats: 'game_time_to_beats',
@@ -51,17 +44,6 @@ app.post('/api/igdb/:endpoint', async (req, res) => {
       throw new Error(`Invalid endpoint: ${endpoint}`)
     }
 
-    console.log('Making IGDB request to:', `${IGDB_API_URL}/${igdbEndpoint}`)
-    console.log('Request headers:', {
-      Accept: 'application/json',
-      'Client-ID': process.env.TWITCH_CLIENT_ID?.slice(0, 5) + '...',
-      Authorization: process.env.TWITCH_APP_ACCESS_TOKEN
-        ? 'Bearer [hidden]'
-        : 'Missing',
-      'Content-Type': 'text/plain',
-    })
-    console.log('Request body:', query)
-
     const response = await fetch(`${IGDB_API_URL}/${igdbEndpoint}`, {
       method: 'POST',
       headers: {
@@ -72,8 +54,6 @@ app.post('/api/igdb/:endpoint', async (req, res) => {
       },
       body: query,
     })
-
-    console.log('IGDB Response Status:', response.status, response.statusText)
 
     if (!response.ok) {
       const errorText = await response.text()
@@ -92,26 +72,19 @@ app.post('/api/igdb/:endpoint', async (req, res) => {
 app.post('/api/verify-openid', async (req, res) => {
   try {
     const params = req.body.openidResponse
-    console.log('Received OpenID params:', params) // Debug log
 
     // Check if we have the necessary parameters
     if (!params['openid.claimed_id']) {
-      console.log('Missing claimed_id in params')
       return res.status(400).json({ error: 'Missing OpenID parameters' })
     }
 
     // Extract Steam ID first to check if it's valid
     const matches = params['openid.claimed_id'].match(/\/id\/(7[0-9]{15,25})/)
     if (!matches) {
-      console.log(
-        'Could not extract Steam ID from:',
-        params['openid.claimed_id']
-      )
       return res.status(400).json({ error: 'Could not extract Steam ID' })
     }
 
     const steamId = matches[1]
-    console.log('Extracted Steam ID:', steamId) // Debug log
 
     // Get user details from Steam API first
     const steamUserResponse = await axios.get(
@@ -123,8 +96,6 @@ app.post('/api/verify-openid', async (req, res) => {
         },
       }
     )
-
-    console.log('Steam API Response:', steamUserResponse.data) // Debug log
 
     if (!steamUserResponse.data.response.players.length) {
       return res.status(404).json({ error: 'Steam user not found' })
@@ -172,19 +143,50 @@ app.get('/api/steam/games/:steamId', async (req, res) => {
       return res.json([])
     }
 
-    // Format the games data
-    const formattedGames = games.map((game) => ({
-      appId: game.appid,
-      name: game.name,
-      playtime: game.playtime_forever, // in minutes
-      iconUrl: `http://media.steampowered.com/steamcommunity/public/images/apps/${game.appid}/${game.img_icon_url}.jpg`,
-      lastPlayed: game.rtime_last_played,
-    }))
+    const enrichedGames = await Promise.all(
+      games.map(async (game) => {
+        const baseGame = {
+          appId: game.appid,
+          name: game.name,
+          playtime: game.playtime_forever,
+          iconUrl: `http://media.steampowered.com/steamcommunity/public/images/apps/${game.appid}/${game.img_icon_url}.jpg`,
+          lastPlayed: game.rtime_last_played,
+        };
 
-    // Sort games by playtime (most played first)
-    formattedGames.sort((a, b) => b.playtime - a.playtime)
+        try {
+          const igdbResponse = await fetch(`${IGDB_API_URL}/games`, {
+            method: 'POST',
+            headers: {
+              Accept: 'application/json',
+              'Client-ID': process.env.TWITCH_CLIENT_ID,
+              Authorization: `Bearer ${process.env.TWITCH_APP_ACCESS_TOKEN}`,
+              'Content-Type': 'text/plain',
+            },
+            body: `search "${game.name}"; fields id,name,summary,cover.url; limit 1;`,
+          });
 
-    res.json(formattedGames)
+          if (igdbResponse.ok) {
+            const igdbData = await igdbResponse.json();
+            if (igdbData.length > 0) {
+              const match = igdbData[0];
+              return {
+                ...baseGame,
+                igdb_id: match.id,
+                description: match.summary || null,
+                background_image: match.cover?.url || null,
+              };
+            }
+          }
+        } catch (err) {
+          console.error(`Error fetching IGDB data for ${game.name}:`, err);
+        }
+
+        return baseGame;
+      })
+    );
+
+    enrichedGames.sort((a, b) => b.playtime - a.playtime);
+    res.json(enrichedGames);
   } catch (error) {
     console.error('Error fetching Steam games:', error)
     res.status(500).json({ error: 'Failed to fetch Steam games' })
@@ -204,7 +206,10 @@ app.post('/api/steam/add-games', async (req, res) => {
           title: game.name,
           steam_app_id: game.appId,
           cover_image: game.iconUrl,
-          source: 'steam',
+          background_image: game.background_image || null,
+          description: game.description || null,
+          igdb_id: game.igdb_id || null,
+          provider: 'steam',
         })),
         { onConflict: 'steam_app_id' }
       )

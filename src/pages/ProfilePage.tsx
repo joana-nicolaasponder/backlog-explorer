@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import supabase from '../supabaseClient'
 import { useTheme } from '../contexts/ThemeContext'
 import { gameService } from '../services/gameService'
+const BASE_URL = import.meta.env.VITE_BACKLOG_EXPLORER_URL || 'http://localhost:5173';
 
 const ProfilePage = () => {
   const navigate = useNavigate()
@@ -85,8 +86,8 @@ const ProfilePage = () => {
     const params = {
       'openid.ns': 'http://specs.openid.net/auth/2.0',
       'openid.mode': 'checkid_setup',
-      'openid.return_to': 'http://localhost:5173/app/profile',
-      'openid.realm': 'http://localhost:5173',
+      'openid.return_to': `${BASE_URL}/app/profile`,
+      'openid.realm': BASE_URL,
       'openid.identity': 'http://specs.openid.net/auth/2.0/identifier_select',
       'openid.claimed_id': 'http://specs.openid.net/auth/2.0/identifier_select',
     }
@@ -94,18 +95,12 @@ const ProfilePage = () => {
     const steamLoginUrl = `https://steamcommunity.com/openid/login?${new URLSearchParams(
       params
     )}`
-    console.log('Redirecting to Steam:', steamLoginUrl) // Debug log
     window.location.href = steamLoginUrl
   }
 
   const handleOpenIDResponse = async () => {
     try {
       const urlParams = new URLSearchParams(window.location.search)
-      console.log(
-        'OpenID response params:',
-        Object.fromEntries(urlParams.entries())
-      )
-
       const response = await fetch('http://localhost:3001/api/verify-openid', {
         method: 'POST',
         headers: {
@@ -117,19 +112,14 @@ const ProfilePage = () => {
       })
 
       const responseData = await response.json()
-
       if (!response.ok) {
         throw new Error(
           responseData.error || 'Failed to verify OpenID response'
         )
       }
 
-      console.log('Steam verification response:', responseData)
-
-      // Save the Steam profile data
       setSteamProfile(responseData)
 
-      // Save Steam ID to user state
       if (responseData.steamId) {
         setUser((prevUser) => ({
           ...prevUser,
@@ -139,7 +129,6 @@ const ProfilePage = () => {
           profileUrl: responseData.profileUrl,
         }))
 
-        // Then fetch games
         const gamesResponse = await fetch(
           `http://localhost:3001/api/steam/games/${responseData.steamId}`
         )
@@ -149,7 +138,6 @@ const ProfilePage = () => {
         }
         const games = await gamesResponse.json()
         setSteamGames(games)
-        console.log('Steam games:', games)
       }
     } catch (error) {
       console.error('Error handling OpenID response:', error)
@@ -158,17 +146,13 @@ const ProfilePage = () => {
   }
 
   const toggleGameSelection = (appId: string) => {
-    console.log('Toggling game selection:', appId)
     setSelectedGames((prevSelected) => {
       const newSelected = new Set(prevSelected)
       if (newSelected.has(appId)) {
-        console.log('Removing game from selection')
         newSelected.delete(appId)
       } else {
-        console.log('Adding game to selection')
         newSelected.add(appId)
       }
-      console.log('Current selected games:', Array.from(newSelected))
       return newSelected
     })
   }
@@ -180,10 +164,7 @@ const ProfilePage = () => {
       return false
     }
 
-    console.log(`Adding ${gameData.genres.length} genres for ${game.title}`)
-
     // First, check if the genres already exist in the database
-    // We'll use the name instead of slug since that's what we have
     const { data: existingGenres, error: genresError } = await supabase
       .from('genres')
       .select('id, name')
@@ -281,42 +262,29 @@ const ProfilePage = () => {
   }
 
   const addSelectedGamesToLibrary = async () => {
-    console.log('=== addSelectedGamesToLibrary started ===')
-
     if (!user?.id) {
       console.error('No user ID found')
       return
     }
 
     try {
-      // Skip Steam profile handling since it already exists
-
-      // Get the selected games data
       const selectedGamesData = steamGames.filter((game) =>
         selectedGames.has(game.appId.toString())
       )
-      console.log('Selected games to add:', selectedGamesData)
 
-      // Fetch IGDB metadata for each game
       const enrichedGamesData = await Promise.all(
         selectedGamesData.map(async (game) => {
           try {
-            // Search IGDB for this game
             const searchResult = await gameService.searchGames(game.name)
 
-            // If we found a match, use that data
             if (searchResult.results.length > 0) {
               const igdbGame = searchResult.results[0]
-              console.log(`Found IGDB match for ${game.name}:`, igdbGame)
-
-              // Get genres from IGDB if available
               const genres =
                 igdbGame.genres?.map((genre) => ({
                   name: genre.name,
                   slug: genre.slug,
                 })) || []
 
-              // Check if an IGDB game with this IGDB ID already exists in our database
               const { data: existingIgdbGame } = await supabase
                 .from('games')
                 .select('*')
@@ -325,10 +293,6 @@ const ProfilePage = () => {
                 .maybeSingle()
 
               if (existingIgdbGame) {
-                console.log(
-                  `Found existing IGDB game in database for ${game.name}:`,
-                  existingIgdbGame
-                )
                 return {
                   steamGame: game,
                   igdbData: existingIgdbGame,
@@ -341,11 +305,9 @@ const ProfilePage = () => {
                 steamGame: game,
                 igdbData: {
                   title: game.name,
-                  igdb_id: igdbGame.id.toString(), // Use IGDB's ID, not Steam's appId
-                  provider: 'igdb', // Set provider to 'igdb' for proper migration
+                  igdb_id: igdbGame.id.toString(),
+                  provider: 'igdb',
                   background_image: igdbGame.background_image || game.iconUrl,
-                  // GameBasic doesn't have description property, so we'll handle it differently
-                  // We'll add it to the database, but not use it in the type
                   metacritic_rating: igdbGame.metacritic,
                   release_date: igdbGame.released,
                   created_at: new Date().toISOString(),
@@ -354,10 +316,6 @@ const ProfilePage = () => {
                 existingIgdbGame: false,
               }
             } else {
-              // No IGDB match found, use Steam data only
-              console.log(
-                `No IGDB match found for ${game.name}, using Steam data only`
-              )
               return {
                 steamGame: game,
                 igdbData: {
@@ -365,14 +323,14 @@ const ProfilePage = () => {
                   igdb_id: game.appId.toString(),
                   provider: 'steam',
                   background_image: game.iconUrl,
+                  description: game.description || null,
                   created_at: new Date().toISOString(),
                 },
-                genres: [], // Empty genres array for games with no IGDB match
+                genres: [],
               }
             }
           } catch (error) {
             console.error(`Error fetching IGDB data for ${game.name}:`, error)
-            // Fallback to Steam data only
             return {
               steamGame: game,
               igdbData: {
@@ -380,6 +338,7 @@ const ProfilePage = () => {
                 igdb_id: game.appId.toString(),
                 provider: 'steam',
                 background_image: game.iconUrl,
+                description: game.description || null,
                 created_at: new Date().toISOString(),
               },
             }
@@ -387,22 +346,18 @@ const ProfilePage = () => {
         })
       )
 
-      // Separate games that already exist in IGDB format from those that need to be inserted
       const gamesToInsert = enrichedGamesData
         .filter((data) => !data.existingIgdbGame)
         .map((data) => data.igdbData)
 
-      // Get the existing IGDB games
       const existingIgdbGames = enrichedGamesData
         .filter((data) => data.existingIgdbGame)
         .map((data) => data.igdbData)
 
-      // Insert only the games that need to be inserted
       let insertedGames = []
       let gamesError = null
 
       if (gamesToInsert.length > 0) {
-        console.log('Games to insert:', gamesToInsert)
         const { data, error } = await supabase
           .from('games')
           .upsert(gamesToInsert, { onConflict: 'igdb_id,provider' })
@@ -413,54 +368,22 @@ const ProfilePage = () => {
           console.error('Error inserting games:', error)
         } else {
           insertedGames = data || []
-          console.log('Newly inserted games:', insertedGames)
         }
       }
 
-      // Combine the newly inserted games with the existing IGDB games
       insertedGames = [...insertedGames, ...existingIgdbGames]
-      console.log(
-        'All games (inserted + existing):',
-        insertedGames.map((g) => ({
-          id: g.id,
-          title: g.title,
-          igdb_id: g.igdb_id,
-        }))
-      )
 
       if (gamesError) {
-        console.error('Games insert error:', gamesError)
         throw gamesError
       }
-      console.log('Games inserted successfully:', insertedGames)
 
-      // Insert game genres for games with IGDB matches
+      // Process genres
       for (let i = 0; i < enrichedGamesData.length; i++) {
         const gameData = enrichedGamesData[i]
-
-        // Log more details to help debug matching issues
-        console.log(`Trying to match game: ${gameData.igdbData.title}`, {
-          existingIgdbGame: gameData.existingIgdbGame,
-          igdbId: gameData.igdbData.igdb_id,
-          provider: gameData.igdbData.provider,
-        })
-        console.log(
-          'Available inserted games:',
-          insertedGames.map((g) => ({
-            id: g.id,
-            title: g.title,
-            igdb_id: g.igdb_id,
-            provider: g.provider,
-          }))
-        )
-
         const insertedGame = insertedGames.find((game) => {
-          // For existing IGDB games, match by ID
           if (gameData.existingIgdbGame) {
             return game.id === gameData.igdbData.id
           }
-          // For newly inserted games, match by title, igdb_id and provider
-          // Using title as an additional check to improve matching
           return (
             game.igdb_id === gameData.igdbData.igdb_id &&
             game.provider === gameData.igdbData.provider &&
@@ -469,11 +392,6 @@ const ProfilePage = () => {
         })
 
         if (!insertedGame) {
-          console.error(
-            'Could not find matching inserted game for:',
-            gameData.igdbData.title
-          )
-          // Try a more lenient match if the strict match fails
           const lenientMatch = insertedGames.find(
             (game) =>
               game.title === gameData.igdbData.title ||
@@ -481,25 +399,18 @@ const ProfilePage = () => {
           )
 
           if (lenientMatch) {
-            console.log(
-              `Found lenient match for ${gameData.igdbData.title} using title or igdb_id:`,
-              lenientMatch
-            )
-            // Continue with the lenient match instead
             await processGameGenres(gameData, lenientMatch)
-            continue // Skip to the next game after processing
+            continue
           } else {
             continue
           }
         }
 
-        // Process the game's genres if it has any
         await processGameGenres(gameData, insertedGame)
       }
 
       // Link games to user
       const userGamesData = insertedGames.map((game: any) => {
-        // Find the matching Steam game by appId
         const steamGamesArray = Array.from(selectedGames)
         const steamGame = steamGamesArray.find(
           (g) =>
@@ -509,23 +420,21 @@ const ProfilePage = () => {
             g.appId.toString() === game.igdb_id
         )
 
-        // Get playtime safely
         const playtime = steamGame ? steamGame.playtime : 0
 
         return {
           user_id: user.id,
           game_id: game.id,
-          status: 'Owned', // Set default status to 'owned'
+          status: 'Owned',
           steam_playtime: playtime,
-          platforms: ['Steam'], // Add Steam platform
+          platforms: ['Steam'],
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          progress: 0, // Initialize progress to 0
+          progress: 0,
         }
       })
-      console.log('Preparing to insert user_games:', userGamesData)
 
-      // First check if any of these user_games already exist
+      // Process user games
       const { data: existingUserGames, error: checkError } = await supabase
         .from('user_games')
         .select('id, user_id, game_id, platforms')
@@ -535,12 +444,8 @@ const ProfilePage = () => {
         )
         .eq('user_id', user.id)
 
-      if (checkError) {
-        console.error('Error checking existing user games:', checkError)
-        throw checkError
-      }
+      if (checkError) throw checkError
 
-      // Separate games into new ones and existing ones that need platform updates
       const newUserGames: any[] = []
       const existingGamesToUpdate: any[] = []
 
@@ -552,51 +457,30 @@ const ProfilePage = () => {
         )
 
         if (existingGame) {
-          // Game exists - check if we need to update platforms
           const currentPlatforms = existingGame.platforms || []
           const newPlatform = 'Steam'
 
-          // Only update if Steam isn't already in the platforms list
           if (!currentPlatforms.includes(newPlatform)) {
             existingGamesToUpdate.push({
               id: existingGame.id,
-              game_id: existingGame.game_id, // Include game_id to prevent not-null constraint violation
+              game_id: existingGame.game_id,
               platforms: [...currentPlatforms, newPlatform],
               updated_at: new Date().toISOString(),
             })
-            console.log(
-              `Updating platforms for existing game: ${newGame.game_id} - adding Steam`
-            )
-          } else {
-            console.log(
-              `Game ${newGame.game_id} already has Steam platform, no update needed`
-            )
           }
         } else {
-          // New game - add to insert list
           newUserGames.push(newGame)
         }
       }
 
-      // Insert new games
-      let userGamesError = null
+      // Insert and update games
       if (newUserGames.length > 0) {
         const { error } = await supabase.from('user_games').insert(newUserGames)
-        userGamesError = error
-
-        if (!error) {
-          console.log(`Added ${newUserGames.length} new games to library`)
-        }
+        if (error) throw error
       }
 
-      // Update platforms for existing games
       if (existingGamesToUpdate.length > 0) {
-        // Use individual update operations for each game to ensure RLS policies are respected
-        let updateError = null
-
         for (const game of existingGamesToUpdate) {
-          console.log(`Updating platforms for game ID: ${game.id}`)
-
           const { error } = await supabase
             .from('user_games')
             .update({
@@ -604,41 +488,29 @@ const ProfilePage = () => {
               updated_at: new Date().toISOString(),
             })
             .eq('id', game.id)
-            .eq('user_id', user.id) // Include user_id to satisfy RLS policies
+            .eq('user_id', user.id)
 
-          if (error) {
-            console.error(
-              `Error updating platforms for game ${game.id}:`,
-              error
-            )
-            updateError = error
-            break
-          }
-        }
-
-        const error = updateError
-
-        if (error) {
-          console.error('Error updating platforms for existing games:', error)
-          userGamesError = error
-        } else {
-          console.log(
-            `Updated platforms for ${existingGamesToUpdate.length} existing games`
-          )
+          if (error) throw error
         }
       }
 
-      if (userGamesError) {
-        console.error('User games link error:', userGamesError)
-        throw userGamesError
-      }
-
-      console.log('Games successfully added to library!')
-      setSelectedGames(new Set())
       await fetchUserLibrary()
+      // Show success toast for added games
+      const addToast = document.getElementById('success-toast')
+      if (addToast) addToast.classList.remove('hidden')
+      setTimeout(() => {
+        const addToast = document.getElementById('success-toast')
+        if (addToast) addToast.classList.add('hidden')
+      }, 3000)
+      setSelectedGames(new Set())
     } catch (error) {
       console.error('Error adding games to library:', error)
-      throw error
+      const errorToast = document.getElementById('error-toast')
+      if (errorToast) errorToast.classList.remove('hidden')
+      setTimeout(() => {
+        const errorToast = document.getElementById('error-toast')
+        if (errorToast) errorToast.classList.add('hidden')
+      }, 3000)
     }
   }
 
@@ -661,21 +533,13 @@ const ProfilePage = () => {
         .eq('user_id', user.id)
 
       if (error) throw error
-      console.log(
-        'Library game IDs:',
-        data.map((d) => ({
-          title: d.games?.title,
-          igdb_id: d.games?.igdb_id,
-          provider: d.games?.provider,
-        }))
-      )
+
       const normalizeTitle = (title: string) =>
         title
           .toLowerCase()
           .replace(/[^\w\s]/gi, '')
           .trim()
 
-      // Store Steam games IDs
       const gameMap = new Map<number, string[]>()
 
       data.forEach((item) => {
@@ -814,14 +678,14 @@ const ProfilePage = () => {
       {/* Success Toast */}
       <div id="success-toast" className="toast toast-top toast-end hidden">
         <div className="alert alert-success">
-          <span>Name updated successfully!</span>
+          <span>Games added to your library!</span>
         </div>
       </div>
 
       {/* Error Toast */}
       <div id="error-toast" className="toast toast-top toast-end hidden">
         <div className="alert alert-error">
-          <span>Failed to update name. Please try again.</span>
+          <span>Something went wrong while adding your games. Please try again.</span>
         </div>
       </div>
 
@@ -979,8 +843,10 @@ const ProfilePage = () => {
             <div className="card-body">
               <h2 className="card-title mb-4">Steam Games</h2>
               <p className="text-sm opacity-70 mb-4">
-                These are the games from your connected Steam account. You can add them to your Backlog Explorer library to track them here.
-                If a game is already in your library from another platform, you can still click it to include Steam as well.
+                These are the games from your connected Steam account. You can
+                add them to your Backlog Explorer library to track them here. If
+                a game is already in your library from another platform, you can
+                still click it to include Steam as well.
               </p>
               {loadingGames ? (
                 <div className="flex justify-center">
@@ -998,65 +864,71 @@ const ProfilePage = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {steamGames
                       .filter((game) =>
-                        game.name.toLowerCase().includes(searchTerm.toLowerCase())
+                        game.name
+                          .toLowerCase()
+                          .includes(searchTerm.toLowerCase())
                       )
                       .slice(0, visibleCount)
                       .map((game) => {
-                      const platforms = userLibraryGames.get(game.appId)
-                      const hasSteam = platforms?.includes('Steam')
-                      const inLibrary = Boolean(platforms)
+                        const platforms = userLibraryGames.get(game.appId)
+                        const hasSteam = platforms?.includes('Steam')
+                        const inLibrary = Boolean(platforms)
 
-                      return (
-                        <div
-                          key={game.appId}
-                          className={`card bg-base-100 shadow-sm ${
-                            hasSteam
-                              ? 'opacity-50 cursor-not-allowed'
-                              : 'cursor-pointer'
-                          } ${
-                            selectedGames.has(game.appId.toString())
-                              ? 'ring-2 ring-primary'
-                              : ''
-                          }`}
-                          onClick={() => {
-                            if (!hasSteam) {
-                              toggleGameSelection(game.appId.toString())
-                            }
-                          }}
-                        >
-                          <div className="card-body p-4">
-                            <div className="flex items-center space-x-4">
-                              <img
-                                src={game.iconUrl}
-                                alt={game.name}
-                                className="w-16 h-16 object-cover"
-                              />
-                              <div>
-                                <h3 className="font-medium">{game.name}</h3>
-                                <p className="text-sm opacity-70">
-                                  Playtime: {Math.round(game.playtime / 60)}{' '}
-                                  hours
-                                </p>
-                                {inLibrary && !hasSteam && platforms && (
-                                  <p className="text-xs opacity-60">
-                                    Owned on: {platforms.filter((p) => p !== 'Steam').join(', ')}
+                        return (
+                          <div
+                            key={game.appId}
+                            className={`card bg-base-100 shadow-sm ${
+                              hasSteam
+                                ? 'opacity-50 cursor-not-allowed'
+                                : 'cursor-pointer'
+                            } ${
+                              selectedGames.has(game.appId.toString())
+                                ? 'ring-2 ring-primary'
+                                : ''
+                            }`}
+                            onClick={() => {
+                              if (!hasSteam) {
+                                toggleGameSelection(game.appId.toString())
+                              }
+                            }}
+                          >
+                            <div className="card-body p-4">
+                              <div className="flex items-center space-x-4">
+                                <img
+                                  src={game.iconUrl}
+                                  alt={game.name}
+                                  className="w-16 h-16 object-cover"
+                                />
+                                <div>
+                                  <h3 className="font-medium">{game.name}</h3>
+                                  <p className="text-sm opacity-70">
+                                    Playtime: {Math.round(game.playtime / 60)}{' '}
+                                    hours
                                   </p>
-                                )}
-                                {hasSteam && (
-                                  <span className="badge badge-secondary text-xs px-2 py-1 rounded-full">
-                                    In library
-                                  </span>
-                                )}
+                                  {inLibrary && !hasSteam && platforms && (
+                                    <p className="text-xs opacity-60">
+                                      Owned on:{' '}
+                                      {platforms
+                                        .filter((p) => p !== 'Steam')
+                                        .join(', ')}
+                                    </p>
+                                  )}
+                                  {hasSteam && (
+                                    <span className="badge badge-secondary text-xs px-2 py-1 rounded-full">
+                                      In library
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      )
-                    })}
+                        )
+                      })}
                   </div>
-                  {visibleCount < steamGames.filter((game) =>
-                    game.name.toLowerCase().includes(searchTerm.toLowerCase())
-                  ).length && (
+                  {visibleCount <
+                    steamGames.filter((game) =>
+                      game.name.toLowerCase().includes(searchTerm.toLowerCase())
+                    ).length && (
                     <div className="mt-4 flex justify-center">
                       <button
                         className="btn btn-outline"
