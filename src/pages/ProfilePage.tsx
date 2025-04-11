@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import supabase from '../supabaseClient'
 import { useTheme } from '../contexts/ThemeContext'
 import { gameService } from '../services/gameService'
-const BASE_URL = import.meta.env.VITE_BACKLOG_EXPLORER_URL || 'http://localhost:5173';
+const BASE_URL = import.meta.env.VITE_BACKLOG_EXPLORER_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const ProfilePage = () => {
   const navigate = useNavigate()
@@ -101,7 +102,7 @@ const ProfilePage = () => {
   const handleOpenIDResponse = async () => {
     try {
       const urlParams = new URLSearchParams(window.location.search)
-      const response = await fetch('http://localhost:3001/api/verify-openid', {
+      const response = await fetch(`${API_BASE_URL}/api/verify-openid`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -130,7 +131,7 @@ const ProfilePage = () => {
         }))
 
         const gamesResponse = await fetch(
-          `http://localhost:3001/api/steam/games/${responseData.steamId}`
+          `${API_BASE_URL}/api/steam/games/${responseData.steamId}`
         )
         if (!gamesResponse.ok) {
           const gamesError = await gamesResponse.json()
