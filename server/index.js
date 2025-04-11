@@ -10,8 +10,18 @@ const app = express()
 const port = process.env.PORT || 3001
 
 // Configure CORS
+const allowedOrigins = process.env.CORS_ORIGINS
+  ? JSON.parse(process.env.CORS_ORIGINS)
+  : ['http://localhost:5173'];
+
 const corsOptions = {
-  origin: 'http://localhost:5173', // Your frontend URL
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
