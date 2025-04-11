@@ -14,7 +14,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.48.1",
     "@types/lodash": "^4.17.13",
-    "axios": "^1.6.7",
+    "axios": "^1.8.4",
     "browser-image-compression": "^2.0.2",
     "cors": "^2.8.5",
     "daisyui": "^4.12.14",
