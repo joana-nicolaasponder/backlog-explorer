@@ -27,9 +27,11 @@ dist-ssr
 .env
 .env.local
 .env.development
+.env.development.example
 .env.test
 .env.production
 .env.staging
+.env*
 
 # Local Netlify folder
 .netlify
