@@ -30,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - resolve linting issues
-- update AddGameModal to use external_id and provider fields
+- update AddGameModal to use igdb_id and provider fields
 - EditGameModal platform and mood loading in GameDetails
 
 ### Changed
