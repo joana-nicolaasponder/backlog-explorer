@@ -1,4 +1,9 @@
-import React, { useState, useEffect, useImperativeHandle, forwardRef } from 'react'
+import React, {
+  useState,
+  useEffect,
+  useImperativeHandle,
+  forwardRef,
+} from 'react'
 import { useLocation } from 'react-router-dom'
 import supabase from '../supabaseClient'
 import GameCard from '../components/GameCard'
@@ -9,12 +14,17 @@ export interface LibraryHandle {
   refreshGames: () => Promise<void>
 }
 
-const Library: React.ForwardRefRenderFunction<LibraryHandle, Record<string, never>> = (props, ref) => {
+const Library: React.ForwardRefRenderFunction<
+  LibraryHandle,
+  Record<string, never>
+> = (props, ref) => {
   const location = useLocation()
   const [filterStatus, setFilterStatus] = useState<string[]>(
     Array.isArray(location.state?.filterStatus)
       ? location.state.filterStatus
-      : location.state?.filterStatus ? [location.state.filterStatus] : []
+      : location.state?.filterStatus
+      ? [location.state.filterStatus]
+      : []
   )
   const [filterPlatform, setFilterPlatform] = useState<string>('')
   const [filterGenre, setFilterGenre] = useState<string>('')
@@ -28,7 +38,9 @@ const Library: React.ForwardRefRenderFunction<LibraryHandle, Record<string, neve
 
   useEffect(() => {
     const getCurrentUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
       if (user) {
         setUserId(user.id)
       }
@@ -43,7 +55,8 @@ const Library: React.ForwardRefRenderFunction<LibraryHandle, Record<string, neve
       // Get all games with their relationships
       const { data: userGames, error: gamesError } = await supabase
         .from('user_games')
-        .select(`
+        .select(
+          `
           id,
           status,
           progress,
@@ -55,7 +68,7 @@ const Library: React.ForwardRefRenderFunction<LibraryHandle, Record<string, neve
             background_image,
             created_at,
             provider,
-            external_id,
+            igdb_id,
             game_genres (
               genre_id,
               genres (
@@ -64,7 +77,8 @@ const Library: React.ForwardRefRenderFunction<LibraryHandle, Record<string, neve
               )
             )
           )
-        `)
+        `
+        )
         .eq('user_id', userId)
         .order('game(title)', { ascending: true })
 
@@ -74,7 +88,7 @@ const Library: React.ForwardRefRenderFunction<LibraryHandle, Record<string, neve
       }
 
       // Format games with platform and genre names
-      const formattedGames = userGames.map(userGame => ({
+      const formattedGames = userGames.map((userGame) => ({
         id: userGame.game.id,
         title: userGame.game.title,
         status: userGame.status,
@@ -82,9 +96,9 @@ const Library: React.ForwardRefRenderFunction<LibraryHandle, Record<string, neve
         image: userGame.image || userGame.game.background_image,
         created_at: userGame.game.created_at,
         platforms: userGame.platforms || [],
-        genres: userGame.game.game_genres.map(gg => gg.genres.name),
+        genres: userGame.game.game_genres.map((gg) => gg.genres.name),
         provider: userGame.game.provider || 'rawg',
-        external_id: userGame.game.external_id || 0
+        igdb_id: userGame.game.igdb_id || 0,
       }))
 
       setGames(formattedGames)
@@ -93,9 +107,9 @@ const Library: React.ForwardRefRenderFunction<LibraryHandle, Record<string, neve
       const platforms = new Set<string>()
       const genres = new Set<string>()
 
-      formattedGames.forEach(game => {
-        game.platforms?.forEach(platform => platforms.add(platform))
-        game.genres?.forEach(genre => genres.add(genre))
+      formattedGames.forEach((game) => {
+        game.platforms?.forEach((platform) => platforms.add(platform))
+        game.genres?.forEach((genre) => genres.add(genre))
       })
 
       setPlatformOptions(Array.from(platforms).sort())
@@ -107,7 +121,7 @@ const Library: React.ForwardRefRenderFunction<LibraryHandle, Record<string, neve
 
   // Expose the refresh function through the ref
   useImperativeHandle(ref, () => ({
-    refreshGames: fetchGames
+    refreshGames: fetchGames,
   }))
 
   useEffect(() => {
@@ -128,13 +142,14 @@ const Library: React.ForwardRefRenderFunction<LibraryHandle, Record<string, neve
           'Owned',
           'Come back!',
           'Currently Playing',
-          'Done'
+          'Done',
         ])
 
         // Get all games with their relationships
         const { data: userGames, error: gamesError } = await supabase
           .from('user_games')
-          .select(`
+          .select(
+            `
             id,
             status,
             progress,
@@ -146,7 +161,7 @@ const Library: React.ForwardRefRenderFunction<LibraryHandle, Record<string, neve
               background_image,
               created_at,
               provider,
-              external_id,
+              igdb_id,
               game_genres (
                 genre_id,
                 genres (
@@ -155,7 +170,8 @@ const Library: React.ForwardRefRenderFunction<LibraryHandle, Record<string, neve
                 )
               )
             )
-          `)
+          `
+          )
           .eq('user_id', userId)
           .order('game(title)', { ascending: true })
 
@@ -165,7 +181,7 @@ const Library: React.ForwardRefRenderFunction<LibraryHandle, Record<string, neve
         }
 
         // Format games with platform and genre names
-        let formattedGames = userGames.map(userGame => ({
+        let formattedGames = userGames.map((userGame) => ({
           id: userGame.game.id,
           title: userGame.game.title,
           status: userGame.status,
@@ -173,44 +189,44 @@ const Library: React.ForwardRefRenderFunction<LibraryHandle, Record<string, neve
           image: userGame.image || userGame.game.background_image,
           created_at: userGame.game.created_at,
           platforms: userGame.platforms || [],
-          genres: userGame.game.game_genres.map(gg => gg.genres.name),
+          genres: userGame.game.game_genres.map((gg) => gg.genres.name),
           provider: userGame.game.provider || 'rawg',
-          external_id: userGame.game.external_id || 0
+          igdb_id: userGame.game.igdb_id || 0,
         }))
 
         // Extract unique platform names
-        const platformNames = Array.from(new Set(
-          formattedGames.flatMap(game => game.platforms)
-        )).sort()
+        const platformNames = Array.from(
+          new Set(formattedGames.flatMap((game) => game.platforms))
+        ).sort()
         setPlatformOptions(platformNames)
 
         // Extract unique genre names
-        const genreNames = Array.from(new Set(
-          formattedGames.flatMap(game => game.genres)
-        )).sort()
+        const genreNames = Array.from(
+          new Set(formattedGames.flatMap((game) => game.genres))
+        ).sort()
         setGenreOptions(genreNames)
 
         // Apply filters
         if (filterPlatform) {
-          formattedGames = formattedGames.filter(game =>
+          formattedGames = formattedGames.filter((game) =>
             game.platforms.includes(filterPlatform)
           )
         }
 
         if (filterGenre) {
-          formattedGames = formattedGames.filter(game =>
+          formattedGames = formattedGames.filter((game) =>
             game.genres.includes(filterGenre)
           )
         }
 
         if (filterStatus.length > 0) {
-          formattedGames = formattedGames.filter(game =>
+          formattedGames = formattedGames.filter((game) =>
             filterStatus.includes(game.status)
           )
         }
 
         if (searchQuery) {
-          formattedGames = formattedGames.filter(game =>
+          formattedGames = formattedGames.filter((game) =>
             game.title.toLowerCase().includes(searchQuery.toLowerCase())
           )
         }
@@ -254,7 +270,14 @@ const Library: React.ForwardRefRenderFunction<LibraryHandle, Record<string, neve
     if (userId) {
       fetchOptions()
     }
-  }, [userId, filterStatus, filterPlatform, filterGenre, sortOrder, searchQuery])
+  }, [
+    userId,
+    filterStatus,
+    filterPlatform,
+    filterGenre,
+    sortOrder,
+    searchQuery,
+  ])
 
   return (
     <div className="container mx-auto p-4">
@@ -263,9 +286,14 @@ const Library: React.ForwardRefRenderFunction<LibraryHandle, Record<string, neve
         <div className="flex flex-wrap gap-4">
           <div className="dropdown dropdown-hover">
             <div tabIndex={0} role="button" className="btn m-1">
-              {filterStatus.length === 0 ? 'All Statuses' : `${filterStatus.length} Selected`}
+              {filterStatus.length === 0
+                ? 'All Statuses'
+                : `${filterStatus.length} Selected`}
             </div>
-            <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
+            <ul
+              tabIndex={0}
+              className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52"
+            >
               {statusOptions.map((status) => (
                 <li key={status}>
                   <label className="label cursor-pointer justify-start gap-2">
@@ -277,7 +305,9 @@ const Library: React.ForwardRefRenderFunction<LibraryHandle, Record<string, neve
                         if (e.target.checked) {
                           setFilterStatus([...filterStatus, status])
                         } else {
-                          setFilterStatus(filterStatus.filter(s => s !== status))
+                          setFilterStatus(
+                            filterStatus.filter((s) => s !== status)
+                          )
                         }
                       }}
                     />
@@ -332,11 +362,7 @@ const Library: React.ForwardRefRenderFunction<LibraryHandle, Record<string, neve
           onClear={() => setSearchQuery('')}
         />
       </div>
-      <GameCard
-        games={games}
-        userId={userId}
-        onRefresh={() => {}}
-      />
+      <GameCard games={games} userId={userId} onRefresh={() => {}} />
     </div>
   )
 }
