@@ -3,7 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import supabase from '../supabaseClient'
 import { useTheme } from '../contexts/ThemeContext'
 import { gameService } from '../services/gameService'
-const BASE_URL = import.meta.env.VITE_BACKLOG_EXPLORER_URL // Frontend URL only; do not use for backend requests.
+const BASE_URL =
+  import.meta.env.MODE === 'development'
+    ? 'http://localhost:5173'
+    : import.meta.env.VITE_BACKLOG_EXPLORER_URL
 const API_BASE_URL = import.meta.env.VITE_API_URL
 
 const ProfilePage = () => {
@@ -122,9 +125,9 @@ const ProfilePage = () => {
   }
 
   const handleOpenIDResponse = async () => {
+    setLoadingGames(true) // ✅ Start loading spinner
     try {
       const urlParams = new URLSearchParams(window.location.search)
-      console.log('API_BASE_URL:', API_BASE_URL)
 
       const response = await fetch(`${API_BASE_URL}/api/verify-openid`, {
         method: 'POST',
@@ -154,7 +157,6 @@ const ProfilePage = () => {
           profileUrl: responseData.profileUrl,
         }))
 
-
         const gamesResponse = await fetch(
           `${API_BASE_URL}/api/steam/games/${responseData.steamId}`
         )
@@ -168,6 +170,8 @@ const ProfilePage = () => {
     } catch (error) {
       console.error('Error handling OpenID response:', error)
       setError(error.message || 'Failed to handle OpenID response')
+    } finally {
+      setLoadingGames(false) // ✅ Stop loading spinner
     }
   }
 
@@ -560,11 +564,11 @@ const ProfilePage = () => {
     try {
       const { data, error } = await supabase
         .from('user_games')
-        .select(
+      .select(
           `
           game_id,
           platforms,
-          games (
+          games:game_id (
             id,
             igdb_id,
             provider,
@@ -622,7 +626,6 @@ const ProfilePage = () => {
     const urlParams = new URLSearchParams(window.location.search)
     // Check if we have an OpenID response from Steam
     if (urlParams.has('openid.claimed_id')) {
-      console.log('Detected OpenID response, handling...') // Debug log
       handleOpenIDResponse()
     }
   }, [])
@@ -853,7 +856,11 @@ const ProfilePage = () => {
         <div className="card bg-base-200 shadow-xl mb-8">
           <div className="card-body">
             <h2 className="card-title mb-4">Steam Connection</h2>
-            {steamGames.length > 0 ? (
+            {loadingGames ? (
+              <div className="flex justify-center">
+                <div className="loading loading-spinner loading-lg"></div>
+              </div>
+            ) : steamGames.length > 0 ? (
               <div className="space-y-4">
                 <div className="flex items-center gap-4">
                   <div className="flex-1">
@@ -987,11 +994,6 @@ const ProfilePage = () => {
                       <button
                         className="btn btn-primary"
                         onClick={() => {
-                          console.log('Add button clicked (first section)')
-                          console.log(
-                            'Selected games at click:',
-                            Array.from(selectedGames)
-                          )
                           addSelectedGamesToLibrary()
                         }}
                       >
