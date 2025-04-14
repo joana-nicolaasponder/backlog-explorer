@@ -8,7 +8,9 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
-export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [theme, setThemeState] = useState('dark') // Default theme
 
   useEffect(() => {
@@ -21,10 +23,10 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     // Then try to load from user preferences in database
     const loadUserTheme = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      console.log('Current Supabase user:', user)
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
       const session = await supabase.auth.getSession()
-      console.log('Current Supabase session:', session)
 
       if (user) {
         const { data: preferences, error } = await supabase
@@ -32,7 +34,6 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           .select('theme')
           .maybeSingle()
 
-        console.log('Fetched user preferences:', preferences)
         if (error) {
           console.error('Error loading user preferences:', error)
         }
@@ -50,7 +51,9 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const setTheme = async (newTheme: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
       if (!user) throw new Error('No user logged in')
 
       // Update theme in database
