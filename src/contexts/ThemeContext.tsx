@@ -22,12 +22,20 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Then try to load from user preferences in database
     const loadUserTheme = async () => {
       const { data: { user } } = await supabase.auth.getUser()
+      console.log('Current Supabase user:', user)
+      const session = await supabase.auth.getSession()
+      console.log('Current Supabase session:', session)
+
       if (user) {
-        const { data: preferences } = await supabase
+        const { data: preferences, error } = await supabase
           .from('user_preferences')
           .select('theme')
-          .eq('user_id', user.id)
-          .single()
+          .maybeSingle()
+
+        console.log('Fetched user preferences:', preferences)
+        if (error) {
+          console.error('Error loading user preferences:', error)
+        }
 
         if (preferences?.theme) {
           setThemeState(preferences.theme)
