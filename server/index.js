@@ -9,6 +9,9 @@ const { supabase, upsertGame } = require('./supabase')
 const app = express()
 const port = process.env.PORT || 3001
 
+app.use(express.json())
+app.use(express.urlencoded({ extended: true }))
+
 // Configure CORS
 // Configure CORS
 const allowedOrigins = process.env.CORS_ORIGINS
