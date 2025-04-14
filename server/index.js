@@ -4,21 +4,33 @@ const fetch = require('node-fetch')
 require('dotenv').config()
 const axios = require('axios')
 const querystring = require('querystring')
-const supabase = require('./supabase')
+const { supabase, upsertGame } = require('./supabase')
 
 const app = express()
 const port = process.env.PORT || 3001
 
 // Configure CORS
+// Configure CORS
+const allowedOrigins = process.env.CORS_ORIGINS
+  ? JSON.parse(process.env.CORS_ORIGINS)
+  : ['http://localhost:5173', 'https://backlogexplorer.com']
+
+console.log('⚙️ Final allowedOrigins:', allowedOrigins)
+
 const corsOptions = {
-  origin: 'http://localhost:5173', // Your frontend URL
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true)
+    } else {
+      callback(new Error('Not allowed by CORS'))
+    }
+  },
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
 }
 
 app.use(cors(corsOptions))
-app.use(express.json())
 
 // IGDB API endpoints
 const IGDB_API_URL = 'https://api.igdb.com/v4'
@@ -43,6 +55,18 @@ app.post('/api/igdb/:endpoint', async (req, res) => {
     if (!igdbEndpoint) {
       throw new Error(`Invalid endpoint: ${endpoint}`)
     }
+
+    console.log('TWITCH_CLIENT_ID:', process.env.TWITCH_CLIENT_ID)
+    console.log(
+      'TWITCH_APP_ACCESS_TOKEN:',
+      process.env.TWITCH_APP_ACCESS_TOKEN?.slice(0, 10)
+    )
+    console.log('👉 IGDB Request:', {
+      endpoint: igdbEndpoint,
+      query,
+      clientId: process.env.TWITCH_CLIENT_ID,
+      hasAccessToken: !!process.env.TWITCH_APP_ACCESS_TOKEN,
+    })
 
     const response = await fetch(`${IGDB_API_URL}/${igdbEndpoint}`, {
       method: 'POST',
@@ -124,7 +148,6 @@ app.get('/api/steam/games/:steamId', async (req, res) => {
   try {
     const { steamId } = req.params
 
-    // Get owned games from Steam API
     const response = await axios.get(
       `${STEAM_API_URL}/IPlayerService/GetOwnedGames/v1/`,
       {
@@ -138,22 +161,62 @@ app.get('/api/steam/games/:steamId', async (req, res) => {
     )
 
     const { games } = response.data.response
+    if (!games) return res.json([])
 
-    if (!games) {
-      return res.json([])
-    }
+    const enrichedGames = []
+    const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
-    const enrichedGames = await Promise.all(
-      games.map(async (game) => {
-        const baseGame = {
-          appId: game.appid,
-          name: game.name,
-          playtime: game.playtime_forever,
-          iconUrl: `http://media.steampowered.com/steamcommunity/public/images/apps/${game.appid}/${game.img_icon_url}.jpg`,
-          lastPlayed: game.rtime_last_played,
-        };
+    for (const game of games) {
+      console.log('➡️ Checking game:', game.name, game.appid)
 
-        try {
+      const baseGame = {
+        appId: game.appid,
+        name: game.name,
+        playtime: game.playtime_forever,
+        iconUrl: `http://media.steampowered.com/steamcommunity/public/images/apps/${game.appid}/${game.img_icon_url}.jpg`,
+        lastPlayed: game.rtime_last_played,
+      }
+
+      try {
+        // Check if the game already exists
+        const { data: existingGames, error } = await supabase
+          .from('games')
+          .select('*')
+          .eq('steam_app_id', game.appid)
+          .limit(1)
+
+        let dbGame
+
+        if (error) throw error
+
+        if (existingGames.length > 0) {
+          dbGame = existingGames[0]
+        } else {
+          // Enrich via IGDB
+          await delay(1000) // throttle IGDB to 1 request per second
+          console.log(`⏳ Enriching from IGDB: ${game.name}`)
+          console.log('🔍 IGDB fetch from /steam/games:')
+
+          console.log('🚨 Debug IGDB Request')
+          console.log(
+            'TWITCH_CLIENT_ID (from env):',
+            process.env.TWITCH_CLIENT_ID
+          )
+          console.log(
+            'TWITCH_APP_ACCESS_TOKEN (first 10 chars):',
+            process.env.TWITCH_APP_ACCESS_TOKEN?.slice(0, 10)
+          )
+          console.log(
+            'IGDB query:',
+            `search "${game.name}"; fields id,name,summary,cover.url; limit 1;`
+          )
+
+          console.log(
+            '🔑 Supabase Key from env:',
+            process.env.SUPABASE_SERVICE_ROLE_KEY?.slice(0, 10)
+          )
+          console.log('🪪 Supabase URL from env:', process.env.SUPABASE_URL)
+
           const igdbResponse = await fetch(`${IGDB_API_URL}/games`, {
             method: 'POST',
             headers: {
@@ -163,30 +226,52 @@ app.get('/api/steam/games/:steamId', async (req, res) => {
               'Content-Type': 'text/plain',
             },
             body: `search "${game.name}"; fields id,name,summary,cover.url; limit 1;`,
-          });
+          })
 
+          let igdbData = []
           if (igdbResponse.ok) {
-            const igdbData = await igdbResponse.json();
-            if (igdbData.length > 0) {
-              const match = igdbData[0];
-              return {
-                ...baseGame,
-                igdb_id: match.id,
-                description: match.summary || null,
-                background_image: match.cover?.url || null,
-              };
-            }
+            igdbData = await igdbResponse.json()
           }
-        } catch (err) {
-          console.error(`Error fetching IGDB data for ${game.name}:`, err);
+
+          const match = igdbData[0]
+
+          const insertGame = {
+            title: game.name,
+            steam_app_id: game.appid,
+            description: match?.summary || null,
+            background_image: match?.cover?.url || null,
+            igdb_id: match?.id || null,
+            provider: 'steam',
+            created_at: new Date().toISOString(),
+          }
+
+          const { data: newGames, error: insertError } = await supabase
+            .from('games')
+            .insert(insertGame)
+            .select()
+
+          if (insertError) throw insertError
+          dbGame = newGames[0]
         }
 
-        return baseGame;
-      })
-    );
+        enrichedGames.push({
+          ...baseGame,
+          igdb_id: dbGame.igdb_id,
+          description: dbGame.description,
+          background_image: dbGame.background_image,
+        })
+      } catch (err) {
+        console.error(`❌ Error enriching ${game.name}:`, {
+          message: err.message,
+          stack: err.stack,
+          ...(err.response?.data && { response: err.response.data }),
+        })
+        enrichedGames.push(baseGame)
+      }
+    }
 
-    enrichedGames.sort((a, b) => b.playtime - a.playtime);
-    res.json(enrichedGames);
+    enrichedGames.sort((a, b) => b.playtime - a.playtime)
+    res.json(enrichedGames)
   } catch (error) {
     console.error('Error fetching Steam games:', error)
     res.status(500).json({ error: 'Failed to fetch Steam games' })
@@ -210,6 +295,10 @@ app.post('/api/steam/add-games', async (req, res) => {
           description: game.description || null,
           igdb_id: game.igdb_id || null,
           provider: 'steam',
+          rawg_id: game.rawg_id || null,
+          rawg_slug: game.rawg_slug || null,
+          metacritic_rating: game.metacritic_rating || null,
+          release_date: game.release_date || null,
         })),
         { onConflict: 'steam_app_id' }
       )

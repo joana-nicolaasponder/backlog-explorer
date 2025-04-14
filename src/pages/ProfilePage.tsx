@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import supabase from '../supabaseClient'
 import { useTheme } from '../contexts/ThemeContext'
 import { gameService } from '../services/gameService'
-const BASE_URL = import.meta.env.VITE_BACKLOG_EXPLORER_URL;
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const BASE_URL = import.meta.env.VITE_BACKLOG_EXPLORER_URL // Frontend URL only; do not use for backend requests.
+const API_BASE_URL = import.meta.env.VITE_API_URL
 
 const ProfilePage = () => {
   const navigate = useNavigate()
@@ -39,6 +39,28 @@ const ProfilePage = () => {
         if (currentUser) {
           setUser(currentUser)
           setEditedName(currentUser.user_metadata?.full_name || '')
+
+          const { data: existingPreferences, error: prefError } = await supabase
+            .from('user_preferences')
+            .select('id')
+            .maybeSingle()
+
+          if (!existingPreferences && !prefError) {
+            const { error: insertPrefError } = await supabase
+              .from('user_preferences')
+              .insert({
+                user_id: currentUser.id,
+                theme: 'pastel',
+                updated_at: new Date().toISOString(),
+              })
+
+            if (insertPrefError) {
+              console.error(
+                'Error inserting default user preferences:',
+                insertPrefError
+              )
+            }
+          }
         }
       } catch (error) {
         console.error('Error loading profile:', error)
@@ -102,6 +124,8 @@ const ProfilePage = () => {
   const handleOpenIDResponse = async () => {
     try {
       const urlParams = new URLSearchParams(window.location.search)
+      console.log('API_BASE_URL:', API_BASE_URL)
+
       const response = await fetch(`${API_BASE_URL}/api/verify-openid`, {
         method: 'POST',
         headers: {
@@ -129,6 +153,7 @@ const ProfilePage = () => {
           avatar: responseData.avatar,
           profileUrl: responseData.profileUrl,
         }))
+
 
         const gamesResponse = await fetch(
           `${API_BASE_URL}/api/steam/games/${responseData.steamId}`
@@ -279,7 +304,23 @@ const ProfilePage = () => {
             const searchResult = await gameService.searchGames(game.name)
 
             if (searchResult.results.length > 0) {
-              const igdbGame = searchResult.results[0]
+              const normalizedName = (str: string) =>
+                str
+                  .toLowerCase()
+                  .replace(/[^\w\s]/gi, '')
+                  .trim()
+
+              const exactMatch = searchResult.results.find(
+                (g) => normalizedName(g.name) === normalizedName(game.name)
+              )
+
+              if (!exactMatch) {
+                console.warn(
+                  `⚠️ No exact match for "${game.name}". Using first IGDB result: "${searchResult.results[0].name}"`
+                )
+              }
+
+              const igdbGame = exactMatch || searchResult.results[0]
               const genres =
                 igdbGame.genres?.map((genre) => ({
                   name: genre.name,
@@ -686,7 +727,9 @@ const ProfilePage = () => {
       {/* Error Toast */}
       <div id="error-toast" className="toast toast-top toast-end hidden">
         <div className="alert alert-error">
-          <span>Something went wrong while adding your games. Please try again.</span>
+          <span>
+            Something went wrong while adding your games. Please try again.
+          </span>
         </div>
       </div>
 
