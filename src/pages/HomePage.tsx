@@ -11,6 +11,8 @@ interface Game {
   platforms: string[]
   genres: string[]
   status: string
+  nextIntent?: string
+  nextNote?: string
 }
 
 const HomePage = () => {
@@ -31,56 +33,36 @@ const HomePage = () => {
           return
         }
 
-        // Get user's name from metadata
         const firstName = user.user_metadata?.full_name?.split(' ')[0] || ''
         setUserName(firstName)
 
-        // First check if user has any games at all
+        // Check if user has any games at all
         const { count: totalGames } = await supabase
           .from('user_games')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', user.id)
 
-        // Only show onboarding if user has no games at all
         setShowOnboarding(totalGames === 0)
 
-        // Then get currently playing games for display
+        // Fetch from the view
         const { data: games, error } = await supabase
-          .from('user_games')
-          .select(
-            `
-            id,
-            status,
-            progress,
-            platforms,
-            image,
-            game:games!user_games_game_id_fkey (
-              id,
-              title,
-              background_image,
-              game_genres (
-                genres (
-                  name
-                )
-              )
-            )
-          `
-          )
+          .from('currently_playing_with_latest_note')
+          .select('*')
           .eq('user_id', user.id)
-          .eq('status', 'Currently Playing')
 
         if (error) throw error
 
-        // Transform the data to match the expected format
         const formattedGames =
-          games?.map((userGame) => ({
-            id: userGame.game.id,
-            title: userGame.game.title,
-            image: userGame.image || userGame.game.background_image,
-            progress: userGame.progress,
-            platforms: userGame.platforms || [],
-            genres: userGame.game.game_genres.map(gg => gg.genres.name),
-            status: userGame.status,
+          games?.map((g) => ({
+            id: g.game_id,
+            title: g.title,
+            image: g.image || g.background_image,
+            progress: g.progress,
+            platforms: g.platforms || [],
+            genres: [], // Remove genre handling for now or adjust if your view includes it
+            status: g.status,
+            nextIntent: g.next_session_plan?.intent || '',
+            nextNote: g.next_session_plan?.note || '',
           })) || []
 
         setCurrentGames(formattedGames)
@@ -167,6 +149,17 @@ const HomePage = () => {
                         </span>
                       ))}
                     </div>
+                    {(game.nextIntent || game.nextNote) && (
+                      <div className="mt-2 text-sm">
+                        <p>
+                          <span className="font-medium">🎯 Next Up:</span>{' '}
+                          {game.nextIntent}
+                        </p>
+                        {game.nextNote && (
+                          <p className="text-xs opacity-70">📝 {game.nextNote}</p>
+                        )}
+                      </div>
+                    )}
                     <div className="w-full bg-base-200 rounded-full overflow-hidden">
                       <div
                         className="bg-primary rounded-full h-2 transition-all duration-300"

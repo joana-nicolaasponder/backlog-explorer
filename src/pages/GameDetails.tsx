@@ -998,15 +998,23 @@ const GameDetails = () => {
 
   const getMoodEmoji = (mood: GameNote['mood']) => {
     const emojiMap = {
+      Amazing: '🤩',
+      Great: '😊',
+      Good: '🙂',
+      Relaxing: '😌',
+      Mixed: '🤔',
+      Frustrating: '😤',
+      Meh: '😕',
+      Regret: '😫',
+      // Legacy values
       Excited: '🤩',
       Satisfied: '😊',
-      Frustrated: '😤',
       Confused: '🤔',
       Nostalgic: '🥹',
       Impressed: '😯',
       Disappointed: '😕',
     }
-    return mood ? emojiMap[mood] : ''
+    return mood ? emojiMap[mood] || '' : ''
   }
 
   const getRatingStars = (rating: number | null) => {
@@ -1339,7 +1347,22 @@ const GameDetails = () => {
                       </button>
                     </div>
                   </div>
-                  <p className="mt-2 whitespace-pre-wrap">{note.content}</p>
+                      <p className="mt-2 whitespace-pre-wrap">{note.content}</p>
+                      {(note.next_session_plan?.intent || note.next_session_plan?.note) && (
+                        <div className="mt-4 bg-base-200 p-3 rounded-lg">
+                          <h4 className="font-semibold mb-1">🎯 Next Time</h4>
+                          {note.next_session_plan.intent && (
+                            <p className="text-sm">
+                              <span className="font-medium">Plan:</span> {note.next_session_plan.intent}
+                            </p>
+                          )}
+                          {note.next_session_plan.note && (
+                            <p className="text-sm mt-1">
+                              <span className="font-medium">Note:</span> {note.next_session_plan.note}
+                            </p>
+                          )}
+                        </div>
+                      )}
 
                   {/* Screenshots */}
                   {note.screenshots && note.screenshots.length > 0 && (
