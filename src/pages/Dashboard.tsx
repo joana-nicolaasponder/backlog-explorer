@@ -125,11 +125,13 @@ const Dashboard = () => {
         // Count genre occurrences
         const genreCounts = userGames.reduce(
           (acc: { [key: string]: number }, userGame) => {
-            if (userGame.games?.game_genres) {
+            if (userGame.games && Array.isArray(userGame.games.game_genres)) {
               userGame.games.game_genres.forEach((gg) => {
                 const genreName = gg.genres.name
                 acc[genreName] = (acc[genreName] || 0) + 1
               })
+            } else {
+              console.warn('Missing or invalid game_genres for userGame:', userGame)
             }
             return acc
           },
@@ -162,11 +164,13 @@ const Dashboard = () => {
         // Count mood occurrences
         const moodCounts = userGames.reduce(
           (acc: { [key: string]: number }, userGame) => {
-            if (userGame.games?.game_moods) {
+            if (userGame.games && Array.isArray(userGame.games.game_moods)) {
               userGame.games.game_moods.forEach((gm) => {
                 const moodName = gm.moods.name
                 acc[moodName] = (acc[moodName] || 0) + 1
               })
+            } else {
+              console.warn('Missing or invalid game_moods for userGame:', userGame)
             }
             return acc
           },
