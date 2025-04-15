@@ -41,6 +41,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Fetch tags
+        run: git fetch --tags
+
       - name: Get previous tag
         id: previoustag
         uses: WyriHaximus/github-action-get-previous-tag@v1
@@ -51,7 +54,7 @@ jobs:
         id: changelog
         run: |
           # Get the latest tag
-          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "1.0.0")
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
           
           # Get commit messages since last tag
           COMMITS=$(git log --pretty=format:"%s" $LATEST_TAG..HEAD)
@@ -62,6 +65,12 @@ jobs:
           MINOR=${VERSION_PARTS[1]}
           PATCH=$((VERSION_PARTS[2] + 1))
           NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+          
+          # Check if the tag already exists
+          if git rev-parse "v$NEW_VERSION" >/dev/null 2>&1; then
+            echo "❌ Tag v$NEW_VERSION already exists. Skipping changelog update."
+            exit 0
+          fi
           
           # Generate changelog entry
           DATE=$(date +%Y-%m-%d)
