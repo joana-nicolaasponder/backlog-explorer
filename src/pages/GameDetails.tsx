@@ -540,7 +540,7 @@ const GameDetails = () => {
           progress,
           platforms,
           image,
-          game:games (
+          game:games!user_games_game_id_fkey (
             id,
             title,
             igdb_id,

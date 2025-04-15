@@ -55,7 +55,7 @@ const Dashboard = () => {
             game_id,
             updated_at,
             platforms,
-            games!inner (
+            games!user_games_game_id_fkey (
               id,
               title,
               game_genres!inner (
