@@ -49,6 +49,7 @@ const HomePage = () => {
           .from('currently_playing_with_latest_note')
           .select('*')
           .eq('user_id', user.id)
+          .order('note_created_at', { ascending: false, nullsFirst: false })
 
         if (error) throw error
 
@@ -137,14 +138,20 @@ const HomePage = () => {
                     <h3 className="card-title">{game.title}</h3>
                     <div className="flex gap-2 flex-wrap mb-2">
                       {game.platforms.map((platform, index) => (
-                        <span key={`${game.id}-${platform}-${index}`} className="badge badge-outline">
+                        <span
+                          key={`${game.id}-${platform}-${index}`}
+                          className="badge badge-outline"
+                        >
                           {platform}
                         </span>
                       ))}
                     </div>
                     <div className="flex gap-2 flex-wrap mb-4">
                       {game.genres.map((genre, index) => (
-                        <span key={`${game.id}-${genre}-${index}`} className="badge badge-accent">
+                        <span
+                          key={`${game.id}-${genre}-${index}`}
+                          className="badge badge-accent"
+                        >
                           {genre}
                         </span>
                       ))}
@@ -156,7 +163,9 @@ const HomePage = () => {
                           {game.nextIntent}
                         </p>
                         {game.nextNote && (
-                          <p className="text-xs opacity-70">📝 {game.nextNote}</p>
+                          <p className="text-xs opacity-70">
+                            📝 {game.nextNote}
+                          </p>
                         )}
                       </div>
                     )}
