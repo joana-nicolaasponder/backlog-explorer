@@ -562,7 +562,6 @@ const ProfilePage = () => {
 
   const fetchUserLibrary = async () => {
     try {
-      console.log('Fetching user games with embedded relationship')
       const { data, error } = await supabase
         .from('user_games')
         .select(
