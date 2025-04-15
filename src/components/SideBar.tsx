@@ -18,19 +18,19 @@ const SideBar = ({ onLogout, onAddGame }: SideBarProps) => {
           onClick={() => setIsOpen(!isOpen)}
           className="btn btn-circle btn-ghost"
         >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          className="inline-block w-5 h-5 stroke-current"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            d="M4 6h16M4 12h16M4 18h16"
-          ></path>
-        </svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            className="inline-block w-5 h-5 stroke-current"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M4 6h16M4 12h16M4 18h16"
+            ></path>
+          </svg>
         </button>
         <h1 className="text-2xl font-bold">Backlog Explorer</h1>
         <div className="w-10"></div> {/* Spacer to center the title */}
@@ -163,6 +163,30 @@ const SideBar = ({ onLogout, onAddGame }: SideBarProps) => {
                 />
               </svg>
               <span>Send Feedback</span>
+            </Link>
+
+            <Link
+              to="/app/mood-recommendations"
+              className={`flex items-center space-x-2 p-2 rounded-lg hover:bg-base-200 ${
+                location.pathname === '/app/mood-recommendations'
+                  ? 'bg-base-200'
+                  : ''
+              }`}
+              onClick={() => setIsOpen(false)}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 100-2 1 1 0 000 2zm7-1a1 1 0 11-2 0 1 1 0 012 0zm-.464 5.535a1 1 0 10-1.415-1.414 3 3 0 01-4.242 0 1 1 0 00-1.415 1.414 5 5 0 007.072 0z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <span>Mood Recommendations</span>
             </Link>
           </nav>
         </div>
@@ -308,6 +332,30 @@ const SideBar = ({ onLogout, onAddGame }: SideBarProps) => {
                     />
                   </svg>
                   <span>Send Feedback</span>
+                </Link>
+
+                <Link
+                  to="/app/mood-recommendations"
+                  className={`flex items-center space-x-2 p-2 rounded-lg hover:bg-base-200 ${
+                    location.pathname === '/app/mood-recommendations'
+                      ? 'bg-base-200'
+                      : ''
+                  }`}
+                  onClick={() => setIsOpen(false)}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 100-2 1 1 0 000 2zm7-1a1 1 0 11-2 0 1 1 0 012 0zm-.464 5.535a1 1 0 10-1.415-1.414 3 3 0 01-4.242 0 1 1 0 00-1.415 1.414 5 5 0 007.072 0z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <span>Mood Recommendations</span>
                 </Link>
               </nav>
             </div>
