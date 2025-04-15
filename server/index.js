@@ -13,12 +13,9 @@ app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
 // Configure CORS
-// Configure CORS
 const allowedOrigins = process.env.CORS_ORIGINS
   ? JSON.parse(process.env.CORS_ORIGINS)
   : ['http://localhost:5173', 'https://backlogexplorer.com']
-
-console.log('⚙️ Final allowedOrigins:', allowedOrigins)
 
 const corsOptions = {
   origin: (origin, callback) => {
@@ -59,18 +56,6 @@ app.post('/api/igdb/:endpoint', async (req, res) => {
       throw new Error(`Invalid endpoint: ${endpoint}`)
     }
 
-    console.log('TWITCH_CLIENT_ID:', process.env.TWITCH_CLIENT_ID)
-    console.log(
-      'TWITCH_APP_ACCESS_TOKEN:',
-      process.env.TWITCH_APP_ACCESS_TOKEN?.slice(0, 10)
-    )
-    console.log('👉 IGDB Request:', {
-      endpoint: igdbEndpoint,
-      query,
-      clientId: process.env.TWITCH_CLIENT_ID,
-      hasAccessToken: !!process.env.TWITCH_APP_ACCESS_TOKEN,
-    })
-
     const response = await fetch(`${IGDB_API_URL}/${igdbEndpoint}`, {
       method: 'POST',
       headers: {
@@ -84,14 +69,14 @@ app.post('/api/igdb/:endpoint', async (req, res) => {
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('IGDB Error Response:', errorText)
-      throw new Error(`IGDB API error: ${response.statusText} - ${errorText}`)
+      console.error('IGDB API error:', response.statusText)
+      throw new Error(`IGDB API error: ${response.statusText}`)
     }
 
     const data = await response.json()
     res.json(data)
   } catch (error) {
-    console.error('Error proxying IGDB request:', error)
+    console.error('Error proxying IGDB request:', error.message)
     res.status(500).json({ error: error.message })
   }
 })
@@ -138,7 +123,7 @@ app.post('/api/verify-openid', async (req, res) => {
       profileUrl: userData.profileurl,
     })
   } catch (error) {
-    console.error('Error in verify-openid:', error)
+    console.error('Error in verify-openid:', error.message)
     res.status(500).json({
       error: 'Failed to verify Steam OpenID response',
       details: error.message,
@@ -170,8 +155,6 @@ app.get('/api/steam/games/:steamId', async (req, res) => {
     const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
     for (const game of games) {
-      console.log('➡️ Checking game:', game.name, game.appid)
-
       const baseGame = {
         appId: game.appid,
         name: game.name,
@@ -197,28 +180,6 @@ app.get('/api/steam/games/:steamId', async (req, res) => {
         } else {
           // Enrich via IGDB
           await delay(1000) // throttle IGDB to 1 request per second
-          console.log(`⏳ Enriching from IGDB: ${game.name}`)
-          console.log('🔍 IGDB fetch from /steam/games:')
-
-          console.log('🚨 Debug IGDB Request')
-          console.log(
-            'TWITCH_CLIENT_ID (from env):',
-            process.env.TWITCH_CLIENT_ID
-          )
-          console.log(
-            'TWITCH_APP_ACCESS_TOKEN (first 10 chars):',
-            process.env.TWITCH_APP_ACCESS_TOKEN?.slice(0, 10)
-          )
-          console.log(
-            'IGDB query:',
-            `search "${game.name}"; fields id,name,summary,cover.url; limit 1;`
-          )
-
-          console.log(
-            '🔑 Supabase Key from env:',
-            process.env.SUPABASE_SERVICE_ROLE_KEY?.slice(0, 10)
-          )
-          console.log('🪪 Supabase URL from env:', process.env.SUPABASE_URL)
 
           const igdbResponse = await fetch(`${IGDB_API_URL}/games`, {
             method: 'POST',
@@ -264,11 +225,7 @@ app.get('/api/steam/games/:steamId', async (req, res) => {
           background_image: dbGame.background_image,
         })
       } catch (err) {
-        console.error(`❌ Error enriching ${game.name}:`, {
-          message: err.message,
-          stack: err.stack,
-          ...(err.response?.data && { response: err.response.data }),
-        })
+        console.error(`Error enriching game ${game.name}:`, err.message)
         enrichedGames.push(baseGame)
       }
     }
@@ -276,7 +233,7 @@ app.get('/api/steam/games/:steamId', async (req, res) => {
     enrichedGames.sort((a, b) => b.playtime - a.playtime)
     res.json(enrichedGames)
   } catch (error) {
-    console.error('Error fetching Steam games:', error)
+    console.error('Error fetching Steam games:', error.message)
     res.status(500).json({ error: 'Failed to fetch Steam games' })
   }
 })
@@ -327,7 +284,7 @@ app.post('/api/steam/add-games', async (req, res) => {
 
     res.json({ success: true, gamesAdded: insertedGames.length })
   } catch (error) {
-    console.error('Error adding games to library:', error)
+    console.error('Error adding games to library:', error.message)
     res.status(500).json({ error: error.message })
   }
 })
