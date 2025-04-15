@@ -58,18 +58,18 @@ const Dashboard = () => {
             games!user_games_game_id_fkey (
               id,
               title,
-              game_genres!inner (
-                genres!inner (
+              game_genres (
+                genres (
                   name
                 )
               ),
-              game_platforms!inner (
-                platforms!inner (
+              game_platforms (
+                platforms (
                   name
                 )
               ),
-              game_moods!inner (
-                moods!inner (
+              game_moods (
+                moods (
                   name
                 )
               )
