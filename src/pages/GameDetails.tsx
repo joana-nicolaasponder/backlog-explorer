@@ -67,18 +67,20 @@ const GameDetails = () => {
         .eq('provider', 'igdb')
         .eq('igdb_id', igdbGame.id)
         .maybeSingle()
-        
+
       if (checkError) {
         console.error('Error checking for existing IGDB game:', checkError)
         return null
       }
 
       let targetGameId
-      
+
       if (existingIgdbGame) {
         // If the IGDB game already exists, we'll use that one
         targetGameId = existingIgdbGame.id
-        console.log('Found existing IGDB game, will use that instead of migrating')
+        console.log(
+          'Found existing IGDB game, will use that instead of migrating'
+        )
       } else {
         // Otherwise, create a new game with IGDB data
         const gameData = {
@@ -89,9 +91,9 @@ const GameDetails = () => {
           metacritic_rating: igdbGame.metacritic || game.metacritic_rating,
           release_date: igdbGame.released || game.release_date,
           background_image: igdbGame.background_image || game.background_image,
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
         }
-        
+
         // Use upsert to handle potential race conditions
         const { data: newIgdbGame, error: insertError } = await supabase
           .from('games')
@@ -122,32 +124,41 @@ const GameDetails = () => {
 
       if (userGames && userGames.length > 0) {
         console.log(`Found ${userGames.length} user_games entries to update`)
-        
+
         // Process each user_game entry
         for (const userGame of userGames) {
           // Check if the user already has this IGDB game
-          const { data: existingUserIgdbGame, error: checkExistingError } = await supabase
-            .from('user_games')
-            .select('id')
-            .eq('user_id', userGame.user_id)
-            .eq('game_id', targetGameId)
-            .maybeSingle()
-            
+          const { data: existingUserIgdbGame, error: checkExistingError } =
+            await supabase
+              .from('user_games')
+              .select('id')
+              .eq('user_id', userGame.user_id)
+              .eq('game_id', targetGameId)
+              .maybeSingle()
+
           if (checkExistingError) {
-            console.error('Error checking if user already has IGDB game:', checkExistingError)
+            console.error(
+              'Error checking if user already has IGDB game:',
+              checkExistingError
+            )
             continue
           }
-          
+
           if (existingUserIgdbGame) {
             // User already has this IGDB game, delete the Steam version
-            console.log(`User ${userGame.user_id} already has IGDB game ${targetGameId}, deleting Steam version`)
+            console.log(
+              `User ${userGame.user_id} already has IGDB game ${targetGameId}, deleting Steam version`
+            )
             const { error: deleteError } = await supabase
               .from('user_games')
               .delete()
               .eq('id', userGame.id)
-              
+
             if (deleteError) {
-              console.error('Error deleting duplicate user_game entry:', deleteError)
+              console.error(
+                'Error deleting duplicate user_game entry:',
+                deleteError
+              )
             }
           } else {
             // Create a new user_game record with the IGDB game
@@ -171,24 +182,24 @@ const GameDetails = () => {
               steam_total_negative: userGame.steam_total_negative,
               steam_total_reviews: userGame.steam_total_reviews,
               steam_review_score_desc: userGame.steam_review_score_desc,
-              image: userGame.image
+              image: userGame.image,
             }
-            
+
             const { error: insertError } = await supabase
               .from('user_games')
               .insert(newUserGame)
-              
+
             if (insertError) {
               console.error('Error creating new user_game:', insertError)
               continue
             }
-            
+
             // Delete the old Steam game entry
             const { error: deleteError } = await supabase
               .from('user_games')
               .delete()
               .eq('id', userGame.id)
-              
+
             if (deleteError) {
               console.error('Error deleting old user_game entry:', deleteError)
             }
@@ -200,79 +211,91 @@ const GameDetails = () => {
 
       // Handle genres if available
       if (igdbGame.genres && igdbGame.genres.length > 0) {
-        console.log(`Adding ${igdbGame.genres.length} genres for ${game.title}`);
-        
+        console.log(`Adding ${igdbGame.genres.length} genres for ${game.title}`)
+
         try {
           // Prepare genre data for upsert
-          const genresToUpsert = igdbGame.genres.map(g => ({
+          const genresToUpsert = igdbGame.genres.map((g) => ({
             name: g.name,
             // Add any other required fields with default values
-            created_at: new Date().toISOString()
-          }));
-          
+            created_at: new Date().toISOString(),
+          }))
+
           // Upsert genres to handle potential conflicts
           const { error: upsertError } = await supabase
             .from('genres')
-            .upsert(genresToUpsert, { onConflict: 'name', ignoreDuplicates: true });
-            
+            .upsert(genresToUpsert, {
+              onConflict: 'name',
+              ignoreDuplicates: true,
+            })
+
           if (upsertError) {
-            console.error('Error upserting genres:', upsertError);
+            console.error('Error upserting genres:', upsertError)
           }
-          
+
           // Get all genre IDs based on names
           const { data: allGenres, error: allGenresError } = await supabase
             .from('genres')
             .select('id, name')
-            .in('name', igdbGame.genres.map(g => g.name));
-            
+            .in(
+              'name',
+              igdbGame.genres.map((g) => g.name)
+            )
+
           if (allGenresError) {
-            console.error('Error fetching all genres:', allGenresError);
+            console.error('Error fetching all genres:', allGenresError)
           } else if (allGenres && allGenres.length > 0) {
-            console.log(`Found ${allGenres.length} genres for association`);
-            
+            console.log(`Found ${allGenres.length} genres for association`)
+
             // First check for existing game_genres associations to avoid duplicates
-            const { data: existingAssociations, error: checkAssocError } = await supabase
-              .from('game_genres')
-              .select('genre_id')
-              .eq('game_id', targetGameId);
-              
+            const { data: existingAssociations, error: checkAssocError } =
+              await supabase
+                .from('game_genres')
+                .select('genre_id')
+                .eq('game_id', targetGameId)
+
             if (checkAssocError) {
-              console.error('Error checking existing game_genres associations:', checkAssocError);
+              console.error(
+                'Error checking existing game_genres associations:',
+                checkAssocError
+              )
             }
-            
+
             // Create a set of existing genre IDs for this game
             const existingGenreIds = new Set(
-              existingAssociations?.map(assoc => assoc.genre_id) || []
-            );
-            
+              existingAssociations?.map((assoc) => assoc.genre_id) || []
+            )
+
             // Filter out genres that are already associated with this game
             const newGameGenres = allGenres
-              .filter(genre => !existingGenreIds.has(genre.id))
-              .map(genre => ({
+              .filter((genre) => !existingGenreIds.has(genre.id))
+              .map((genre) => ({
                 game_id: targetGameId,
                 genre_id: genre.id,
-                created_at: new Date().toISOString()
-              }));
-            
+                created_at: new Date().toISOString(),
+              }))
+
             if (newGameGenres.length > 0) {
               // Insert new game_genres associations
               const { error: gameGenresError } = await supabase
                 .from('game_genres')
-                .insert(newGameGenres);
-                  
+                .insert(newGameGenres)
+
               if (gameGenresError) {
-                console.error('Error inserting game_genres:', gameGenresError);
+                console.error('Error inserting game_genres:', gameGenresError)
               } else {
-                console.log(`Successfully added ${newGameGenres.length} genres for ${game.title}`);
+                console.log(
+                  `Successfully added ${newGameGenres.length} genres for ${game.title}`
+                )
               }
             } else {
-              console.log('No new genres to associate with this game');
+              console.log('No new genres to associate with this game')
             }
           } else {
-            console.log('No genres found for association');
+            console.log('No genres found for association')
           }
         } catch (genreError) {
-          console.error('Error in genre processing:', genreError);
+          console.error('Error in genre processing:', genreError)
         }
       }
 
@@ -289,31 +312,38 @@ const GameDetails = () => {
       }
 
       // First, get the user_games entries for the Steam game to preserve their data
-      const { data: steamUserGames, error: fetchUserGamesError } = await supabase
-        .from('user_games')
-        .select('*')
-        .eq('game_id', game.id)
+      const { data: steamUserGames, error: fetchUserGamesError } =
+        await supabase.from('user_games').select('*').eq('game_id', game.id)
 
       if (fetchUserGamesError) {
-        console.error('Error fetching user_games for the Steam game:', fetchUserGamesError)
+        console.error(
+          'Error fetching user_games for the Steam game:',
+          fetchUserGamesError
+        )
         // Continue anyway, but we won't be able to preserve user data
       }
 
       if (steamUserGames && steamUserGames.length > 0) {
-        console.log(`Found ${steamUserGames.length} user_games entries to update`)
-        
+        console.log(
+          `Found ${steamUserGames.length} user_games entries to update`
+        )
+
         // For each user_game entry, update it to point to the IGDB game while preserving other data
         for (const userGame of steamUserGames) {
           // Check if this user already has the IGDB game
-          const { data: existingIgdbUserGame, error: checkExistingError } = await supabase
-            .from('user_games')
-            .select('*')
-            .eq('user_id', userGame.user_id)
-            .eq('game_id', targetGameId)
-            .maybeSingle()
+          const { data: existingIgdbUserGame, error: checkExistingError } =
+            await supabase
+              .from('user_games')
+              .select('*')
+              .eq('user_id', userGame.user_id)
+              .eq('game_id', targetGameId)
+              .maybeSingle()
 
           if (checkExistingError) {
-            console.error('Error checking if user already has IGDB game:', checkExistingError)
+            console.error(
+              'Error checking if user already has IGDB game:',
+              checkExistingError
+            )
             continue
           }
 
@@ -321,28 +351,35 @@ const GameDetails = () => {
             // User already has this IGDB game - update platforms if Steam isn't included
             const currentPlatforms = existingIgdbUserGame.platforms || []
             const steamPlatform = 'Steam'
-            
+
             if (!currentPlatforms.includes(steamPlatform)) {
               // Add Steam to platforms and update
               // Make sure to include user_id in the query to satisfy RLS policies
               const { error: updatePlatformsError } = await supabase
                 .from('user_games')
-                .update({ 
+                .update({
                   platforms: [...currentPlatforms, steamPlatform],
-                  updated_at: new Date().toISOString()
+                  updated_at: new Date().toISOString(),
                 })
                 .eq('id', existingIgdbUserGame.id)
                 .eq('user_id', userGame.user_id)
 
               if (updatePlatformsError) {
-                console.error('Error updating platforms for existing IGDB user_game:', updatePlatformsError)
+                console.error(
+                  'Error updating platforms for existing IGDB user_game:',
+                  updatePlatformsError
+                )
               } else {
-                console.log(`Updated platforms for existing IGDB game for user ${userGame.user_id}`)
+                console.log(
+                  `Updated platforms for existing IGDB game for user ${userGame.user_id}`
+                )
               }
             } else {
-              console.log(`User ${userGame.user_id} already has IGDB game with Steam platform`)
+              console.log(
+                `User ${userGame.user_id} already has IGDB game with Steam platform`
+              )
             }
-            
+
             // Delete the Steam user_game entry as it's now redundant
             // Include user_id in the query to satisfy RLS policies
             const { error: deleteError } = await supabase
@@ -352,26 +389,36 @@ const GameDetails = () => {
               .eq('user_id', userGame.user_id)
 
             if (deleteError) {
-              console.error('Error deleting redundant Steam user_game entry:', deleteError)
+              console.error(
+                'Error deleting redundant Steam user_game entry:',
+                deleteError
+              )
             } else {
-              console.log(`Deleted redundant Steam user_game entry for user ${userGame.user_id}`)
+              console.log(
+                `Deleted redundant Steam user_game entry for user ${userGame.user_id}`
+              )
             }
           } else {
             // User doesn't have the IGDB game yet - update the Steam entry to point to IGDB game
             // Include user_id in the query to satisfy RLS policies
             const { error: updateUserGameError } = await supabase
               .from('user_games')
-              .update({ 
+              .update({
                 game_id: targetGameId,
-                updated_at: new Date().toISOString()
+                updated_at: new Date().toISOString(),
               })
               .eq('id', userGame.id)
               .eq('user_id', userGame.user_id)
 
             if (updateUserGameError) {
-              console.error(`Error updating user_game for user ${userGame.user_id}:`, updateUserGameError)
+              console.error(
+                `Error updating user_game for user ${userGame.user_id}:`,
+                updateUserGameError
+              )
             } else {
-              console.log(`Successfully updated user_game for user ${userGame.user_id} to IGDB game`)
+              console.log(
+                `Successfully updated user_game for user ${userGame.user_id} to IGDB game`
+              )
             }
           }
         }
@@ -391,8 +438,12 @@ const GameDetails = () => {
     if (!game) return
 
     // Check if this is a Steam game (igdb_id is a Steam app ID)
-    const isSteamGame = game.provider === 'steam' || (game.igdb_id && /^\d+$/.test(game.igdb_id.toString()) && game.igdb_id.toString().length >= 5);
-    
+    const isSteamGame =
+      game.provider === 'steam' ||
+      (game.igdb_id &&
+        /^\d+$/.test(game.igdb_id.toString()) &&
+        game.igdb_id.toString().length >= 5)
+
     // If it's an IGDB game, fetch details from IGDB
     if (game.provider === 'igdb' && game.igdb_id) {
       try {
@@ -416,12 +467,12 @@ const GameDetails = () => {
       }
       return
     }
-    
+
     // Handle Steam games - try to migrate to IGDB
     if (isSteamGame || game.provider === 'steam') {
       try {
-        console.log('Migrating Steam game to IGDB:', game.title);
-        
+        console.log('Migrating Steam game to IGDB:', game.title)
+
         // First, set the existing Steam data as a fallback
         const steamDetails = {
           description_raw: game.description || '',
@@ -430,17 +481,17 @@ const GameDetails = () => {
           background_image: game.background_image || '',
           screenshots: [],
         }
-        setRawgDetails(steamDetails);
-        
+        setRawgDetails(steamDetails)
+
         // Try to migrate the game to IGDB
-        const migratedGame = await migrateToIGDB(game);
+        const migratedGame = await migrateToIGDB(game)
         if (migratedGame) {
-          console.log('Successfully migrated Steam game to IGDB');
-          
+          console.log('Successfully migrated Steam game to IGDB')
+
           // Option 1: Redirect to the new IGDB game page
-          window.location.href = `/game/${migratedGame.id}`;
-          return;
-          
+          window.location.href = `/app/game/${migratedGame.id}`
+          return
+
           /* Option 2: Update the current page with the migrated game data
           setGame(migratedGame);
           
@@ -466,12 +517,12 @@ const GameDetails = () => {
           }
           */
         } else {
-          console.log('Could not migrate Steam game to IGDB, using Steam data');
+          console.log('Could not migrate Steam game to IGDB, using Steam data')
         }
       } catch (error) {
-        console.error('Error migrating Steam game to IGDB:', error);
+        console.error('Error migrating Steam game to IGDB:', error)
       }
-      return;
+      return
     }
 
     // Try to migrate RAWG game to IGDB
@@ -1123,9 +1174,7 @@ const GameDetails = () => {
                   {/* Show IGDB details if available */}
                   {details?.summary && (
                     <div className="mb-6">
-                      <h3 className="font-semibold text-lg mb-2">
-                        Summary
-                      </h3>
+                      <h3 className="font-semibold text-lg mb-2">Summary</h3>
                       <ExpandableText
                         text={details.summary}
                         className="text-sm opacity-70 whitespace-pre-line"
@@ -1134,16 +1183,14 @@ const GameDetails = () => {
                   )}
                   {details?.storyline && (
                     <div className="mb-6">
-                      <h3 className="font-semibold text-lg mb-2">
-                        Storyline
-                      </h3>
+                      <h3 className="font-semibold text-lg mb-2">Storyline</h3>
                       <ExpandableText
                         text={details.storyline}
                         className="text-sm opacity-70 whitespace-pre-line"
                       />
                     </div>
                   )}
-                  
+
                   {/* Show RAWG/Steam description if IGDB details aren't available */}
                   {!details?.summary && rawgDetails?.description_raw && (
                     <div>
