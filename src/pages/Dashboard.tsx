@@ -125,10 +125,12 @@ const Dashboard = () => {
         // Count genre occurrences
         const genreCounts = userGames.reduce(
           (acc: { [key: string]: number }, userGame) => {
-            userGame.games.game_genres.forEach((gg) => {
-              const genreName = gg.genres.name
-              acc[genreName] = (acc[genreName] || 0) + 1
-            })
+            if (userGame.games?.game_genres) {
+              userGame.games.game_genres.forEach((gg) => {
+                const genreName = gg.genres.name
+                acc[genreName] = (acc[genreName] || 0) + 1
+              })
+            }
             return acc
           },
           {}
@@ -160,10 +162,12 @@ const Dashboard = () => {
         // Count mood occurrences
         const moodCounts = userGames.reduce(
           (acc: { [key: string]: number }, userGame) => {
-            userGame.games.game_moods?.forEach((gm) => {
-              const moodName = gm.moods.name
-              acc[moodName] = (acc[moodName] || 0) + 1
-            })
+            if (userGame.games?.game_moods) {
+              userGame.games.game_moods.forEach((gm) => {
+                const moodName = gm.moods.name
+                acc[moodName] = (acc[moodName] || 0) + 1
+              })
+            }
             return acc
           },
           {}
