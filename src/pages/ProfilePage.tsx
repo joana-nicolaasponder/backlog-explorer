@@ -564,11 +564,11 @@ const ProfilePage = () => {
     try {
       const { data, error } = await supabase
         .from('user_games')
-      .select(
+        .select(
           `
           game_id,
           platforms,
-          games:game_id (
+          games!user_games_game_id_fkey (
             id,
             igdb_id,
             provider,
