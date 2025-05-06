@@ -1,7 +1,9 @@
+require('dotenv').config()
+const OpenAI = require('openai')
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 const express = require('express')
 const cors = require('cors')
 const fetch = require('node-fetch')
-require('dotenv').config()
 const axios = require('axios')
 const querystring = require('querystring')
 const { supabase, upsertGame } = require('./supabase')
@@ -329,6 +331,73 @@ app.post('/api/steam/add-games', async (req, res) => {
   } catch (error) {
     console.error('Error adding games to library:', error)
     res.status(500).json({ error: error.message })
+  }
+})
+
+// Game recommendation endpoint using OpenAI
+app.post('/api/recommend', async (req, res) => {
+  const { mode, backlog, season, holidays, preferences } = req.body
+
+  try {
+    const formattedBacklog = backlog
+      .map(
+        (game) =>
+          `${game.title} - Genre: ${game.genre || 'N/A'}, Mood: ${
+            game.mood || 'N/A'
+          }`
+      )
+      .join('\n')
+
+    let systemPrompt = ''
+    let userPrompt = ''
+
+    if (mode === 'purchase_alternative') {
+      systemPrompt = `You are a friendly and insightful gaming assistant who helps users rediscover gems in their own backlog before buying something new. The user will provide the title of a game they’re thinking about purchasing, along with their current backlog. Your job is to suggest 3–5 games from their backlog that could scratch a similar itch—whether it's the vibe, genre, gameplay loop, or story experience.
+
+Start with a friendly intro like:  
+"Instead of picking up [game], here are some great games in your backlog that might give you a similar experience."
+
+Use a numbered list format. For each recommendation, bold the game title and include a short, personal reason it’s a good alternative—referencing gameplay, theme, or feeling when possible.
+
+End with a warm sign-off that encourages them to enjoy what they already own, like:  
+"Give one of these a go—you might fall in love with it all over again!"`
+      userPrompt = `The user is thinking about buying "${req.body.consideringGame}". Their backlog:\n\n${formattedBacklog}`
+    } else {
+      systemPrompt = `You are a friendly and thoughtful gaming assistant that recommends games from the user's backlog based on the current season and any upcoming holidays. Always begin your response with a short introductory sentence like "Based on the current season of [season] and the upcoming [event], here are some game recommendations." Your suggestions should be cozy, relevant, and tailored to the time of year. Format your response as a numbered list with each game title in bold, followed by a short, personal reason it's a good fit. End with a warm, encouraging sign-off.`
+      userPrompt =
+        `Backlog:\n${formattedBacklog}\n\nSeason: ${season}\n` +
+        (holidays?.length
+          ? `Events: ${holidays.map((h) => h.name).join(', ')}\n`
+          : '') +
+        `Recommend games that fit the current season and events.`
+    }
+
+    const messages = [
+      {
+        role: 'system',
+        content: systemPrompt,
+      },
+      {
+        role: 'user',
+        content: userPrompt,
+      },
+    ]
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4',
+      messages,
+      temperature: 0.7,
+      max_tokens: 400,
+    })
+
+    res.json({
+      recommendation:
+        response.choices?.[0]?.message?.content ||
+        'No recommendation available.',
+    })
+  } catch (error) {
+    console.error('Error generating recommendation:', error)
+    res.status(500).json({ error: error.message || 'Internal server error' })
   }
 })
 
