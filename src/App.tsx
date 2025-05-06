@@ -21,6 +21,7 @@ import LandingPage from './pages/LandingPage'
 import FeedbackPage from './pages/FeedbackPage'
 import ProfilePage from './pages/ProfilePage'
 import MoodRecommendations from './pages/MoodRecommendations'
+import ComingSoon from './pages/ComingSoon'
 
 const ResetPassword = () => {
   const [newPassword, setNewPassword] = useState('')
@@ -308,7 +309,7 @@ const App: React.FC = () => {
             }
           />
           <Route
-            path="/app/explore"
+            path="/app/coming-soon"
             element={
               <ProtectedRoute>
                 <div className="flex h-screen bg-base-200">
@@ -317,7 +318,7 @@ const App: React.FC = () => {
                     onAddGame={() => setShowAddGame(true)}
                   />
                   <main className="flex-1 overflow-auto pt-16 lg:pt-0">
-                    <Explore />
+                    <ComingSoon />
                     {showAddGame && (
                       <AddGameModal
                         onGameAdded={handleGameAdded}
@@ -389,6 +390,30 @@ const App: React.FC = () => {
                   />
                   <main className="flex-1 overflow-auto pt-16 lg:pt-0">
                     <MoodRecommendations />
+                    {showAddGame && (
+                      <AddGameModal
+                        onGameAdded={handleGameAdded}
+                        showModal={showAddGame}
+                        setShowModal={setShowAddGame}
+                      />
+                    )}
+                  </main>
+                </div>
+              </ProtectedRoute>
+            }
+          />
+
+<Route
+            path="/app/explore"
+            element={
+              <ProtectedRoute>
+                <div className="flex h-screen bg-base-200">
+                  <SideBar
+                    onLogout={handleLogout}
+                    onAddGame={() => setShowAddGame(true)}
+                  />
+                  <main className="flex-1 overflow-auto pt-16 lg:pt-0">
+                    <Explore />
                     {showAddGame && (
                       <AddGameModal
                         onGameAdded={handleGameAdded}
