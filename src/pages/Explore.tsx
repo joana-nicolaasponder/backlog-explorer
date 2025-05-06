@@ -1,11 +1,15 @@
 import { useState } from 'react'
 import MoodRecommendations from './MoodRecommendations' // Adjust path if needed
+import SeasonRecommendations from './SeasonRecommendations'
+import BacklogBuddy from './BacklogBuddy'
 
 const Explore = () => {
   const [activeFeature, setActiveFeature] = useState<string | null>(null)
 
   const renderFeature = () => {
     if (activeFeature === 'mood') return <MoodRecommendations />
+    if (activeFeature === 'seasonal') return <SeasonRecommendations />
+    if (activeFeature === 'smart') return <BacklogBuddy />
     // You can return other components for 'seasonal' and 'smart' once built
     return null
   }
