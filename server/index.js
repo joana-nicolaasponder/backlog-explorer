@@ -1,7 +1,9 @@
+require('dotenv').config()
+const OpenAI = require('openai')
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 const express = require('express')
 const cors = require('cors')
 const fetch = require('node-fetch')
-require('dotenv').config()
 const axios = require('axios')
 const querystring = require('querystring')
 const { supabase, upsertGame } = require('./supabase')
@@ -286,6 +288,85 @@ app.post('/api/steam/add-games', async (req, res) => {
   } catch (error) {
     console.error('Error adding games to library:', error.message)
     res.status(500).json({ error: error.message })
+  }
+})
+
+// Game recommendation endpoint using OpenAI
+app.post('/api/recommend', async (req, res) => {
+  const { mode, backlog, season, holidays, preferences } = req.body
+
+  try {
+    const formattedBacklog = backlog
+      .map(
+        (game) =>
+          `${game.title} - Genre: ${game.genre || 'N/A'}, Mood: ${
+            game.mood || 'N/A'
+          }`
+      )
+      .join('\n')
+
+    let systemPrompt = ''
+    let userPrompt = ''
+
+    if (mode === 'purchase_alternative') {
+      systemPrompt = `You are a friendly and insightful gaming assistant who helps users rediscover hidden gems in their own backlog before buying something new. The user will provide the title of a game they’re considering purchasing, along with their backlog. Your job is to recommend 3 games from their backlog that could scratch a similar itch—whether in gameplay style, emotional tone, vibe, or theme.
+
+Start your response with a warm, inviting intro like:  
+"Instead of picking up [game], here are some great games in your backlog that might give you a similar experience:"
+
+Present each recommendation as a numbered list. Bold the game title, then describe why it's a great fit. Avoid simply listing genres or moods—instead, paint a vivid picture of what the player might feel, do, or explore. Mention mechanics, narrative themes, or setting when relevant.
+
+Use natural, varied language to keep the tone personal and engaging. Each suggestion should feel like it came from a thoughtful friend who knows their taste well.
+
+Wrap up with a cozy, encouraging send-off like:  
+"One of these might surprise you—in the best way. Give it a try before picking up something new!"`
+      userPrompt = `The user is thinking about buying "${req.body.consideringGame}". Their backlog:\n\n${formattedBacklog}`
+    } else {
+      systemPrompt = `You are a friendly and thoughtful gaming assistant who helps users pick great games from their own backlog that match the current season and any upcoming holidays. Your recommendations should feel cozy, timely, and personal—highlighting games that suit the season’s mood, typical activities, or emotional tone.
+
+Start your response with a warm intro like:  
+"Based on the delightful season of [season] and the upcoming [event], here are some game recommendations from your backlog:"
+
+List each suggestion as a numbered item. Bold the game title and describe why it’s a great seasonal pick using rich, varied language. Focus on what the player will experience, feel, or reflect on—through the setting, activities, pacing, or emotions the game evokes.
+
+Avoid repeating genre or mood tags like "RPG" or "relaxing" unless they're necessary for clarity. Instead, describe the vibe naturally (e.g. “slow golden evenings,” “a gentle sense of discovery,” “like tending a garden of stories”). Vary sentence structure to keep things engaging and personable.
+
+End with a thoughtful, cozy send-off that encourages self-connection and presence, such as:  
+“Whichever one you pick, may it bring joy to your season and remind you how much magic already lives in your library.”`
+      userPrompt =
+        `Backlog:\n${formattedBacklog}\n\nSeason: ${season}\n` +
+        (holidays?.length
+          ? `Events: ${holidays.map((h) => h.name).join(', ')}\n`
+          : '') +
+        `Recommend games that fit the current season and events.`
+    }
+
+    const messages = [
+      {
+        role: 'system',
+        content: systemPrompt,
+      },
+      {
+        role: 'user',
+        content: userPrompt,
+      },
+    ]
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4',
+      messages,
+      temperature: 0.7,
+      max_tokens: 800,
+    })
+
+    res.json({
+      recommendation:
+        response.choices?.[0]?.message?.content ||
+        'No recommendation available.',
+    })
+  } catch (error) {
+    console.error('Error generating recommendation:', error)
+    res.status(500).json({ error: error.message || 'Internal server error' })
   }
 })
 
