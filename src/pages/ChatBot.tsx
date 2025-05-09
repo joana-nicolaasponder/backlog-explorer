@@ -12,6 +12,8 @@ export default function ChatBot() {
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [recommendedGames, setRecommendedGames] = useState<any[]>([])
+  const [visibleBotMessage, setVisibleBotMessage] = useState<string>('')
+  const [outroMessage, setOutroMessage] = useState('')
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -83,60 +85,63 @@ export default function ChatBot() {
       })
 
       const result = await res.json()
-      const botReply = result.recommendation || 'Hmm, I couldn’t think of anything!'
-      console.log('GPT raw reply:', botReply)
+      const botReplyRaw = result.recommendation || 'Hmm, I couldn’t think of anything!'
+      console.log('GPT raw reply:', botReplyRaw)
 
-      setMessages((prev) => [...prev, { sender: 'bot', text: botReply }])
-
-      // Parse botReply for recommended games with quoted titles or numbered + bold format
+      // Process recommended games from botReplyRaw using improved regex for numbered bolded title-description pairs
       const recommended: any[] = []
-      const lines = botReply.split('\n')
-      console.log('Split lines:', lines)
-      for (const line of lines) {
-        // Replace quoteMatch block with global regex to find all quoted titles in the line
-        const quoteRegex = /"([^"]+?)"/g
-        let match: RegExpExecArray | null
-        while ((match = quoteRegex.exec(line)) !== null) {
-          const title = match[1].trim()
-          const description = line.trim()
-          const matchedGame = userGames.find(
-            (entry) => entry.games?.title.toLowerCase().includes(title.toLowerCase())
-          )
-          if (matchedGame) {
-            recommended.push({
-              id: matchedGame.games?.id,
-              title: matchedGame.games?.title,
-              description,
-              background_image: matchedGame.games?.background_image,
-              genres: matchedGame.games?.game_genres?.map((g) => g.genres.name) || [],
-            })
-            console.log('Matched game:', title, matchedGame)
-          }
+      const regex = /\d+\.\s*\*\*(.+?)\*\*\s*[-–—]\s*([\s\S]*?)(?=\n\d+\.\s*\*\*|Outro:|\*\*Outro\*\*|$)/g
+      let match: RegExpExecArray | null
+      const matchPositions: { start: number; end: number }[] = []
+
+      const normalize = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/gi, '')
+
+      while ((match = regex.exec(botReplyRaw)) !== null) {
+        const title = match[1].trim()
+        const description = match[2].trim()
+        const normalizedTitle = normalize(title)
+
+        const matchedGame = userGames.find((entry) => {
+          const gameTitle = entry.games?.title || ''
+          return normalize(gameTitle).includes(normalizedTitle)
+        })
+
+        if (matchedGame) {
+          recommended.push({
+            id: matchedGame.games?.id,
+            title: matchedGame.games?.title,
+            description,
+            background_image: matchedGame.games?.background_image,
+            genres: matchedGame.games?.game_genres?.map((g) => g.genres.name) || [],
+          })
+          console.log('Matched game (bold):', title, matchedGame)
         }
-        if (!line.match(/"([^"]+?)"/)) {
-          const boldMatch = line.match(/^\d+\.\s\*\*(.+?)\*\*\s*-\s*(.+)$/)
-          if (boldMatch) {
-            const title = boldMatch[1].trim()
-            const description = boldMatch[2].trim()
-            const matchedGame = userGames.find(
-              (entry) => entry.games?.title.toLowerCase().includes(title.toLowerCase())
-            )
-            if (matchedGame) {
-              recommended.push({
-                id: matchedGame.games?.id,
-                title: matchedGame.games?.title,
-                description,
-                background_image: matchedGame.games?.background_image,
-                genres: matchedGame.games?.game_genres?.map((g) => g.genres.name) || [],
-              })
-              console.log('Matched game (bold):', title, matchedGame)
-            }
-          }
-        }
+
+        matchPositions.push({ start: match.index, end: regex.lastIndex })
       }
       console.log('Final recommendedGames array:', recommended)
       setRecommendedGames(recommended)
       setIsLoading(false)
+
+      // After parsing matches, update visibleBotText extraction logic
+      const outroMatch = botReplyRaw.match(/(\*\*Outro\*\*|Outro:)/)
+      const outroText = outroMatch
+        ? botReplyRaw.slice(botReplyRaw.indexOf(outroMatch[0]) + outroMatch[0].length).trim()
+        : ''
+
+      const introText =
+        matchPositions.length > 0 ? botReplyRaw.slice(0, matchPositions[0].start).trim() : ''
+
+      const stitchedIntro = introText.trim()
+      const stitchedOutro = outroText.trim()
+
+      const fallbackMessage = botReplyRaw || 'Hmm, I couldn’t think of anything!'
+      const primaryMessage = stitchedIntro || fallbackMessage
+
+      setVisibleBotMessage(primaryMessage)
+
+      setMessages((prev) => [...prev, { sender: 'bot', text: primaryMessage }])
+      setOutroMessage(stitchedOutro)
     } catch (err) {
       console.error('Error fetching GPT reply:', err)
       setMessages((prev) => [
@@ -167,33 +172,40 @@ export default function ChatBot() {
             </div>
           </div>
         )}
-        <div />
-      </div>
 
-      {recommendedGames.length > 0 && (
-        <div className="p-4 border-t bg-base-200 grid grid-cols-1 sm:grid-cols-2 gap-4 overflow-y-auto max-h-48">
-          {recommendedGames.map((game) => (
-            <div key={game.id} className="card card-compact bg-base-100 shadow-md">
-              {game.background_image && (
-                <figure>
-                  <img src={game.background_image} alt={game.title} className="w-full h-32 object-cover rounded-t-md" />
-                </figure>
-              )}
-              <div className="card-body p-3">
-                <h2 className="card-title text-sm font-semibold">{game.title}</h2>
-                <p className="text-xs text-gray-600 mb-2">{game.description}</p>
-                <div className="flex flex-wrap gap-1">
-                  {game.genres.map((genre: string, i: number) => (
-                    <span key={i} className="badge badge-outline badge-sm">
-                      {genre}
-                    </span>
-                  ))}
+        {recommendedGames.length > 0 && (
+          <div className="p-4 bg-base-200 grid grid-cols-1 sm:grid-cols-2 gap-4 overflow-y-auto max-h-48">
+            {recommendedGames.map((game) => (
+              <div key={game.id} className="card card-compact bg-base-100 shadow-md">
+                {game.background_image && (
+                  <figure>
+                    <img src={game.background_image} alt={game.title} className="w-full h-32 object-cover rounded-t-md" />
+                  </figure>
+                )}
+                <div className="card-body p-3">
+                  <h2 className="card-title text-base font-bold text-primary">{game.title}</h2>
+                  <p className="text-sm text-base-content mb-2 leading-snug">{game.description}</p>
+                  <div className="flex flex-wrap gap-1">
+                    {game.genres.map((genre: string, i: number) => (
+                      <span key={i} className="badge badge-ghost badge-sm text-xs text-base-content/70">
+                        {genre}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+
+        {recommendedGames.length > 0 && outroMessage && (
+          <div className="chat chat-start">
+            <div className="chat-bubble chat-bubble-secondary">{outroMessage}</div>
+          </div>
+        )}
+
+        <div />
+      </div>
 
       <form
         onSubmit={(e) => {
