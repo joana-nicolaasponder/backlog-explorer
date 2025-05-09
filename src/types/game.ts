@@ -1,40 +1,47 @@
 export interface Platform {
-  id: string;
-  name: string;
-  slug: string;
+  id: string
+  name: string
+  slug: string
 }
 
 export interface Genre {
-  id: string;
-  name: string;
-  slug: string;
+  id: string
+  name: string
+  slug: string
 }
 
 export interface GameBasic {
-  id: string;
-  slug: string;
-  name: string;
-  released?: string;
-  background_image?: string;
-  metacritic?: number;
-  platforms: Platform[];
-  genres: Genre[];
-  igdb_id: number; 
+  id: string
+  slug: string
+  name: string
+  released?: string
+  background_image?: string
+  metacritic?: number
+  platforms: Platform[]
+  genres: Genre[]
+  igdb_id: number
 }
 
 export interface GameDetailed extends GameBasic {
-  description?: string;
-  description_raw?: string;
-  website?: string;
+  description?: string
+  description_raw?: string
+  website?: string
+  summary?: string
+  storyline?: string
+  time_to_beat?: {
+    hastily?: number
+    normally?: number
+    completely?: number
+  } | null
 }
 
 export interface GameSearchResult {
-  count: number;
-  results: GameBasic[];
+  count: number
+  results: GameBasic[]
 }
 
 export interface GameProvider {
-  searchGames(query: string): Promise<GameSearchResult>;
-  getGameDetails(id: string): Promise<GameDetailed>;
-  getGameScreenshots?(id: string): Promise<string[]>;
+  searchGames(query: string): Promise<GameSearchResult>
+  getGameDetails(id: string): Promise<GameDetailed>
+  getGameScreenshots?(id: string): Promise<string[]>
 }

@@ -56,7 +56,19 @@ const GameDetails = () => {
       const searchResult = await gameService.searchGames(game.title)
       if (searchResult.results.length === 0) return null
 
-      const igdbGame = searchResult.results[0]
+      const normalize = (str: string) =>
+        str.toLowerCase().replace(/[^a-z0-9]/gi, '')
+
+      const normalizedTitle = normalize(game.title)
+
+      const igdbGame = searchResult.results.find((g) =>
+        g.name && normalize(g.name).includes(normalizedTitle)
+      )
+
+      if (!igdbGame) {
+        console.warn('No good IGDB match found for', game.title)
+        return null
+      }
       console.log('Found IGDB match:', igdbGame)
 
       // Instead of updating the existing game, we need to:
@@ -489,7 +501,7 @@ const GameDetails = () => {
           console.log('Successfully migrated Steam game to IGDB')
 
           // Option 1: Redirect to the new IGDB game page
-          window.location.href = `/app/game/${migratedGame.id}`
+          window.location.href = `/game/${migratedGame.id}`
           return
 
           /* Option 2: Update the current page with the migrated game data
