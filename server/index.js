@@ -306,7 +306,7 @@ app.post('/api/recommend', async (req, res) => {
       .join('\n')
 
     let systemPrompt = ''
-    let userPrompt = ''
+    let messages = []
 
     if (mode === 'purchase_alternative') {
       systemPrompt = `You are a friendly and insightful gaming assistant who helps users rediscover hidden gems in their own backlog before buying something new. The user will provide the title of a game they’re considering purchasing, along with their backlog. Your job is to recommend 3 games from their backlog that could scratch a similar itch—whether in gameplay style, emotional tone, vibe, or theme.
@@ -320,7 +320,27 @@ Use natural, varied language to keep the tone personal and engaging. Each sugges
 
 Wrap up with a cozy, encouraging send-off like:  
 "One of these might surprise you—in the best way. Give it a try before picking up something new!"`
-      userPrompt = `The user is thinking about buying "${req.body.consideringGame}". Their backlog:\n\n${formattedBacklog}`
+      const userPrompt = `The user is thinking about buying "${req.body.consideringGame}". Their backlog:\n\n${formattedBacklog}`
+      messages = [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ]
+    } else if (mode === 'chat') {
+      const chatHistory = req.body.messages || []
+      const formattedHistory = chatHistory.map((m) => ({
+        role: m.sender === 'user' ? 'user' : 'assistant',
+        content: m.text,
+      }))
+
+      systemPrompt = `You are a cozy, empathetic game recommendation chatbot. The user has a backlog of games. Engage them in a friendly conversation to understand what kind of game would feel right for them today. Don't jump to recommendations too quickly—ask 1–2 follow-up questions if they seem unsure. When you're confident you understand what they want, recommend 2–3 games from their backlog in a thoughtful, natural way. Your tone should be warm, conversational, and encouraging, like a good friend who knows their taste.`
+
+      const userMessage = req.body.userMessage
+
+      messages = [
+        { role: 'system', content: systemPrompt },
+        ...formattedHistory,
+        { role: 'user', content: `My backlog:\n${formattedBacklog}\n\n${userMessage}` },
+      ]
     } else {
       systemPrompt = `You are a friendly and thoughtful gaming assistant who helps users pick great games from their own backlog that match the current season and any upcoming holidays. Your recommendations should feel cozy, timely, and personal—highlighting games that suit the season’s mood, typical activities, or emotional tone.
 
@@ -333,24 +353,22 @@ Avoid repeating genre or mood tags like "RPG" or "relaxing" unless they're neces
 
 End with a thoughtful, cozy send-off that encourages self-connection and presence, such as:  
 “Whichever one you pick, may it bring joy to your season and remind you how much magic already lives in your library.”`
-      userPrompt =
-        `Backlog:\n${formattedBacklog}\n\nSeason: ${season}\n` +
-        (holidays?.length
-          ? `Events: ${holidays.map((h) => h.name).join(', ')}\n`
-          : '') +
-        `Recommend games that fit the current season and events.`
+      messages = [
+        {
+          role: 'system',
+          content: systemPrompt,
+        },
+        {
+          role: 'user',
+          content:
+            `Backlog:\n${formattedBacklog}\n\nSeason: ${season}\n` +
+            (holidays?.length
+              ? `Events: ${holidays.map((h) => h.name).join(', ')}\n`
+              : '') +
+            `Recommend games that fit the current season and events.`,
+        },
+      ]
     }
-
-    const messages = [
-      {
-        role: 'system',
-        content: systemPrompt,
-      },
-      {
-        role: 'user',
-        content: userPrompt,
-      },
-    ]
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4',
