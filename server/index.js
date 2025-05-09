@@ -342,9 +342,9 @@ Here’s how to respond:
 2. If the user has already given a clear vibe, theme, or preference — skip questions and go straight to recommendations.
 3. Once you have a general sense of what they want, recommend 2–3 games from their backlog using this format:
 
-   1. **Game Title** – One or two-sentence description.
-   2. **Game Title** – One or two-sentence description.
-   3. **Game Title** – One or two-sentence description (optional).
+   1. **Game Title** – One or two sentences explaining why this game is a great fit for their mood, preference, or situation. Be specific about how it relates to what they shared.
+   2. **Game Title** – Same as above.
+   3. **Game Title** – (Optional) A third fitting recommendation with similar justification.
 
 4. End your message with a closing thought starting with \`Outro:\` — this is important for the app to display the final message.
 
@@ -359,7 +359,7 @@ Here’s how to respond:
 - Be specific: mention activities, characters, story themes, or emotional tones
 - Don’t ask for follow-up more than once. After one clarification, move to recommendations.
 
-Even if you’re unsure, take your best guess and offer a few thoughtful suggestions.`
+For each game you recommend, make sure to explain why you think it matches what the user is looking for, not just what the game is about. Even if you’re unsure, take your best guess and offer a few thoughtful suggestions.`
 
       const userMessage = req.body.userMessage
 
