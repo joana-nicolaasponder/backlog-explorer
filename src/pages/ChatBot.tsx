@@ -11,6 +11,7 @@ export default function ChatBot() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [recommendedGames, setRecommendedGames] = useState<any[]>([])
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -83,8 +84,58 @@ export default function ChatBot() {
 
       const result = await res.json()
       const botReply = result.recommendation || 'Hmm, I couldn’t think of anything!'
+      console.log('GPT raw reply:', botReply)
 
       setMessages((prev) => [...prev, { sender: 'bot', text: botReply }])
+
+      // Parse botReply for recommended games with quoted titles or numbered + bold format
+      const recommended: any[] = []
+      const lines = botReply.split('\n')
+      console.log('Split lines:', lines)
+      for (const line of lines) {
+        // Replace quoteMatch block with global regex to find all quoted titles in the line
+        const quoteRegex = /"([^"]+?)"/g
+        let match: RegExpExecArray | null
+        while ((match = quoteRegex.exec(line)) !== null) {
+          const title = match[1].trim()
+          const description = line.trim()
+          const matchedGame = userGames.find(
+            (entry) => entry.games?.title.toLowerCase().includes(title.toLowerCase())
+          )
+          if (matchedGame) {
+            recommended.push({
+              id: matchedGame.games?.id,
+              title: matchedGame.games?.title,
+              description,
+              background_image: matchedGame.games?.background_image,
+              genres: matchedGame.games?.game_genres?.map((g) => g.genres.name) || [],
+            })
+            console.log('Matched game:', title, matchedGame)
+          }
+        }
+        if (!line.match(/"([^"]+?)"/)) {
+          const boldMatch = line.match(/^\d+\.\s\*\*(.+?)\*\*\s*-\s*(.+)$/)
+          if (boldMatch) {
+            const title = boldMatch[1].trim()
+            const description = boldMatch[2].trim()
+            const matchedGame = userGames.find(
+              (entry) => entry.games?.title.toLowerCase().includes(title.toLowerCase())
+            )
+            if (matchedGame) {
+              recommended.push({
+                id: matchedGame.games?.id,
+                title: matchedGame.games?.title,
+                description,
+                background_image: matchedGame.games?.background_image,
+                genres: matchedGame.games?.game_genres?.map((g) => g.genres.name) || [],
+              })
+              console.log('Matched game (bold):', title, matchedGame)
+            }
+          }
+        }
+      }
+      console.log('Final recommendedGames array:', recommended)
+      setRecommendedGames(recommended)
       setIsLoading(false)
     } catch (err) {
       console.error('Error fetching GPT reply:', err)
@@ -116,8 +167,33 @@ export default function ChatBot() {
             </div>
           </div>
         )}
-        <div ref={messagesEndRef} />
+        <div />
       </div>
+
+      {recommendedGames.length > 0 && (
+        <div className="p-4 border-t bg-base-200 grid grid-cols-1 sm:grid-cols-2 gap-4 overflow-y-auto max-h-48">
+          {recommendedGames.map((game) => (
+            <div key={game.id} className="card card-compact bg-base-100 shadow-md">
+              {game.background_image && (
+                <figure>
+                  <img src={game.background_image} alt={game.title} className="w-full h-32 object-cover rounded-t-md" />
+                </figure>
+              )}
+              <div className="card-body p-3">
+                <h2 className="card-title text-sm font-semibold">{game.title}</h2>
+                <p className="text-xs text-gray-600 mb-2">{game.description}</p>
+                <div className="flex flex-wrap gap-1">
+                  {game.genres.map((genre: string, i: number) => (
+                    <span key={i} className="badge badge-outline badge-sm">
+                      {genre}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <form
         onSubmit={(e) => {
