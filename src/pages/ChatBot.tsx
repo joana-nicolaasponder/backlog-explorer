@@ -1,5 +1,6 @@
 // components/ChatBot.tsx
 import { useState, useEffect, useRef } from 'react'
+import ReactMarkdown from 'react-markdown'
 import supabase from '../supabaseClient'
 
 interface Message {
@@ -85,7 +86,8 @@ export default function ChatBot() {
       })
 
       const result = await res.json()
-      const botReplyRaw = result.recommendation || 'Hmm, I couldn’t think of anything!'
+      const botMessages = result.messages || []
+      const botReplyRaw = botMessages.map((m: any) => m.content).join('\n\n').trim()
       console.log('GPT raw reply:', botReplyRaw)
 
       // Process recommended games from botReplyRaw using improved regex for numbered bolded title-description pairs
@@ -140,7 +142,12 @@ export default function ChatBot() {
 
       setVisibleBotMessage(primaryMessage)
 
-      setMessages((prev) => [...prev, { sender: 'bot', text: primaryMessage }])
+      // Show each assistant chunk as a separate bubble
+      const allChunks = botMessages.length > 0
+        ? botMessages.map((m: any) => ({ sender: 'bot', text: m.content }))
+        : [{ sender: 'bot', text: primaryMessage }]
+
+      setMessages((prev) => [...prev, ...allChunks])
       setOutroMessage(stitchedOutro)
     } catch (err) {
       console.error('Error fetching GPT reply:', err)
@@ -158,9 +165,15 @@ export default function ChatBot() {
         {messages.map((msg, idx) => (
           <div key={idx} className={`chat ${msg.sender === 'user' ? 'chat-end' : 'chat-start'}`}>
             <div
-              className={`chat-bubble ${msg.sender === 'user' ? 'chat-bubble-primary' : 'chat-bubble-secondary'}`}
+              className={`chat-bubble ${msg.sender === 'user' ? 'chat-bubble-primary' : 'chat-bubble-secondary'} max-w-prose`}
             >
-              {msg.text}
+              {msg.sender === 'bot' ? (
+                <div className="prose prose-sm max-w-prose">
+                  <ReactMarkdown>{msg.text}</ReactMarkdown>
+                </div>
+              ) : (
+                msg.text
+              )}
             </div>
           </div>
         ))}

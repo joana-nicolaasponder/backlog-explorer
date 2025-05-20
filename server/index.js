@@ -7,6 +7,7 @@ const fetch = require('node-fetch')
 const axios = require('axios')
 const querystring = require('querystring')
 const { supabase, upsertGame } = require('./supabase')
+const { purchaseAlternativePrompt, chatPrompt, seasonalPrompt } = require('./prompts');
 
 const app = express()
 const port = process.env.PORT || 3001
@@ -309,60 +310,21 @@ app.post('/api/recommend', async (req, res) => {
     let messages = []
 
     if (mode === 'purchase_alternative') {
-      systemPrompt = `You are a friendly and insightful gaming assistant who helps users rediscover hidden gems in their own backlog before buying something new. The user will provide the title of a game they’re considering purchasing, along with their backlog. Your job is to recommend 3 games from their backlog that could scratch a similar itch—whether in gameplay style, emotional tone, vibe, or theme.
-
-Start your response with a warm, inviting intro like:  
-"Instead of picking up [game], here are some great games in your backlog that might give you a similar experience:"
-
-Present each recommendation as a numbered list. Bold the game title, then describe why it's a great fit. Avoid simply listing genres or moods—instead, paint a vivid picture of what the player might feel, do, or explore. Mention mechanics, narrative themes, or setting when relevant.
-
-Use natural, varied language to keep the tone personal and engaging. Each suggestion should feel like it came from a thoughtful friend who knows their taste well.
-
-Wrap up with a cozy, encouraging send-off like:  
-"One of these might surprise you—in the best way. Give it a try before picking up something new!"`
-      const userPrompt = `The user is thinking about buying "${req.body.consideringGame}". Their backlog:\n\n${formattedBacklog}`
+      systemPrompt = purchaseAlternativePrompt;
+      const userPrompt = `The user is thinking about buying "${req.body.consideringGame}". Their backlog:\n\n${formattedBacklog}`;
       messages = [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
-      ]
+      ];
     } else if (mode === 'chat') {
-      const chatHistory = req.body.messages || []
+      console.log('[chat mode triggered]', req.body.userMessage);
+      const chatHistory = req.body.messages || [];
       const formattedHistory = chatHistory.map((m) => ({
         role: m.sender === 'user' ? 'user' : 'assistant',
         content: m.text,
-      }))
-
-      systemPrompt = `You are a cozy, empathetic game recommendation chatbot.
-
-The user has a backlog of games and wants help deciding what to play. Your tone should be friendly and thoughtful — like a good friend who knows their taste and wants to help them find the perfect game for their current mood.
-
-Here’s how to respond:
-
-1. If the user’s request is vague or emotional (e.g. “something cozy,” “like a cup of coffee”), respond warmly and ask 1–2 short follow-up questions to clarify what they’re in the mood for.
-2. If the user has already given a clear vibe, theme, or preference — skip questions and go straight to recommendations.
-3. Once you have a general sense of what they want, recommend 2–3 games from their backlog using this format:
-
-   1. **Game Title** – One or two sentences explaining why this game is a great fit for their mood, preference, or situation. Be specific about how it relates to what they shared.
-   2. **Game Title** – Same as above.
-   3. **Game Title** – (Optional) A third fitting recommendation with similar justification.
-
-4. End your message with a closing thought starting with \`Outro:\` — this is important for the app to display the final message.
-
-**Formatting rules:**
-- Use bold markdown for each game title (e.g. \`**Stardew Valley**\`)
-- Always use a numbered list
-- Always include \`Outro:\` at the end with your closing thoughts
-
-**Style tips:**
-- Keep it warm, conversational, and encouraging
-- Don’t repeat mood or genre tags — instead, describe what the game *feels* like
-- Be specific: mention activities, characters, story themes, or emotional tones
-- Don’t ask for follow-up more than once. After one clarification, move to recommendations.
-
-For each game you recommend, make sure to explain why you think it matches what the user is looking for, not just what the game is about. Even if you’re unsure, take your best guess and offer a few thoughtful suggestions.`
-
-      const userMessage = req.body.userMessage
-
+      }));
+      systemPrompt = chatPrompt;
+      const userMessage = req.body.userMessage;
       messages = [
         { role: 'system', content: systemPrompt },
         ...formattedHistory,
@@ -370,19 +332,9 @@ For each game you recommend, make sure to explain why you think it matches what 
           role: 'user',
           content: `My backlog:\n${formattedBacklog}\n\n${userMessage}`,
         },
-      ]
+      ];
     } else {
-      systemPrompt = `You are a friendly and thoughtful gaming assistant who helps users pick great games from their own backlog that match the current season and any upcoming holidays. Your recommendations should feel cozy, timely, and personal—highlighting games that suit the season’s mood, typical activities, or emotional tone.
-
-Start your response with a warm intro like:  
-"Based on the delightful season of [season] and the upcoming [event], here are some game recommendations from your backlog:"
-
-List each suggestion as a numbered item. Bold the game title and describe why it’s a great seasonal pick using rich, varied language. Focus on what the player will experience, feel, or reflect on—through the setting, activities, pacing, or emotions the game evokes.
-
-Avoid repeating genre or mood tags like "RPG" or "relaxing" unless they're necessary for clarity. Instead, describe the vibe naturally (e.g. “slow golden evenings,” “a gentle sense of discovery,” “like tending a garden of stories”). Vary sentence structure to keep things engaging and personable.
-
-End with a thoughtful, cozy send-off that encourages self-connection and presence, such as:  
-“Whichever one you pick, may it bring joy to your season and remind you how much magic already lives in your library.”`
+      systemPrompt = seasonalPrompt;
       messages = [
         {
           role: 'system',
@@ -397,9 +349,10 @@ End with a thoughtful, cozy send-off that encourages self-connection and presenc
               : '') +
             `Recommend games that fit the current season and events.`,
         },
-      ]
+      ];
     }
 
+    console.log('[messages]', JSON.stringify(messages, null, 2));
     const response = await openai.chat.completions.create({
       model: 'gpt-4',
       messages,
@@ -407,11 +360,23 @@ End with a thoughtful, cozy send-off that encourages self-connection and presenc
       max_tokens: 800,
     })
 
-    res.json({
-      recommendation:
-        response.choices?.[0]?.message?.content ||
-        'No recommendation available.',
-    })
+    let content = response.choices?.[0]?.message?.content || '';
+
+    if (
+      !content ||
+      content.toLowerCase().includes("couldn't think of anything") ||
+      content.trim().length < 20
+    ) {
+      content = "Hmm, that’s a tricky one. It sounds like you're going through something deeper right now. Can you tell me more about what you're feeling when you reach for games lately?";
+    }
+
+    const messageChunks = content
+      .split(/\n{2,}/) // split on paragraph breaks
+      .map((chunk) => chunk.trim())
+      .filter(Boolean)
+      .map((chunk) => ({ role: 'assistant', content: chunk }));
+
+    res.json({ messages: messageChunks });
   } catch (error) {
     console.error('Error generating recommendation:', error)
     res.status(500).json({ error: error.message || 'Internal server error' })
