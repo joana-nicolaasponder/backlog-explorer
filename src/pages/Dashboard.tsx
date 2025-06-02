@@ -9,7 +9,7 @@ interface GameStats {
   currentlyPlaying: number
   completed: number
   // Keeping this commented for future use
-  // completedThisYear: number
+  completedThisYear: number
   topGenre: string
   topPlatform: string
   topMood: string
@@ -26,13 +26,29 @@ const Dashboard = () => {
     backlog: 0,
     currentlyPlaying: 0,
     completed: 0,
-    // completedThisYear: 0,
+    completedThisYear: 0,
     topGenre: '',
     topPlatform: '',
     topMood: '',
     recentActivity: null,
   })
   const [loading, setLoading] = useState(true)
+
+  // Helper to get the top item from a count object
+  const getTopItem = (counts: { [key: string]: number }) => {
+    if (Object.keys(counts).length === 0) return 'None'
+    return Object.entries(counts).reduce((a, b) =>
+      a[1] > b[1] ? a : b
+    )[0]
+  }
+
+  // Declare genreCounts and completedMoodCounts in component scope
+  let genreCounts = {}
+  let completedMoodCounts = {}
+
+  // New state for top genre and mood among completed games
+  const [topGenreCompleted, setTopGenreCompleted] = useState('')
+  const [topMoodCompleted, setTopMoodCompleted] = useState('')
 
   useEffect(() => {
     const fetchGameStats = async () => {
@@ -81,7 +97,7 @@ const Dashboard = () => {
           error: Error | null
         }
 
-        /* Keeping this commented for future use - completion tracking
+        //Keeping this commented for future use - completion tracking
         const currentYear = new Date().getFullYear()
         const { data: completionNotes } = await supabase
           .from('game_notes')
@@ -90,7 +106,7 @@ const Dashboard = () => {
           .eq('is_completion_entry', true)
           .gte('completion_date', `${currentYear}-01-01`)
           .lte('completion_date', `${currentYear}-12-31`)
-        */
+        
 
         if (error) throw error
 
@@ -112,7 +128,7 @@ const Dashboard = () => {
           ['Endless', 'Done', 'Satisfied', 'DNF'].includes(game.status)
         ).length
 
-        /* Keeping this commented for future use - completion tracking
+        // Keeping this commented for future use - completion tracking
         const gamesCompletedThisYear = userGames.filter(game => {
           const updatedAt = new Date(game.updated_at)
           return ['Endless', 'Done', 'Satisfied', 'DNF'].includes(game.status) && 
@@ -120,23 +136,47 @@ const Dashboard = () => {
         })
 
         const completedThisYear = gamesCompletedThisYear.length
-        */
+        
+        const completedUserGames = userGames.filter((game) =>
+          ['Endless', 'Done', 'Satisfied', 'DNF'].includes(game.status)
+        )
 
-        // Count genre occurrences
-        const genreCounts = userGames.reduce(
+        // Count mood occurrences for completed games only
+        completedMoodCounts = completedUserGames.reduce(
           (acc: { [key: string]: number }, userGame) => {
-            if (userGame.games && Array.isArray(userGame.games.game_genres)) {
-              userGame.games.game_genres.forEach((gg) => {
-                const genreName = gg.genres.name
-                acc[genreName] = (acc[genreName] || 0) + 1
+            if (userGame.games && Array.isArray(userGame.games.game_moods)) {
+              userGame.games.game_moods.forEach((gm) => {
+                const moodName = gm.moods.name
+                acc[moodName] = (acc[moodName] || 0) + 1
               })
-            } else {
-              console.warn('Missing or invalid game_genres for userGame:', userGame)
             }
             return acc
           },
           {}
         )
+
+        // Genres to ignore in stats
+        const IGNORED_GENRES = ['Adventure', 'Indie', 'RPG', 'Simulation', 'Strategy']
+
+        // Count most meaningful genre (first non-ignored) per game
+        genreCounts = completedUserGames.reduce(
+          (acc: { [key: string]: number }, userGame) => {
+            const genres = userGame.games?.game_genres || []
+            const meaningfulGenre = genres.find(
+              (gg) => !IGNORED_GENRES.includes(gg.genres.name)
+            )
+            if (meaningfulGenre) {
+              const genreName = meaningfulGenre.genres.name
+              acc[genreName] = (acc[genreName] || 0) + 1
+            }
+            return acc
+          },
+          {}
+        )
+
+        // Set top genre and mood among completed games
+        setTopGenreCompleted(getTopItem(genreCounts))
+        setTopMoodCompleted(getTopItem(completedMoodCounts))
 
         // Log user games platforms for debugging
         console.log(
@@ -148,7 +188,7 @@ const Dashboard = () => {
         )
 
         // Count platform occurrences from user's selected platforms
-        const platformCounts = userGames.reduce(
+        const platformCounts = completedUserGames.reduce(
           (acc: { [key: string]: number }, userGame) => {
             ;(userGame.platforms || []).forEach((platformName: string) => {
               acc[platformName] = (acc[platformName] || 0) + 1
@@ -161,8 +201,9 @@ const Dashboard = () => {
         // Log platform counts for debugging
         console.log('Platform counts:', platformCounts)
 
-        // Count mood occurrences
-        const moodCounts = userGames.reduce(
+        // Count mood occurrences for all games (not just completed ones)
+        // (Restored original logic for mood counting)
+        const allMoodCounts = userGames.reduce(
           (acc: { [key: string]: number }, userGame) => {
             if (userGame.games && Array.isArray(userGame.games.game_moods)) {
               userGame.games.game_moods.forEach((gm) => {
@@ -177,13 +218,6 @@ const Dashboard = () => {
           {}
         )
 
-        // Find the most common genre, platform, and mood
-        const getTopItem = (counts: { [key: string]: number }) => {
-          if (Object.keys(counts).length === 0) return 'None'
-          return Object.entries(counts).reduce((a, b) =>
-            a[1] > b[1] ? a : b
-          )[0]
-        }
 
         setStats({
           totalLibrary: userGames?.length || 0,
@@ -197,10 +231,11 @@ const Dashboard = () => {
             userGames?.filter((game) => game.status === 'Currently Playing')
               .length || 0,
           completed: completedGames,
-          // completedThisYear: completedThisYear,
+          completedThisYear: completedThisYear,
           topGenre: getTopItem(genreCounts),
           topPlatform: getTopItem(platformCounts),
-          topMood: getTopItem(moodCounts),
+          // Use allMoodCounts for topMood (all games, not just completed)
+          topMood: getTopItem(allMoodCounts),
           recentActivity: recentNote
             ? {
                 date: new Date(recentNote.created_at).toLocaleDateString(),
@@ -218,6 +253,9 @@ const Dashboard = () => {
     fetchGameStats()
   }, [navigate])
 
+  // fallback assignments just above return
+  genreCounts = genreCounts || {}
+  completedMoodCounts = completedMoodCounts || {}
   return (
     <div className="p-8">
       <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
@@ -301,12 +339,15 @@ const Dashboard = () => {
           </div>
           <div
             className="card bg-base-100 shadow-xl tooltip"
-            data-tip="The genre that appears most frequently in your game collection"
+            data-tip="Based on the most common genre and mood in your completed games"
           >
             <div className="card-body">
-              <h2 className="card-title">Most Played Genre</h2>
-              <p className="text-4xl font-bold capitalize">{stats.topGenre}</p>
-              <p className="text-sm opacity-70">Your favorite type of game</p>
+              <h2 className="card-title">Favorite Game Type</h2>
+              <p className="text-4xl font-bold capitalize">
+                {/* Use topGenreCompleted and topMoodCompleted for completed games only */}
+                {topGenreCompleted || 'Unknown'} • {topMoodCompleted || 'Unknown'}
+              </p>
+              <p className="text-sm opacity-70">Your most-played vibe</p>
             </div>
           </div>
           <div
@@ -319,7 +360,7 @@ const Dashboard = () => {
               <p className="text-sm opacity-70">Your primary gaming platform</p>
             </div>
           </div>
-          {/* Keeping this commented for future use - completion tracking card
+          {/* Keeping this commented for future use - completion tracking card */}
           <div 
             className="card bg-base-100 shadow-xl hover:bg-base-200 cursor-pointer transition-colors tooltip" 
             data-tip="Games marked as Done, Endless, Satisfied, or DNF in 2025 - click to view all games completed this year"
@@ -338,7 +379,7 @@ const Dashboard = () => {
               </p>
             </div>
           </div>
-          */}
+         
           <div
             className="card bg-base-100 shadow-xl tooltip"
             data-tip="The mood that appears most frequently across your game collection"
