@@ -40,11 +40,11 @@ const Explore = () => {
               <p className="text-sm mb-4">Want to buy a new game? Let Backlog Buddy help you find similar games in your backlog first! Save money and rediscover hidden gems you already own.</p>
               <button onClick={() => setActiveFeature('smart')} className="btn btn-sm btn-primary">Go</button>
             </div>
-            <div className="bg-base-100 border p-6 rounded-lg shadow">
+            {/* <div className="bg-base-100 border p-6 rounded-lg shadow">
               <h2 className="text-lg font-semibold mb-2">💡 ChatBot</h2>
               <p className="text-sm mb-4">Don't know what to play? Ask ChatBot!</p>
               <button onClick={() => setActiveFeature('chatbot')} className="btn btn-sm btn-primary">Go</button>
-            </div>
+            </div> */}
           </div>
         </>
       )}

@@ -26,14 +26,20 @@ const Library: React.ForwardRefRenderFunction<
       ? [location.state.filterStatus]
       : []
   )
+  const [filterYear, setFilterYear] = useState<number | null>(
+    location.state?.filterYear ?? null
+  )
   const [filterPlatform, setFilterPlatform] = useState<string>('')
   const [filterGenre, setFilterGenre] = useState<string>('')
+  const [filterMood, setFilterMood] = useState<string>('')
   const [sortOrder, setSortOrder] = useState<string>('alphabetical-asc')
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [games, setGames] = useState<UserGame[]>([])
   const [platformOptions, setPlatformOptions] = useState<string[]>([])
   const [genreOptions, setGenreOptions] = useState<string[]>([])
+  const [moodOptions, setMoodOptions] = useState<string[]>([])
   const [statusOptions, setStatusOptions] = useState<string[]>([])
+  const [yearOptions, setYearOptions] = useState<number[]>([])
   const [userId, setUserId] = useState<string>('')
 
   useEffect(() => {
@@ -155,6 +161,7 @@ const Library: React.ForwardRefRenderFunction<
             progress,
             platforms,
             image,
+            updated_at,
             game:games!user_games_game_id_fkey (
               id,
               title,
@@ -165,6 +172,13 @@ const Library: React.ForwardRefRenderFunction<
               game_genres (
                 genre_id,
                 genres (
+                  id,
+                  name
+                )
+              ),
+              game_moods (
+                mood_id,
+                moods (
                   id,
                   name
                 )
@@ -180,7 +194,7 @@ const Library: React.ForwardRefRenderFunction<
           return
         }
 
-        // Format games with platform and genre names
+        // Format games with platform, genre and mood names
         let formattedGames = userGames.map((userGame) => ({
           id: userGame.game.id,
           title: userGame.game.title,
@@ -188,11 +202,18 @@ const Library: React.ForwardRefRenderFunction<
           progress: userGame.progress,
           image: userGame.image || userGame.game.background_image,
           created_at: userGame.game.created_at,
+          updated_at: userGame.updated_at,
           platforms: userGame.platforms || [],
           genres: userGame.game.game_genres.map((gg) => gg.genres.name),
+          moods: userGame.game.game_moods?.map((gm) => gm.moods.name) || [],
           provider: userGame.game.provider || 'rawg',
           igdb_id: userGame.game.igdb_id || 0,
         }))
+
+        const years = Array.from(
+          new Set(userGames.map((game) => new Date(game.updated_at).getFullYear()))
+        ).sort((a, b) => b - a)
+        setYearOptions(years)
 
         // Extract unique platform names
         const platformNames = Array.from(
@@ -205,6 +226,12 @@ const Library: React.ForwardRefRenderFunction<
           new Set(formattedGames.flatMap((game) => game.genres))
         ).sort()
         setGenreOptions(genreNames)
+
+        // Extract unique mood names
+        const moodNames = Array.from(
+          new Set(formattedGames.flatMap((game) => game.moods))
+        ).sort()
+        setMoodOptions(moodNames)
 
         // Apply filters
         if (filterPlatform) {
@@ -219,10 +246,23 @@ const Library: React.ForwardRefRenderFunction<
           )
         }
 
+        if (filterMood) {
+          formattedGames = formattedGames.filter((game) =>
+            game.moods.includes(filterMood)
+          )
+        }
+
         if (filterStatus.length > 0) {
           formattedGames = formattedGames.filter((game) =>
             filterStatus.includes(game.status)
           )
+        }
+
+        if (filterYear) {
+          formattedGames = formattedGames.filter((game) => {
+            const updatedYear = new Date(game.updated_at).getFullYear()
+            return updatedYear === filterYear
+          })
         }
 
         if (searchQuery) {
@@ -275,6 +315,8 @@ const Library: React.ForwardRefRenderFunction<
     filterStatus,
     filterPlatform,
     filterGenre,
+    filterMood,
+    filterYear,
     sortOrder,
     searchQuery,
   ])
@@ -340,6 +382,36 @@ const Library: React.ForwardRefRenderFunction<
             {genreOptions.map((genre) => (
               <option key={genre} value={genre}>
                 {genre}
+              </option>
+            ))}
+          </select>
+
+          <select
+            className="select select-bordered"
+            value={filterMood}
+            onChange={(e) => setFilterMood(e.target.value)}
+          >
+            <option value="">All Moods</option>
+            {moodOptions.map((mood) => (
+              <option key={mood} value={mood}>
+                {mood}
+              </option>
+            ))}
+          </select>
+
+          <select
+            id="year-filter"
+            className="select select-bordered"
+            value={filterYear ?? ''}
+            onChange={(e) =>
+              setFilterYear(e.target.value ? parseInt(e.target.value) : null)
+            }
+            title="Filters by year the game was completed (based on last update)"
+          >
+            <option value="">Year Completed (All)</option>
+            {yearOptions.map((year) => (
+              <option key={year} value={year}>
+                {year}
               </option>
             ))}
           </select>
