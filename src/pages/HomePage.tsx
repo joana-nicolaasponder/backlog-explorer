@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import OnboardingFlow from '../components/OnboardingFlow'
-import { extractFirstName, fetchFormattedCurrentGames, getUserOrRedirect, isNewUser } from './helpers/homepageHelpers'
+import { extractFirstName, fetchFormattedCurrentGames, getUserOrRedirect, isNewUser } from './helpers/homePageHelpers'
 
 interface Game {
   id: string
