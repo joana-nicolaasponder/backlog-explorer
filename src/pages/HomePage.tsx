@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import supabase from '../supabaseClient'
 import OnboardingFlow from '../components/OnboardingFlow'
+import { extractFirstName, fetchFormattedCurrentGames, getUserOrRedirect, isNewUser } from './helpers/homepageHelpers'
 
 interface Game {
   id: string
@@ -23,50 +23,18 @@ const HomePage = () => {
   const [userName, setUserName] = useState<string>('')
 
   useEffect(() => {
-    const fetchCurrentGames = async () => {
+    const loadUserHomepage = async () => {
       try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser()
-        if (!user) {
-          navigate('/login')
-          return
-        }
+        const user = await getUserOrRedirect(navigate)
+        if (!user) return
 
-        const firstName = user.user_metadata?.full_name?.split(' ')[0] || ''
-        setUserName(firstName)
+        setUserName(extractFirstName(user))
 
-        // Check if user has any games at all
-        const { count: totalGames } = await supabase
-          .from('user_games')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id)
+        setShowOnboarding(await isNewUser(user.id))
 
-        setShowOnboarding(totalGames === 0)
 
-        // Fetch from the view
-        const { data: games, error } = await supabase
-          .from('currently_playing_with_latest_note')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('note_created_at', { ascending: false, nullsFirst: false })
+        setCurrentGames(await fetchFormattedCurrentGames(user.id))
 
-        if (error) throw error
-
-        const formattedGames =
-          games?.map((g) => ({
-            id: g.game_id,
-            title: g.title,
-            image: g.image || g.background_image,
-            progress: g.progress,
-            platforms: g.platforms || [],
-            genres: [], // Remove genre handling for now or adjust if your view includes it
-            status: g.status,
-            nextIntent: g.next_session_plan?.intent || '',
-            nextNote: g.next_session_plan?.note || '',
-          })) || []
-
-        setCurrentGames(formattedGames)
       } catch (error) {
         console.error('Error fetching current games:', error)
       } finally {
@@ -74,13 +42,13 @@ const HomePage = () => {
       }
     }
 
-    fetchCurrentGames()
+    loadUserHomepage()
   }, [navigate])
 
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <div className="loading loading-spinner loading-lg"></div>
+        <div className="loading loading-spinner loading-lg" role='status'></div>
       </div>
     )
   }
