@@ -34,6 +34,22 @@ const Dashboard = () => {
   })
   const [loading, setLoading] = useState(true)
 
+  // Helper to get the top item from a count object
+  const getTopItem = (counts: { [key: string]: number }) => {
+    if (Object.keys(counts).length === 0) return 'None'
+    return Object.entries(counts).reduce((a, b) =>
+      a[1] > b[1] ? a : b
+    )[0]
+  }
+
+  // Declare genreCounts and completedMoodCounts in component scope
+  let genreCounts = {}
+  let completedMoodCounts = {}
+
+  // New state for top genre and mood among completed games
+  const [topGenreCompleted, setTopGenreCompleted] = useState('')
+  const [topMoodCompleted, setTopMoodCompleted] = useState('')
+
   useEffect(() => {
     const fetchGameStats = async () => {
       try {
@@ -125,11 +141,25 @@ const Dashboard = () => {
           ['Endless', 'Done', 'Satisfied', 'DNF'].includes(game.status)
         )
 
+        // Count mood occurrences for completed games only
+        completedMoodCounts = completedUserGames.reduce(
+          (acc: { [key: string]: number }, userGame) => {
+            if (userGame.games && Array.isArray(userGame.games.game_moods)) {
+              userGame.games.game_moods.forEach((gm) => {
+                const moodName = gm.moods.name
+                acc[moodName] = (acc[moodName] || 0) + 1
+              })
+            }
+            return acc
+          },
+          {}
+        )
+
         // Genres to ignore in stats
         const IGNORED_GENRES = ['Adventure', 'Indie', 'RPG', 'Simulation', 'Strategy']
 
         // Count most meaningful genre (first non-ignored) per game
-        const genreCounts = completedUserGames.reduce(
+        genreCounts = completedUserGames.reduce(
           (acc: { [key: string]: number }, userGame) => {
             const genres = userGame.games?.game_genres || []
             const meaningfulGenre = genres.find(
@@ -143,6 +173,10 @@ const Dashboard = () => {
           },
           {}
         )
+
+        // Set top genre and mood among completed games
+        setTopGenreCompleted(getTopItem(genreCounts))
+        setTopMoodCompleted(getTopItem(completedMoodCounts))
 
         // Log user games platforms for debugging
         console.log(
@@ -167,8 +201,9 @@ const Dashboard = () => {
         // Log platform counts for debugging
         console.log('Platform counts:', platformCounts)
 
-        // Count mood occurrences
-        const moodCounts = completedUserGames.reduce(
+        // Count mood occurrences for all games (not just completed ones)
+        // (Restored original logic for mood counting)
+        const allMoodCounts = userGames.reduce(
           (acc: { [key: string]: number }, userGame) => {
             if (userGame.games && Array.isArray(userGame.games.game_moods)) {
               userGame.games.game_moods.forEach((gm) => {
@@ -183,13 +218,6 @@ const Dashboard = () => {
           {}
         )
 
-        // Find the most common genre, platform, and mood
-        const getTopItem = (counts: { [key: string]: number }) => {
-          if (Object.keys(counts).length === 0) return 'None'
-          return Object.entries(counts).reduce((a, b) =>
-            a[1] > b[1] ? a : b
-          )[0]
-        }
 
         setStats({
           totalLibrary: userGames?.length || 0,
@@ -206,7 +234,8 @@ const Dashboard = () => {
           completedThisYear: completedThisYear,
           topGenre: getTopItem(genreCounts),
           topPlatform: getTopItem(platformCounts),
-          topMood: getTopItem(moodCounts),
+          // Use allMoodCounts for topMood (all games, not just completed)
+          topMood: getTopItem(allMoodCounts),
           recentActivity: recentNote
             ? {
                 date: new Date(recentNote.created_at).toLocaleDateString(),
@@ -224,6 +253,9 @@ const Dashboard = () => {
     fetchGameStats()
   }, [navigate])
 
+  // fallback assignments just above return
+  genreCounts = genreCounts || {}
+  completedMoodCounts = completedMoodCounts || {}
   return (
     <div className="p-8">
       <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
@@ -312,7 +344,8 @@ const Dashboard = () => {
             <div className="card-body">
               <h2 className="card-title">Favorite Game Type</h2>
               <p className="text-4xl font-bold capitalize">
-                {stats.topGenre || 'Unknown'} • {stats.topMood || 'Unknown'}
+                {/* Use topGenreCompleted and topMoodCompleted for completed games only */}
+                {topGenreCompleted || 'Unknown'} • {topMoodCompleted || 'Unknown'}
               </p>
               <p className="text-sm opacity-70">Your most-played vibe</p>
             </div>
