@@ -37,9 +37,7 @@ const Dashboard = () => {
   // Helper to get the top item from a count object
   const getTopItem = (counts: { [key: string]: number }) => {
     if (Object.keys(counts).length === 0) return 'None'
-    return Object.entries(counts).reduce((a, b) =>
-      a[1] > b[1] ? a : b
-    )[0]
+    return Object.entries(counts).reduce((a, b) => (a[1] > b[1] ? a : b))[0]
   }
 
   // Declare genreCounts and completedMoodCounts in component scope
@@ -63,6 +61,7 @@ const Dashboard = () => {
 
         // Get user games with their genres, platforms, and moods
         const { data: userGames, error } = (await supabase
+          
           .from('user_games')
           .select(
             `
@@ -97,6 +96,8 @@ const Dashboard = () => {
           error: Error | null
         }
 
+        console.log('📊 Supabase user_games data:', userGames)
+
         //Keeping this commented for future use - completion tracking
         const currentYear = new Date().getFullYear()
         const { data: completionNotes } = await supabase
@@ -106,7 +107,6 @@ const Dashboard = () => {
           .eq('is_completion_entry', true)
           .gte('completion_date', `${currentYear}-01-01`)
           .lte('completion_date', `${currentYear}-12-31`)
-        
 
         if (error) throw error
 
@@ -129,14 +129,16 @@ const Dashboard = () => {
         ).length
 
         // Keeping this commented for future use - completion tracking
-        const gamesCompletedThisYear = userGames.filter(game => {
+        const gamesCompletedThisYear = userGames.filter((game) => {
           const updatedAt = new Date(game.updated_at)
-          return ['Endless', 'Done', 'Satisfied', 'DNF'].includes(game.status) && 
-                 updatedAt.getFullYear() === currentYear
+          return (
+            ['Endless', 'Done', 'Satisfied', 'DNF'].includes(game.status) &&
+            updatedAt.getFullYear() === currentYear
+          )
         })
 
         const completedThisYear = gamesCompletedThisYear.length
-        
+
         const completedUserGames = userGames.filter((game) =>
           ['Endless', 'Done', 'Satisfied', 'DNF'].includes(game.status)
         )
@@ -156,7 +158,13 @@ const Dashboard = () => {
         )
 
         // Genres to ignore in stats
-        const IGNORED_GENRES = ['Adventure', 'Indie', 'RPG', 'Simulation', 'Strategy']
+        const IGNORED_GENRES = [
+          'Adventure',
+          'Indie',
+          'RPG',
+          'Simulation',
+          'Strategy',
+        ]
 
         // Count most meaningful genre (first non-ignored) per game
         genreCounts = completedUserGames.reduce(
@@ -211,13 +219,15 @@ const Dashboard = () => {
                 acc[moodName] = (acc[moodName] || 0) + 1
               })
             } else {
-              console.warn('Missing or invalid game_moods for userGame:', userGame)
+              console.warn(
+                'Missing or invalid game_moods for userGame:',
+                userGame
+              )
             }
             return acc
           },
           {}
         )
-
 
         setStats({
           totalLibrary: userGames?.length || 0,
@@ -278,7 +288,7 @@ const Dashboard = () => {
           >
             <div className="card-body">
               <h2 className="card-title">Total Library</h2>
-              <p className="text-4xl font-bold">{stats.totalLibrary}</p>
+              <p className="text-4xl font-bold" data-testid="total-library">{stats.totalLibrary}</p>
               <p className="text-sm opacity-70">Games in your collection</p>
             </div>
           </div>
@@ -295,7 +305,7 @@ const Dashboard = () => {
           >
             <div className="card-body">
               <h2 className="card-title">Games in Backlog</h2>
-              <p className="text-4xl font-bold">{stats.backlog}</p>
+              <p className="text-4xl font-bold" data-testid="backlog">{stats.backlog}</p>
               <p className="text-sm opacity-70">
                 {((stats.backlog / stats.totalLibrary) * 100).toFixed(1)}% of
                 your library
@@ -313,7 +323,7 @@ const Dashboard = () => {
           >
             <div className="card-body">
               <h2 className="card-title">Currently Playing</h2>
-              <p className="text-4xl font-bold">{stats.currentlyPlaying}</p>
+              <p className="text-4xl font-bold" data-testid="currently-playing">{stats.currentlyPlaying}</p>
               <p className="text-sm opacity-70">Active games in progress</p>
             </div>
           </div>
@@ -330,7 +340,7 @@ const Dashboard = () => {
           >
             <div className="card-body">
               <h2 className="card-title">Completed Games</h2>
-              <p className="text-4xl font-bold">{stats.completed}</p>
+              <p className="text-4xl font-bold" data-testid="completed">{stats.completed}</p>
               <p className="text-sm opacity-70">
                 {((stats.completed / stats.totalLibrary) * 100).toFixed(1)}%
                 completion rate
@@ -343,8 +353,7 @@ const Dashboard = () => {
           >
             <div className="card-body">
               <h2 className="card-title">Favorite Game Type</h2>
-              <p className="text-4xl font-bold capitalize">
-                {/* Use topGenreCompleted and topMoodCompleted for completed games only */}
+              <p className="text-4xl font-bold capitalize" data-testid="favorite-game-type">
                 {topGenreCompleted || 'Unknown'} • {topMoodCompleted || 'Unknown'}
               </p>
               <p className="text-sm opacity-70">Your most-played vibe</p>
@@ -356,37 +365,42 @@ const Dashboard = () => {
           >
             <div className="card-body">
               <h2 className="card-title">Most Used Platform</h2>
-              <p className="text-4xl font-bold">{stats.topPlatform}</p>
+              <p className="text-4xl font-bold" data-testid="most-used-platform">{stats.topPlatform}</p>
               <p className="text-sm opacity-70">Your primary gaming platform</p>
             </div>
           </div>
           {/* Keeping this commented for future use - completion tracking card */}
-          <div 
-            className="card bg-base-100 shadow-xl hover:bg-base-200 cursor-pointer transition-colors tooltip" 
+          <div
+            className="card bg-base-100 shadow-xl hover:bg-base-200 cursor-pointer transition-colors tooltip"
             data-tip="Games marked as Done, Endless, Satisfied, or DNF in 2025 - click to view all games completed this year"
-            onClick={() => navigate('/app/library', { 
-              state: { 
-                filterStatus: ['Endless', 'Done', 'Satisfied', 'DNF'],
-                // Note: The actual filtering by year would need to be implemented in the Library component
-              } 
-            })}
+            onClick={() =>
+              navigate('/app/library', {
+                state: {
+                  filterStatus: ['Endless', 'Done', 'Satisfied', 'DNF'],
+                  // Note: The actual filtering by year would need to be implemented in the Library component
+                },
+              })
+            }
           >
             <div className="card-body">
               <h2 className="card-title">Completed in 2025</h2>
-              <p className="text-4xl font-bold">{stats.completedThisYear}</p>
+              <p className="text-4xl font-bold" data-testid="completed-this-year">{stats.completedThisYear}</p>
               <p className="text-sm opacity-70">
-                {((stats.completedThisYear / stats.totalLibrary) * 100).toFixed(1)}% of your library
+                {((stats.completedThisYear / stats.totalLibrary) * 100).toFixed(
+                  1
+                )}
+                % of your library
               </p>
             </div>
           </div>
-         
+
           <div
             className="card bg-base-100 shadow-xl tooltip"
             data-tip="The mood that appears most frequently across your game collection"
           >
             <div className="card-body">
               <h2 className="card-title">Most Common Mood</h2>
-              <p className="text-4xl font-bold capitalize">{stats.topMood}</p>
+              <p className="text-4xl font-bold capitalize" data-testid="most-common-mood">{stats.topMood}</p>
               <p className="text-sm opacity-70">How your games make you feel</p>
             </div>
           </div>
