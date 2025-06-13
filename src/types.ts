@@ -69,7 +69,7 @@ export interface UserGameResponse {
   game_id: string
   updated_at: string
   platforms: string[]
-  game: {
+  games: {
     id: string
     title: string
     game_genres: {
