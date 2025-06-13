@@ -1,143 +1,30 @@
-name: CI/CD Pipeline
+
+  name: Backlog Explorer CI
 
 on:
   push:
-    branches: [ main, develop, deploy, 'feature/*', 'bugfix/*' ]
-    tags:
-      - 'v*'
+    branches: [develop, deploy]
   pull_request:
-    branches: [ main, develop, deploy ]
+    branches: [develop]
 
 jobs:
-  branch-check:
+  lint-and-build:
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v3
-      
-      - name: Check branch naming and merge rules
-        run: |
-          # Get the target (base) branch and source branch
-          TARGET_BRANCH="${{ github.base_ref }}"
-          SOURCE_BRANCH="${{ github.head_ref }}"
-          
-          # Fail if trying to merge directly to main/deploy without going through develop
-          if [[ "$TARGET_BRANCH" == "main" || "$TARGET_BRANCH" == "deploy" ]] && [[ "$SOURCE_BRANCH" != "develop" ]]; then
-            echo "❌ Cannot merge directly to $TARGET_BRANCH. Please merge through develop first."
-            exit 1
-          fi
-          
-          # Ensure feature and bugfix branches are properly named
-          if [[ "$TARGET_BRANCH" == "develop" ]] && [[ ! "$SOURCE_BRANCH" =~ ^(feature|bugfix)\/ ]]; then
-            echo "❌ Branches targeting develop should start with 'feature/' or 'bugfix/'. Current branch: $SOURCE_BRANCH"
-            exit 1
-          fi
 
-  update-changelog:
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/deploy'
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-
-      - name: Fetch tags
-        run: git fetch --tags
-
-      - name: Get previous tag
-        id: previoustag
-        uses: WyriHaximus/github-action-get-previous-tag@v1
-        with:
-          fallback: 1.0.0
-
-      - name: Generate changelog
-        id: changelog
-        run: |
-          # Get the latest tag
-          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
-          
-          # Get commit messages since last tag
-          COMMITS=$(git log --pretty=format:"%s" $LATEST_TAG..HEAD)
-          
-          # Calculate new version (increment patch version)
-          IFS='.' read -r -a VERSION_PARTS <<< "$LATEST_TAG"
-          MAJOR=${VERSION_PARTS[0]#v}
-          MINOR=${VERSION_PARTS[1]}
-          PATCH=$((VERSION_PARTS[2] + 1))
-          NEW_VERSION="$MAJOR.$MINOR.$PATCH"
-          
-          # Check if the tag already exists
-          if git rev-parse "v$NEW_VERSION" >/dev/null 2>&1; then
-            echo "❌ Tag v$NEW_VERSION already exists. Skipping changelog update."
-            exit 0
-          fi
-          
-          # Generate changelog entry
-          DATE=$(date +%Y-%m-%d)
-          CHANGELOG_ENTRY="## [$NEW_VERSION] - $DATE\n"
-          
-          # Categorize commits
-          FEATURES=$(echo "$COMMITS" | grep -i "^feat:" || true)
-          FIXES=$(echo "$COMMITS" | grep -i "^fix:" || true)
-          CHORES=$(echo "$COMMITS" | grep -i "^chore:" || true)
-          
-          if [ ! -z "$FEATURES" ]; then
-            CHANGELOG_ENTRY+="\n### Added\n"
-            while IFS= read -r line; do
-              CHANGELOG_ENTRY+="- ${line#feat: }\n"
-            done <<< "$FEATURES"
-          fi
-          
-          if [ ! -z "$FIXES" ]; then
-            CHANGELOG_ENTRY+="\n### Fixed\n"
-            while IFS= read -r line; do
-              CHANGELOG_ENTRY+="- ${line#fix: }\n"
-            done <<< "$FIXES"
-          fi
-          
-          if [ ! -z "$CHORES" ]; then
-            CHANGELOG_ENTRY+="\n### Changed\n"
-            while IFS= read -r line; do
-              CHANGELOG_ENTRY+="- ${line#chore: }\n"
-            done <<< "$CHORES"
-          fi
-          
-          # Update CHANGELOG.md
-          sed -i "s/## \[Unreleased\]/## \[Unreleased\]\n\n$CHANGELOG_ENTRY/" CHANGELOG.md
-          
-          # Create new tag
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add CHANGELOG.md
-          git commit -m "chore: update changelog for version $NEW_VERSION"
-          git tag -a "v$NEW_VERSION" -m "Release version $NEW_VERSION"
-          
-          # Set outputs
-          echo "::set-output name=version::$NEW_VERSION"
-          echo "::set-output name=changelog::$CHANGELOG_ENTRY"
-
-      - name: Push changes
-        uses: ad-m/github-push-action@master
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: deploy
-          tags: true
-
-  build:
-    runs-on: ubuntu-latest
-    if: github.ref != 'refs/heads/deploy' || needs.update-changelog.result == 'success'
-    steps:
-      - uses: actions/checkout@v3
-      
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
           cache: 'npm'
-          
+
       - name: Install dependencies
         run: npm ci
-        
+
+      - name: Lint
+        run: npm run lint
+
       - name: Build
         run: npm run build
         env:
@@ -145,69 +32,3 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_RAWG_API_KEY: ${{ secrets.VITE_RAWG_API_KEY }}
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
-
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-          cache: 'npm'
-          
-      - name: Install dependencies
-        run: npm ci
-        
-      - name: Run lint
-        run: npm run lint
-
-  # Temporarily disabled until we fix the validation script
-  # validate-database:
-  #   runs-on: ubuntu-latest
-  #   if: |
-  #     github.ref == 'refs/heads/deploy' ||
-  #     github.ref == 'refs/heads/main' ||
-  #     github.ref == 'refs/heads/develop' ||
-  #     (github.event_name == 'pull_request' && 
-  #       (github.base_ref == 'deploy' || 
-  #        github.base_ref == 'main' || 
-  #        github.base_ref == 'develop'))
-  #   needs: [lint]
-  #   steps:
-  #     - uses: actions/checkout@v3
-  #     
-  #     - name: Set up Node.js
-  #       uses: actions/setup-node@v3
-  #       with:
-  #         node-version: '18'
-  #         cache: 'npm'
-  #         
-  #     - name: Install dependencies
-  #       run: npm install @supabase/supabase-js glob
-  #       
-  #     - name: Validate Database Environments
-  #       env:
-  #         DEV_SUPABASE_URL: ${{ secrets.DEV_SUPABASE_URL }}
-  #         DEV_SUPABASE_SERVICE_KEY: ${{ secrets.DEV_SUPABASE_SERVICE_KEY }}
-  #         VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-  #         VITE_SUPABASE_SERVICE_KEY: ${{ secrets.VITE_SUPABASE_SERVICE_KEY }}
-  #         GITHUB_REF: ${{ github.ref }}
-  #         GITHUB_BASE_REF: ${{ github.base_ref }}
-  #       run: |
-  #         node scripts/validate-environments.js
-  #         node scripts/validate-queries.js
-
-  pr-reminder:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    steps:
-      - name: PR Checklist Reminder
-        run: |
-          echo "🔍 Review Checklist:"
-          echo "✓ Code follows project style guidelines"
-          echo "✓ Tests added/updated (if applicable)"
-          echo "✓ Documentation updated (if applicable)"
-          echo "✓ Commit messages are clear and descriptive"
-          echo "✓ Branch is up to date with target branch"

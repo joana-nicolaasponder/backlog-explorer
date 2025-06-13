@@ -1,3 +1,35 @@
+it('does not use generic genres like Adventure or Indie as favorite genre', async () => {
+  render(
+    <MemoryRouter>
+      <Dashboard />
+    </MemoryRouter>
+  )
+
+  await waitFor(() => {
+    const favorite = screen.getByTestId('favorite-game-type').textContent
+    expect(favorite).not.toMatch(/Adventure|Indie/i)
+    expect(favorite).toMatch(/Puzzle/i) // from mock data
+  })
+})
+
+it('separates most common mood from favorite mood (completed games only)', async () => {
+  render(
+    <MemoryRouter>
+      <Dashboard />
+    </MemoryRouter>
+  )
+
+  await waitFor(() => {
+    const favoriteGameType = screen.getByTestId('favorite-game-type').textContent
+    const mostCommonMood = screen.getByTestId('most-common-mood').textContent
+
+    // Favorite mood comes from completed games: Relaxing
+    expect(favoriteGameType).toMatch(/Relaxing/i)
+
+    // Most common mood from all games: Cozy
+    expect(mostCommonMood).toMatch(/Cozy/i)
+  })
+})
 import React from 'react'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter, useNavigate } from 'react-router-dom'
@@ -355,6 +387,56 @@ describe('Dashboard', () => {
       expect(screen.getByTestId('most-used-platform')).toHaveTextContent('PC')
     })
   })
+
+  it('displays an error in console when Supabase query fails', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    // Mock Supabase to return an error for user_games
+    vi.mocked(supabaseClient.from).mockImplementation((tableName: string) => {
+      if (tableName === 'user_games') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() =>
+              Promise.resolve({ data: null, error: new Error('Fetch failed') })
+            ),
+          })),
+        } as any
+      }
+
+      if (tableName === 'game_notes') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn(() => ({
+                limit: vi.fn(() => Promise.resolve({ data: [], error: null })),
+              })),
+            })),
+          })),
+        } as any
+      }
+
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => Promise.resolve({ data: [], error: null })),
+        })),
+      } as any
+    })
+
+    render(
+      <MemoryRouter>
+        <Dashboard />
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Error fetching game stats:',
+        expect.any(Error)
+      )
+    })
+
+    consoleErrorSpy.mockRestore()
+  })
 })
 
 // User Stories for testing
@@ -381,3 +463,29 @@ describe('Dashboard', () => {
 // 	14.	As a developer, I want to fetch and parse game_genres, game_platforms, and game_moods relationships via Supabase joins so I can present enriched insights on the dashboard.
 // 15.	As a developer, I want to ensure the filtering logic for "completed this year" aligns with completion timestamps, not just status so metrics are accurate.
 // 16.	As a developer, I want to avoid repeated Supabase queries or unnecessary state mutations during dashboard render so the page performs well at scale.
+
+it('displays loading skeleton while fetching data', async () => {
+  // Mock a delayed Supabase response to simulate loading
+  vi.mocked(supabaseClient.from).mockImplementation((tableName: string) => {
+    return {
+      select: vi.fn(() => ({
+        eq: vi.fn(() => new Promise(resolve => setTimeout(() => resolve({ data: [], error: null }), 100))),
+      })),
+    } as any
+  })
+
+  render(
+    <MemoryRouter>
+      <Dashboard />
+    </MemoryRouter>
+  )
+
+  // Check that at least one loading skeleton is in the document
+  const loadingCards = screen.getAllByRole('status')
+  expect(loadingCards.length).toBeGreaterThan(0)
+
+  await waitFor(() => {
+    // Wait for the loading to finish (after 100ms delay)
+    expect(screen.getByText('Dashboard')).toBeInTheDocument()
+  })
+})
