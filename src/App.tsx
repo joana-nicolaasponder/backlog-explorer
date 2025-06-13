@@ -403,7 +403,7 @@ const App: React.FC = () => {
             }
           />
 
-<Route
+          <Route
             path="/app/explore"
             element={
               <ProtectedRoute>
@@ -413,7 +413,11 @@ const App: React.FC = () => {
                     onAddGame={() => setShowAddGame(true)}
                   />
                   <main className="flex-1 overflow-auto pt-16 lg:pt-0">
-                    <Explore />
+                    <Explore
+                      isDevUser={
+                        session?.user?.email === 'joanaponder@gmail.com'
+                      }
+                    />
                     {showAddGame && (
                       <AddGameModal
                         onGameAdded={handleGameAdded}

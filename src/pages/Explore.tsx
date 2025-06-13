@@ -4,7 +4,8 @@ import SeasonRecommendations from './SeasonRecommendations'
 import BacklogBuddy from './BacklogBuddy'
 import ChatBot from './ChatBot'
 
-const Explore = () => {
+const Explore = ({ isDevUser }: { isDevUser: boolean }) => {
+
   const [activeFeature, setActiveFeature] = useState<string | null>(null)
 
   const renderFeature = () => {
@@ -28,17 +29,29 @@ const Explore = () => {
             <div className="bg-base-100 border p-6 rounded-lg shadow">
               <h2 className="text-lg font-semibold mb-2">🎮 Mood-based Recommendations</h2>
               <p className="text-sm mb-4">Discover games from your library that match your current mood. Whether you're looking for something relaxing, challenging, or story-driven.</p>
-              <button onClick={() => setActiveFeature('mood')} className="btn btn-sm btn-primary">Go</button>
+              {isDevUser ? (
+                <button onClick={() => setActiveFeature('mood')} className="btn btn-sm btn-primary">Go</button>
+              ) : (
+                <span className="text-sm font-medium text-gray-400">Coming Soon</span>
+              )}
             </div>
             <div className="bg-base-100 border p-6 rounded-lg shadow">
               <h2 className="text-lg font-semibold mb-2">🌞 Seasonal Game Suggestions</h2>
               <p className="text-sm mb-4">Get personalized game recommendations based on the season, holidays, and special events. Perfect for finding that cozy winter game or summer adventure.</p>
-              <button onClick={() => setActiveFeature('seasonal')} className="btn btn-sm btn-primary">Go</button>
+              {isDevUser ? (
+                <button onClick={() => setActiveFeature('seasonal')} className="btn btn-sm btn-primary">Go</button>
+              ) : (
+                <span className="text-sm font-medium text-gray-400">Coming Soon</span>
+              )}
             </div>
             <div className="bg-base-100 border p-6 rounded-lg shadow">
               <h2 className="text-lg font-semibold mb-2">💡 Backlog Buddy</h2>
               <p className="text-sm mb-4">Want to buy a new game? Let Backlog Buddy help you find similar games in your backlog first! Save money and rediscover hidden gems you already own.</p>
-              <button onClick={() => setActiveFeature('smart')} className="btn btn-sm btn-primary">Go</button>
+              {isDevUser ? (
+                <button onClick={() => setActiveFeature('smart')} className="btn btn-sm btn-primary">Go</button>
+              ) : (
+                <span className="text-sm font-medium text-gray-400">Coming Soon</span>
+              )}
             </div>
             {/* <div className="bg-base-100 border p-6 rounded-lg shadow">
               <h2 className="text-lg font-semibold mb-2">💡 ChatBot</h2>
