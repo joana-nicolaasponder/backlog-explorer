@@ -128,7 +128,6 @@ export function useDashboardStats() {
           error: Error | null
         }
 
-        console.log('📊 Supabase user_games data:', userGames)
 
         const currentYear = new Date().getFullYear()
         // const { data: completionNotes } = await supabase
