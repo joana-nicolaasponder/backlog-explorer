@@ -1,35 +1,3 @@
-it('does not use generic genres like Adventure or Indie as favorite genre', async () => {
-  render(
-    <MemoryRouter>
-      <Dashboard />
-    </MemoryRouter>
-  )
-
-  await waitFor(() => {
-    const favorite = screen.getByTestId('favorite-game-type').textContent
-    expect(favorite).not.toMatch(/Adventure|Indie/i)
-    expect(favorite).toMatch(/Puzzle/i) // from mock data
-  })
-})
-
-it('separates most common mood from favorite mood (completed games only)', async () => {
-  render(
-    <MemoryRouter>
-      <Dashboard />
-    </MemoryRouter>
-  )
-
-  await waitFor(() => {
-    const favoriteGameType = screen.getByTestId('favorite-game-type').textContent
-    const mostCommonMood = screen.getByTestId('most-common-mood').textContent
-
-    // Favorite mood comes from completed games: Relaxing
-    expect(favoriteGameType).toMatch(/Relaxing/i)
-
-    // Most common mood from all games: Cozy
-    expect(mostCommonMood).toMatch(/Cozy/i)
-  })
-})
 import React from 'react'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter, useNavigate } from 'react-router-dom'
@@ -191,6 +159,38 @@ vi.mock('../src/supabaseClient', () => ({
 }))
 
 describe('Dashboard', () => {
+  it('does not use generic genres like Adventure or Indie as favorite genre', async () => {
+    render(
+      <MemoryRouter>
+        <Dashboard />
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      const favorite = screen.getByTestId('favorite-game-type').textContent
+      expect(favorite).not.toMatch(/Adventure|Indie/i)
+      expect(favorite).toMatch(/Puzzle/i) // from mock data
+    })
+  })
+
+  it('separates most common mood from favorite mood (completed games only)', async () => {
+    render(
+      <MemoryRouter>
+        <Dashboard />
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      const favoriteGameType = screen.getByTestId('favorite-game-type').textContent
+      const mostCommonMood = screen.getByTestId('most-common-mood').textContent
+
+      // Favorite mood comes from completed games: Relaxing
+      expect(favoriteGameType).toMatch(/Relaxing/i)
+
+      // Most common mood from all games: Cozy
+      expect(mostCommonMood).toMatch(/Cozy/i)
+    })
+  })
   it('renders dashboard title', async () => {
     render(
       <MemoryRouter>

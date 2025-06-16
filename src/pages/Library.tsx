@@ -1,3 +1,4 @@
+console.log('🔥 Library.tsx is loaded!');
 import React, {
   useState,
   useEffect,
@@ -18,6 +19,7 @@ const Library: React.ForwardRefRenderFunction<
   LibraryHandle,
   Record<string, never>
 > = (props, ref) => {
+  console.log('🔥 Library component rendered!');
   const location = useLocation()
   const [filterStatus, setFilterStatus] = useState<string[]>(
     Array.isArray(location.state?.filterStatus)
@@ -41,12 +43,14 @@ const Library: React.ForwardRefRenderFunction<
   const [statusOptions, setStatusOptions] = useState<string[]>([])
   const [yearOptions, setYearOptions] = useState<number[]>([])
   const [userId, setUserId] = useState<string>('')
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const getCurrentUser = async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser()
+      console.log('👤 getCurrentUser: result', user)
       if (user) {
         setUserId(user.id)
       }
@@ -89,7 +93,7 @@ const Library: React.ForwardRefRenderFunction<
         .order('game(title)', { ascending: true })
 
       if (gamesError) {
-        console.error('Error fetching games:', gamesError)
+        setError(gamesError.message || 'Something went wrong fetching games.')
         return
       }
 
@@ -121,7 +125,7 @@ const Library: React.ForwardRefRenderFunction<
       setPlatformOptions(Array.from(platforms).sort())
       setGenreOptions(Array.from(genres).sort())
     } catch (error) {
-      console.error('Error in fetchGames:', error)
+      setError(error.message || 'Something went wrong.')
     }
   }
 
@@ -131,7 +135,9 @@ const Library: React.ForwardRefRenderFunction<
   }))
 
   useEffect(() => {
+    console.log('👀 useEffect with userId:', userId)
     const fetchOptions = async () => {
+      setError(null)
       if (!userId) {
         return
       }
@@ -190,9 +196,12 @@ const Library: React.ForwardRefRenderFunction<
           .order('game(title)', { ascending: true })
 
         if (gamesError) {
-          console.error('Error fetching games:', gamesError)
+          setError(gamesError.message || 'Something went wrong fetching games.')
           return
         }
+
+        // Debug: log raw userGames after fetching
+        console.log('raw userGames from fetchOptions', userGames)
 
         // Format games with platform, genre and mood names
         let formattedGames = userGames.map((userGame) => ({
@@ -209,6 +218,10 @@ const Library: React.ForwardRefRenderFunction<
           provider: userGame.game.provider || 'rawg',
           igdb_id: userGame.game.igdb_id || 0,
         }))
+
+        // Debug: log initial formattedGames and filterStatus
+        console.log('Initial formattedGames:', formattedGames)
+        console.log('Applying filterStatus:', filterStatus)
 
         const years = Array.from(
           new Set(userGames.map((game) => new Date(game.updated_at).getFullYear()))
@@ -301,9 +314,11 @@ const Library: React.ForwardRefRenderFunction<
             break
         }
 
+        // Debug: log final filtered games before setGames
+        console.log('Final filtered games:', formattedGames)
         setGames(formattedGames)
       } catch (error) {
-        console.error('Error:', error)
+        setError(error.message || 'Something went wrong.')
       }
     }
 
@@ -353,7 +368,9 @@ const Library: React.ForwardRefRenderFunction<
                         }
                       }}
                     />
-                    <span>{status}</span>
+                    <span data-testid={`status-option-${status.toLowerCase().replace(/\s/g, '-')}`}>
+                      {status}
+                    </span>
                   </label>
                 </li>
               ))}
@@ -361,6 +378,7 @@ const Library: React.ForwardRefRenderFunction<
           </div>
 
           <select
+            aria-label="All Platforms"
             className="select select-bordered"
             value={filterPlatform}
             onChange={(e) => setFilterPlatform(e.target.value)}
@@ -374,6 +392,7 @@ const Library: React.ForwardRefRenderFunction<
           </select>
 
           <select
+            aria-label="All Genres"
             className="select select-bordered"
             value={filterGenre}
             onChange={(e) => setFilterGenre(e.target.value)}
@@ -387,6 +406,7 @@ const Library: React.ForwardRefRenderFunction<
           </select>
 
           <select
+            aria-label="All Moods"
             className="select select-bordered"
             value={filterMood}
             onChange={(e) => setFilterMood(e.target.value)}
@@ -401,6 +421,7 @@ const Library: React.ForwardRefRenderFunction<
 
           <select
             id="year-filter"
+            aria-label="Year Completed"
             className="select select-bordered"
             value={filterYear ?? ''}
             onChange={(e) =>
@@ -417,6 +438,7 @@ const Library: React.ForwardRefRenderFunction<
           </select>
 
           <select
+            aria-label="Title (A → Z)"
             className="select select-bordered"
             onChange={(e) => setSortOrder(e.target.value)}
           >
@@ -434,6 +456,11 @@ const Library: React.ForwardRefRenderFunction<
           onClear={() => setSearchQuery('')}
         />
       </div>
+      {error && (
+        <div className="alert alert-error my-4" role="alert">
+          {error}
+        </div>
+      )}
       <GameCard games={games} userId={userId} onRefresh={() => {}} />
     </div>
   )
