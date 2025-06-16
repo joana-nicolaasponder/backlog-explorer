@@ -1,6 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { Session } from '@supabase/supabase-js'
-import { Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom'
+import {
+  Routes,
+  Route,
+  useLocation,
+  useNavigate,
+  Navigate,
+} from 'react-router-dom'
 import supabase from './supabaseClient'
 import { ThemeProvider } from './contexts/ThemeContext'
 import Auth from './components/Auth'
@@ -14,6 +20,8 @@ import AddGameModal from './components/AddGameModal'
 import LandingPage from './pages/LandingPage'
 import FeedbackPage from './pages/FeedbackPage'
 import ProfilePage from './pages/ProfilePage'
+import MoodRecommendations from './pages/MoodRecommendations'
+import ComingSoon from './pages/ComingSoon'
 
 const ResetPassword = () => {
   const [newPassword, setNewPassword] = useState('')
@@ -23,11 +31,11 @@ const ResetPassword = () => {
   const handleReset = async () => {
     try {
       const { error } = await supabase.auth.updateUser({
-        password: newPassword
+        password: newPassword,
       })
 
       if (error) throw error
-      
+
       setMessage('Password updated successfully!')
       setTimeout(() => {
         navigate('/')
@@ -56,14 +64,17 @@ const ResetPassword = () => {
           placeholder="Enter your new password"
         />
       </div>
-      <button 
-        className="btn btn-primary mt-4 w-full"
-        onClick={handleReset}
-      >
+      <button className="btn btn-primary mt-4 w-full" onClick={handleReset}>
         Update Password
       </button>
       {message && (
-        <div className={`mt-4 p-4 rounded ${message.includes('Error') ? 'bg-error text-error-content' : 'bg-success text-success-content'}`}>
+        <div
+          className={`mt-4 p-4 rounded ${
+            message.includes('Error')
+              ? 'bg-error text-error-content'
+              : 'bg-success text-success-content'
+          }`}
+        >
           {message}
         </div>
       )}
@@ -82,10 +93,13 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     const checkAccess = async () => {
       try {
         // Get the current session
-        const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession()
-        
+        const {
+          data: { session: currentSession },
+          error: sessionError,
+        } = await supabase.auth.getSession()
+
         if (sessionError) throw sessionError
-        
+
         if (!currentSession?.user?.email) {
           if (mounted) {
             setSession(null)
@@ -112,7 +126,10 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
             setLoading(false)
           }
           navigate('/login', {
-            state: { error: 'You are not authorized to access this application. Please contact the administrator.' }
+            state: {
+              error:
+                'You are not authorized to access this application. Please contact the administrator.',
+            },
           })
           return
         }
@@ -136,7 +153,9 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     checkAccess()
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, _newSession) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, _newSession) => {
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         checkAccess()
       } else if (event === 'SIGNED_OUT') {
@@ -160,11 +179,11 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
       </div>
     )
   }
-  
+
   if (!session) {
     return <Navigate to="/login" />
   }
-  
+
   return <>{children}</>
 }
 
@@ -215,131 +234,226 @@ const App: React.FC = () => {
     <ThemeProvider>
       <div className="min-h-screen">
         <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<Auth onAuth={setSession} />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
-        
-        {/* Protected Routes */}
-        <Route path="/app" element={
-          <ProtectedRoute>
-            <div className="flex h-screen bg-base-200">
-              <SideBar onLogout={handleLogout} onAddGame={() => setShowAddGame(true)} />
-              <main className="flex-1 overflow-auto pt-16 lg:pt-0">
-                <HomePage />
-                {showAddGame && (
-                  <AddGameModal 
-                    onGameAdded={handleGameAdded}
-                    showModal={showAddGame}
-                    setShowModal={setShowAddGame}
-                  />
-                )}
-              </main>
-            </div>
-          </ProtectedRoute>
-        } />
-        <Route path="/app/dashboard" element={
-          <ProtectedRoute>
-            <div className="flex h-screen bg-base-200">
-              <SideBar onLogout={handleLogout} onAddGame={() => setShowAddGame(true)} />
-              <main className="flex-1 overflow-auto pt-16 lg:pt-0">
-                <Dashboard />
-                {showAddGame && (
-                  <AddGameModal 
-                    onGameAdded={handleGameAdded}
-                    showModal={showAddGame}
-                    setShowModal={setShowAddGame}
-                  />
-                )}
-              </main>
-            </div>
-          </ProtectedRoute>
-        } />
-        <Route path="/app/library" element={
-          <ProtectedRoute>
-            <div className="flex h-screen bg-base-200">
-              <SideBar onLogout={handleLogout} onAddGame={() => setShowAddGame(true)} />
-              <main className="flex-1 overflow-auto pt-16 lg:pt-0">
-                <Library ref={libraryRef} />
-                {showAddGame && (
-                  <AddGameModal 
-                    onGameAdded={handleGameAdded}
-                    showModal={showAddGame}
-                    setShowModal={setShowAddGame}
-                  />
-                )}
-              </main>
-            </div>
-          </ProtectedRoute>
-        } />
-        <Route path="/app/explore" element={
-          <ProtectedRoute>
-            <div className="flex h-screen bg-base-200">
-              <SideBar onLogout={handleLogout} onAddGame={() => setShowAddGame(true)} />
-              <main className="flex-1 overflow-auto pt-16 lg:pt-0">
-                <Explore />
-                {showAddGame && (
-                  <AddGameModal 
-                    onGameAdded={handleGameAdded}
-                    showModal={showAddGame}
-                    setShowModal={setShowAddGame}
-                  />
-                )}
-              </main>
-            </div>
-          </ProtectedRoute>
-        } />
-        <Route path="/app/profile" element={
-          <ProtectedRoute>
-            <div className="flex h-screen bg-base-200">
-              <SideBar onLogout={handleLogout} onAddGame={() => setShowAddGame(true)} />
-              <main className="flex-1 overflow-auto pt-16 lg:pt-0">
-                <ProfilePage />
-                {showAddGame && (
-                  <AddGameModal 
-                    onGameAdded={handleGameAdded}
-                    showModal={showAddGame}
-                    setShowModal={setShowAddGame}
-                  />
-                )}
-              </main>
-            </div>
-          </ProtectedRoute>
-        } />
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<Auth onAuth={setSession} />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
-        <Route path="/app/feedback" element={
-          <ProtectedRoute>
-            <div className="flex h-screen bg-base-200">
-              <SideBar onLogout={handleLogout} onAddGame={() => setShowAddGame(true)} />
-              <main className="flex-1 overflow-auto pt-16 lg:pt-0">
-                <FeedbackPage />
-                {showAddGame && (
-                  <AddGameModal 
-                    onGameAdded={handleGameAdded}
-                    showModal={showAddGame}
-                    setShowModal={setShowAddGame}
+          {/* Protected Routes */}
+          <Route
+            path="/app"
+            element={
+              <ProtectedRoute>
+                <div className="flex h-screen bg-base-200">
+                  <SideBar
+                    onLogout={handleLogout}
+                    onAddGame={() => setShowAddGame(true)}
                   />
-                )}
-              </main>
-            </div>
-          </ProtectedRoute>
-        } />
-        <Route path="/app/game/:id" element={
-          <ProtectedRoute>
-            <div className="flex h-screen bg-base-200">
-              <SideBar onLogout={handleLogout} onAddGame={() => setShowAddGame(true)} />
-              <main className="flex-1 overflow-auto pt-16 lg:pt-0">
-                <GameDetails />
-                {showAddGame && (
-                  <AddGameModal 
-                    onGameAdded={handleGameAdded}
-                    showModal={showAddGame}
-                    setShowModal={setShowAddGame}
+                  <main className="flex-1 overflow-auto pt-16 lg:pt-0">
+                    <HomePage />
+                    {showAddGame && (
+                      <AddGameModal
+                        onGameAdded={handleGameAdded}
+                        showModal={showAddGame}
+                        setShowModal={setShowAddGame}
+                      />
+                    )}
+                  </main>
+                </div>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/app/dashboard"
+            element={
+              <ProtectedRoute>
+                <div className="flex h-screen bg-base-200">
+                  <SideBar
+                    onLogout={handleLogout}
+                    onAddGame={() => setShowAddGame(true)}
                   />
-                )}
-              </main>
-            </div>
-          </ProtectedRoute>
-        } />
+                  <main className="flex-1 overflow-auto pt-16 lg:pt-0">
+                    <Dashboard />
+                    {showAddGame && (
+                      <AddGameModal
+                        onGameAdded={handleGameAdded}
+                        showModal={showAddGame}
+                        setShowModal={setShowAddGame}
+                      />
+                    )}
+                  </main>
+                </div>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/app/library"
+            element={
+              <ProtectedRoute>
+                <div className="flex h-screen bg-base-200">
+                  <SideBar
+                    onLogout={handleLogout}
+                    onAddGame={() => setShowAddGame(true)}
+                  />
+                  <main className="flex-1 overflow-auto pt-16 lg:pt-0">
+                    <Library ref={libraryRef} />
+                    {showAddGame && (
+                      <AddGameModal
+                        onGameAdded={handleGameAdded}
+                        showModal={showAddGame}
+                        setShowModal={setShowAddGame}
+                      />
+                    )}
+                  </main>
+                </div>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/app/coming-soon"
+            element={
+              <ProtectedRoute>
+                <div className="flex h-screen bg-base-200">
+                  <SideBar
+                    onLogout={handleLogout}
+                    onAddGame={() => setShowAddGame(true)}
+                  />
+                  <main className="flex-1 overflow-auto pt-16 lg:pt-0">
+                    <ComingSoon />
+                    {showAddGame && (
+                      <AddGameModal
+                        onGameAdded={handleGameAdded}
+                        showModal={showAddGame}
+                        setShowModal={setShowAddGame}
+                      />
+                    )}
+                  </main>
+                </div>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/app/profile"
+            element={
+              <ProtectedRoute>
+                <div className="flex h-screen bg-base-200">
+                  <SideBar
+                    onLogout={handleLogout}
+                    onAddGame={() => setShowAddGame(true)}
+                  />
+                  <main className="flex-1 overflow-auto pt-16 lg:pt-0">
+                    <ProfilePage />
+                    {showAddGame && (
+                      <AddGameModal
+                        onGameAdded={handleGameAdded}
+                        showModal={showAddGame}
+                        setShowModal={setShowAddGame}
+                      />
+                    )}
+                  </main>
+                </div>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/app/feedback"
+            element={
+              <ProtectedRoute>
+                <div className="flex h-screen bg-base-200">
+                  <SideBar
+                    onLogout={handleLogout}
+                    onAddGame={() => setShowAddGame(true)}
+                  />
+                  <main className="flex-1 overflow-auto pt-16 lg:pt-0">
+                    <FeedbackPage />
+                    {showAddGame && (
+                      <AddGameModal
+                        onGameAdded={handleGameAdded}
+                        showModal={showAddGame}
+                        setShowModal={setShowAddGame}
+                      />
+                    )}
+                  </main>
+                </div>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/app/mood-recommendations"
+            element={
+              <ProtectedRoute>
+                <div className="flex h-screen bg-base-200">
+                  <SideBar
+                    onLogout={handleLogout}
+                    onAddGame={() => setShowAddGame(true)}
+                  />
+                  <main className="flex-1 overflow-auto pt-16 lg:pt-0">
+                    <MoodRecommendations />
+                    {showAddGame && (
+                      <AddGameModal
+                        onGameAdded={handleGameAdded}
+                        showModal={showAddGame}
+                        setShowModal={setShowAddGame}
+                      />
+                    )}
+                  </main>
+                </div>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/app/explore"
+            element={
+              <ProtectedRoute>
+                <div className="flex h-screen bg-base-200">
+                  <SideBar
+                    onLogout={handleLogout}
+                    onAddGame={() => setShowAddGame(true)}
+                  />
+                  <main className="flex-1 overflow-auto pt-16 lg:pt-0">
+                    <Explore
+                      isDevUser={
+                        session?.user?.email === 'joanaponder@gmail.com'
+                      }
+                    />
+                    {showAddGame && (
+                      <AddGameModal
+                        onGameAdded={handleGameAdded}
+                        showModal={showAddGame}
+                        setShowModal={setShowAddGame}
+                      />
+                    )}
+                  </main>
+                </div>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/app/game/:id"
+            element={
+              <ProtectedRoute>
+                <div className="flex h-screen bg-base-200">
+                  <SideBar
+                    onLogout={handleLogout}
+                    onAddGame={() => setShowAddGame(true)}
+                  />
+                  <main className="flex-1 overflow-auto pt-16 lg:pt-0">
+                    <GameDetails />
+                    {showAddGame && (
+                      <AddGameModal
+                        onGameAdded={handleGameAdded}
+                        showModal={showAddGame}
+                        setShowModal={setShowAddGame}
+                      />
+                    )}
+                  </main>
+                </div>
+              </ProtectedRoute>
+            }
+          />
         </Routes>
         <div id="success-toast" className="toast toast-end hidden">
           <div className="alert alert-success">

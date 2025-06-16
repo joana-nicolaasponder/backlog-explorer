@@ -1,10 +1,17 @@
+require('dotenv').config()
+const OpenAI = require('openai')
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 const express = require('express')
 const cors = require('cors')
 const fetch = require('node-fetch')
-require('dotenv').config()
 const axios = require('axios')
 const querystring = require('querystring')
 const { supabase, upsertGame } = require('./supabase')
+const {
+  purchaseAlternativePrompt,
+  chatPrompt,
+  seasonalPrompt,
+} = require('./prompts')
 
 const app = express()
 const port = process.env.PORT || 3001
@@ -40,6 +47,10 @@ const STEAM_OPENID_URL = 'https://steamcommunity.com/openid/login'
 const STEAM_API_URL = 'https://api.steampowered.com'
 
 app.post('/api/igdb/:endpoint', async (req, res) => {
+  console.log(
+    `[IGDB PROXY] Called /api/igdb/${req.params.endpoint} | Body:`,
+    req.body.query
+  )
   try {
     const { endpoint } = req.params
     const { query } = req.body
@@ -286,6 +297,98 @@ app.post('/api/steam/add-games', async (req, res) => {
   } catch (error) {
     console.error('Error adding games to library:', error.message)
     res.status(500).json({ error: error.message })
+  }
+})
+
+// Game recommendation endpoint using OpenAI
+app.post('/api/recommend', async (req, res) => {
+  const { mode, backlog, season, holidays, preferences } = req.body
+
+  try {
+    const formattedBacklog = backlog
+      .map(
+        (game) =>
+          `${game.title} - Genre: ${game.genre || 'N/A'}, Mood: ${
+            game.mood || 'N/A'
+          }`
+      )
+      .join('\n')
+
+    let systemPrompt = ''
+    let messages = []
+
+    if (mode === 'purchase_alternative') {
+      systemPrompt = purchaseAlternativePrompt
+      const userPrompt = `The user is thinking about buying "${req.body.consideringGame}". Their backlog:\n\n${formattedBacklog}`
+      messages = [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ]
+    } else if (mode === 'chat') {
+      console.log('[chat mode triggered]', req.body.userMessage)
+      const chatHistory = req.body.messages || []
+      const formattedHistory = chatHistory.map((m) => ({
+        role: m.sender === 'user' ? 'user' : 'assistant',
+        content: m.text,
+      }))
+      systemPrompt = chatPrompt
+      const userMessage = req.body.userMessage
+      messages = [
+        { role: 'system', content: systemPrompt },
+        ...formattedHistory,
+        {
+          role: 'user',
+          content: `My backlog:\n${formattedBacklog}\n\n${userMessage}`,
+        },
+      ]
+    } else {
+      systemPrompt = seasonalPrompt
+      messages = [
+        {
+          role: 'system',
+          content: systemPrompt,
+        },
+        {
+          role: 'user',
+          content:
+            `Backlog:\n${formattedBacklog}\n\nSeason: ${season}\n` +
+            (holidays?.length
+              ? `Events: ${holidays.map((h) => h.name).join(', ')}\n`
+              : '') +
+            `Recommend games that fit the current season and events.`,
+        },
+      ]
+    }
+
+    console.log('[messages]', JSON.stringify(messages, null, 2))
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4',
+      messages,
+      temperature: 0.7,
+      max_tokens: 800,
+    })
+
+    let content = response.choices?.[0]?.message?.content || ''
+
+    if (
+      !content ||
+      content.toLowerCase().includes("couldn't think of anything") ||
+      content.trim().length < 20
+    ) {
+      content =
+        "Hmm, that’s a tricky one. It sounds like you're going through something deeper right now. Can you tell me more about what you're feeling when you reach for games lately?"
+    }
+
+    const messageChunks = content
+      .split(/\n{2,}/) // split on paragraph breaks
+      .map((chunk) => chunk.trim())
+      .filter(Boolean)
+      .map((chunk) => ({ role: 'assistant', content: chunk }))
+
+    res.json({ messages: messageChunks })
+  } catch (error) {
+    console.error('Error generating recommendation:', error)
+    res.status(500).json({ error: error.message || 'Internal server error' })
   }
 })
 

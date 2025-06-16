@@ -51,6 +51,8 @@ export interface Mood {
   id: string
   name: string
   description?: string
+  category: 'primary' | 'secondary'
+  emoji?: string
 }
 
 export interface GameMood {

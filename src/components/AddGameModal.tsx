@@ -112,7 +112,6 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
   }
 
   useEffect(() => {
-    fetchOptions()
     fetchMoods()
   }, []) // Run once when component mounts
 
@@ -130,29 +129,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
     }
   }
 
-  const fetchOptions = async () => {
-    try {
-      // Fetch platforms
-      const { data: platforms, error: platformError } = await supabase
-        .from('platforms')
-        .select('name')
-        .order('name')
 
-      if (platformError) throw platformError
-      setPlatformOptions(platforms.map((p) => p.name))
-
-      // Fetch genres
-      const { data: genres, error: genreError } = await supabase
-        .from('genres')
-        .select('name')
-        .order('name')
-
-      if (genreError) throw genreError
-      setGenreOptions(genres.map((g) => g.name))
-    } catch (error) {
-      console.error('Error fetching options:', error)
-    }
-  }
 
   const handleGameSelect = async (game: GameBasic) => {
     try {
@@ -856,157 +833,60 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
               </div>
             </div>
 
-            <div className="mb-6">
-              <label className="block text-lg font-medium mb-4 text-base-content">
-                How would you describe this game?
-              </label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Primary Moods */}
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-sm font-medium text-base-content/70">
-                      Primary Moods
-                    </h3>
-                    <span className="text-xs text-base-content/60">
-                      {
-                        formData.moods.filter(
-                          (id) =>
-                            availableMoods.find((m) => m.id === id)
-                              ?.category === 'primary'
-                        ).length
-                      }{' '}
-                      / 2 max
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {availableMoods
-                      .filter((mood) => mood.category === 'primary')
-                      .map((mood) => {
-                        const isSelected = formData.moods.includes(mood.id)
-                        const primaryCount = formData.moods.filter(
-                          (id) =>
-                            availableMoods.find((m) => m.id === id)
-                              ?.category === 'primary'
-                        ).length
-                        const disabled = !isSelected && primaryCount >= 2
-
-                        return (
-                          <label
-                            key={mood.id}
-                            className={`
-                              tooltip
-                              before:!bg-base-300 before:!text-base-content
-                              before:!shadow-lg before:!rounded-lg
-                            `}
-                            data-tip={mood.description}
-                          >
-                            <span
-                              className={`
-                                btn btn-sm normal-case px-4
-                                ${
-                                  isSelected
-                                    ? 'bg-primary text-primary-content hover:bg-primary-focus border-primary'
-                                    : disabled
-                                    ? 'btn-disabled opacity-50'
-                                    : 'btn-ghost hover:bg-base-200 border border-base-300'
-                                }
-                                transition-all duration-200
-                              `}
-                            >
-                              <input
-                                type="checkbox"
-                                className="hidden"
-                                checked={isSelected}
-                                disabled={disabled}
-                                onChange={(e) => {
-                                  const newMoods = e.target.checked
-                                    ? [...formData.moods, mood.id]
-                                    : formData.moods.filter(
-                                        (id) => id !== mood.id
-                                      )
-                                  setFormData({ ...formData, moods: newMoods })
-                                }}
-                              />
-                              {mood.name}
-                            </span>
-                          </label>
-                        )
-                      })}
-                  </div>
+            <div className="card bg-base-200 shadow-sm p-6 space-y-4">
+              <h2 className="card-title text-base-content text-lg">Game Moods</h2>
+              <p className="text-sm text-base-content/60">
+                Select up to 5 moods that capture the emotional tone of this game.
+              </p>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-sm font-medium text-base-content/70">Moods</h3>
+                  <span className="text-xs text-base-content/60">
+                    {formData.moods.length} / 5 max
+                  </span>
                 </div>
-
-                {/* Secondary Moods */}
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-sm font-medium text-base-content/70">
-                      Secondary Moods
-                    </h3>
-                    <span className="text-xs text-base-content/60">
-                      {
-                        formData.moods.filter(
-                          (id) =>
-                            availableMoods.find((m) => m.id === id)
-                              ?.category === 'secondary'
-                        ).length
-                      }{' '}
-                      / 3 max
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {availableMoods
-                      .filter((mood) => mood.category === 'secondary')
-                      .map((mood) => {
-                        const isSelected = formData.moods.includes(mood.id)
-                        const secondaryCount = formData.moods.filter(
-                          (id) =>
-                            availableMoods.find((m) => m.id === id)
-                              ?.category === 'secondary'
-                        ).length
-                        const disabled = !isSelected && secondaryCount >= 3
-
-                        return (
-                          <label
-                            key={mood.id}
+                <div className="flex flex-wrap gap-2">
+                  {availableMoods.map((mood) => {
+                    const isSelected = formData.moods.includes(mood.id)
+                    const disabled = !isSelected && formData.moods.length >= 5
+                    return (
+                      <div key={mood.id} className="relative group">
+                        <label className="cursor-pointer">
+                          <span
                             className={`
-                              tooltip
-                              before:!bg-base-300 before:!text-base-content
-                              before:!shadow-lg before:!rounded-lg
+                              btn btn-sm normal-case px-4
+                              ${
+                                isSelected
+                                  ? 'btn-primary'
+                                  : disabled
+                                  ? 'opacity-50 cursor-not-allowed bg-base-200 text-base-content/40 border border-base-300'
+                                  : 'btn-ghost border border-base-300'
+                              }
                             `}
-                            data-tip={mood.description}
                           >
-                            <span
-                              className={`
-                                btn btn-sm normal-case px-4
-                                ${
-                                  isSelected
-                                    ? 'bg-secondary text-secondary-content hover:bg-secondary-focus border-secondary'
-                                    : disabled
-                                    ? 'btn-disabled opacity-50'
-                                    : 'btn-ghost hover:bg-base-200 border border-base-300'
-                                }
-                                transition-all duration-200
-                              `}
-                            >
-                              <input
-                                type="checkbox"
-                                className="hidden"
-                                checked={isSelected}
-                                disabled={disabled}
-                                onChange={(e) => {
-                                  const newMoods = e.target.checked
-                                    ? [...formData.moods, mood.id]
-                                    : formData.moods.filter(
-                                        (id) => id !== mood.id
-                                      )
-                                  setFormData({ ...formData, moods: newMoods })
-                                }}
-                              />
-                              {mood.name}
-                            </span>
-                          </label>
-                        )
-                      })}
-                  </div>
+                            <input
+                              type="checkbox"
+                              className="hidden"
+                              checked={isSelected}
+                              disabled={disabled}
+                              onChange={(e) => {
+                                const newMoods = e.target.checked
+                                  ? [...formData.moods, mood.id]
+                                  : formData.moods.filter((id) => id !== mood.id)
+                                setFormData({ ...formData, moods: newMoods })
+                              }}
+                            />
+                            {mood.name}
+                          </span>
+                        </label>
+                        {mood.description && (
+                          <div className="absolute z-50 hidden group-hover:block bg-base-300 text-base-content text-sm p-2 rounded shadow-lg max-w-xs top-full mt-2 left-0">
+                            {mood.description}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             </div>
