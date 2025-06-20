@@ -888,8 +888,8 @@ const [availablePlatforms, setAvailablePlatforms] = useState<Platform[]>(
                             checked={isSelected}
                             onChange={(e) => {
                               const newMoods = e.target.checked
-                                ? [...formData.moods, mood.id]
-                                : formData.moods.filter((id) => id !== mood.id)
+                                ? Array.from(new Set([...selectedMoods, mood.id]))
+                                : selectedMoods.filter((id) => id !== mood.id)
                               handleMoodChange(newMoods)
                             }}
                             disabled={disabled}
