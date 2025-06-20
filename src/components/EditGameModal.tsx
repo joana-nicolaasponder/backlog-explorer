@@ -19,6 +19,7 @@ interface EditableGame
   > {
   genres: string[]
   platforms: string[]
+  availablePlatforms?: { id: string; name: string }[]
 }
 
 interface EditGameModalProps {
@@ -68,10 +69,10 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
   }, [game])
   const [platformOptions, setPlatformOptions] = useState<GamePlatform[]>([])
   const [genreOptions, setGenreOptions] = useState<GameGenre[]>([])
-  // Use the availablePlatforms passed from the game object
-  const [availablePlatforms, setAvailablePlatforms] = useState<Platform[]>(
-    game.availablePlatforms?.map((name) => ({ id: name, name })) || []
-  )
+// Use the availablePlatforms passed from the game object
+const [availablePlatforms, setAvailablePlatforms] = useState<Platform[]>(
+  game.availablePlatforms || []
+)
   // Platforms are managed in formData.platforms
   const [availableMoods, setAvailableMoods] = useState<Mood[]>([])
   const [selectedMoods, setSelectedMoods] = useState<string[]>(game.moods || [])

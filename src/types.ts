@@ -61,6 +61,7 @@ export interface Game {
   platforms?: string[]
   genres?: string[]
   moods?: string[]
+  image?: string
 }
 
 export interface UserGameResponse {
