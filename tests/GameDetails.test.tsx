@@ -1,5 +1,11 @@
 import React from 'react'
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { vi } from 'vitest'
 import '@testing-library/jest-dom'
@@ -99,6 +105,10 @@ vi.mock('../src/supabaseClient', () => ({
   },
 }))
 
+afterEach(() => {
+  vi.clearAllMocks()
+})
+
 describe('GameDetails Page', () => {
   it('renders game details and notes', async () => {
     render(
@@ -156,7 +166,7 @@ it('displays "Game not found" if user_game data is missing', async () => {
   expect(await screen.findByText(/game not found/i)).toBeInTheDocument()
 })
 
-it('shows the “Add Journal Entry” modal when the button is clicked', async () => {
+it('shows the "Add Journal Entry" modal when the button is clicked', async () => {
   render(
     <MemoryRouter initialEntries={['/app/game/game-1']}>
       <GameDetails />
@@ -195,9 +205,164 @@ it('prefills form with existing data when editing a note', async () => {
   )
 
   const noteCard = await screen.findByText(/made some progress/i)
-  const editButton = within(noteCard.closest('.card')!).getByRole('button', { name: /edit/i })
+  const editButton = within(noteCard.closest('.card')!).getByRole('button', {
+    name: /edit/i,
+  })
   fireEvent.click(editButton)
 
-  expect(await screen.findByDisplayValue(/made some progress/i)).toBeInTheDocument()
-  expect(await screen.findByDisplayValue('2025-06-10T00:00')).toBeInTheDocument()
+  expect(
+    await screen.findByDisplayValue(/made some progress/i)
+  ).toBeInTheDocument()
+  expect(
+    await screen.findByDisplayValue('2025-06-10T00:00')
+  ).toBeInTheDocument()
+})
+
+describe('Game Progress Bar', () => {
+  let localUserGame: typeof mockUserGame
+
+  beforeEach(() => {
+    // Use a fresh copy for each test
+    localUserGame = { ...mockUserGame }
+
+    // Patch supabaseClient.from to use localUserGame for select/update
+    vi.spyOn(supabaseClient, 'from').mockImplementation((tableName) => {
+      if (tableName === 'user_games') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({ data: localUserGame }),
+              })),
+            })),
+          })),
+          update: vi.fn((updateObj) => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => {
+                // Simulate updating the localUserGame
+                localUserGame = {
+                  ...localUserGame,
+                  ...updateObj,
+                  status:
+                    updateObj.progress === 100 ? 'Done' : localUserGame.status,
+                  progress: updateObj.progress,
+                }
+                return Promise.resolve({ error: null })
+              }),
+            })),
+          })),
+        }
+      }
+      if (tableName === 'game_notes') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                order: vi.fn(() =>
+                  Promise.resolve({ data: mockGameNotes, error: null })
+                ),
+              })),
+            })),
+          })),
+        }
+      }
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => Promise.resolve({ data: [], error: null })),
+        })),
+      }
+    })
+  })
+
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('should display the current progress percentage', async () => {
+    render(
+      <MemoryRouter initialEntries={['/app/game/game-1']}>
+        <GameDetails />
+      </MemoryRouter>
+    )
+    expect(await screen.findByText('Test Game')).toBeInTheDocument()
+    expect(screen.getByText(/40%/)).toBeInTheDocument()
+    const progressBar = screen.getByRole('slider')
+    expect(progressBar).toHaveValue('40')
+  })
+
+  it('should update progress and set status to "Done" if progress is set to 100%', async () => {
+    render(
+      <MemoryRouter initialEntries={['/app/game/game-1']}>
+        <GameDetails />
+      </MemoryRouter>
+    )
+    expect(await screen.findByText('Test Game')).toBeInTheDocument()
+    const progressBar = screen.getByRole('slider')
+    fireEvent.change(progressBar, { target: { value: '100' } })
+
+    await waitFor(() => {
+      expect(screen.getByText(/100%/)).toBeInTheDocument()
+      expect(screen.getByText('Done')).toBeInTheDocument()
+    })
+  })
+
+  it('should show spinner while updating progress', async () => {
+    let resolveUpdate
+    const updatePromise = new Promise((resolve) => {
+      resolveUpdate = resolve
+    })
+
+    // Patch supabaseClient.from to delay update, but still use localUserGame for select
+    vi.spyOn(supabaseClient, 'from').mockImplementation((tableName) => {
+      if (tableName === 'user_games') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({ data: localUserGame }),
+              })),
+            })),
+          })),
+          update: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => updatePromise), // This promise resolves when we call resolveUpdate()
+            })),
+          })),
+        }
+      }
+      if (tableName === 'game_notes') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                order: vi.fn(() =>
+                  Promise.resolve({ data: mockGameNotes, error: null })
+                ),
+              })),
+            })),
+          })),
+        }
+      }
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => Promise.resolve({ data: [], error: null })),
+        })),
+      }
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/app/game/game-1']}>
+        <GameDetails />
+      </MemoryRouter>
+    )
+    expect(await screen.findByText('Test Game')).toBeInTheDocument()
+    const progressBar = screen.getByRole('slider')
+    fireEvent.change(progressBar, { target: { value: '100' } })
+
+    // Spinner should show while updating
+    expect(document.querySelector('.loading-spinner')).toBeInTheDocument()
+
+    // Finish update
+    resolveUpdate()
+  })
 })
