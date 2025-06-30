@@ -1282,6 +1282,7 @@ const GameDetails = () => {
           <h2 className="text-2xl font-bold">Game Journal</h2>
           <button
             className="btn btn-primary"
+            aria-label="Add Entry"
             onClick={() => setShowAddNote(true)}
           >
             Add Entry
@@ -1399,7 +1400,7 @@ const GameDetails = () => {
 
       {/* Add Note Modal */}
       {showAddNote && (
-        <div className="modal modal-open">
+        <div className="modal modal-open" role="dialog" aria-modal="true">
           <div className="modal-box">
             <h3 className="font-bold text-lg mb-4">
               {editingNote ? 'Edit Journal Entry' : 'Add Journal Entry'}
