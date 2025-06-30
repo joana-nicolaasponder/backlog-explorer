@@ -51,7 +51,6 @@ const mapGameBasic = (game: any): GameBasic => ({
 })
 
 const fetchIGDB = async (endpoint: string, query: string) => {
-
   const response = await fetch(`${IGDB_PROXY_URL}${endpoint}`, {
     method: 'POST',
     headers: {
@@ -71,10 +70,11 @@ export class IGDBProvider implements GameProvider {
   async searchGames(query: string): Promise<GameSearchResult> {
     try {
       const searchQuery = `search "${query.replace(/"/g, '"')}";
-fields name,slug,first_release_date,cover.url,aggregated_rating,platforms.name,platforms.slug,genres.name,genres.slug;
+fields name,slug,first_release_date,cover.url,aggregated_rating,platforms,platforms.name,platforms.slug,genres.name,genres.slug;
 limit 10;`
 
       const data = await fetchIGDB('/games', searchQuery)
+      console.log('Raw IGDB search result:', JSON.stringify(data, null, 2))
       const games = data.map(mapGameBasic)
 
       return {
@@ -97,12 +97,12 @@ limit 10;`
         throw new IGDBError('Invalid game ID')
       }
 
-      const detailsQuery = `fields name,slug,first_release_date,cover.url,aggregated_rating,platforms.name,platforms.slug,genres.name,genres.slug,summary,storyline,url,game_modes.name,game_modes.slug,game_engines.name,game_engines.slug;
+      const detailsQuery = `fields name,slug,first_release_date,cover.url,aggregated_rating,platforms,platforms.name,platforms.slug,genres.name,genres.slug,summary,storyline,url,game_modes.name,game_modes.slug,game_engines.name,game_engines.slug,websites.url,websites.type;
 where id = ${numericId};`
 
       const [gameData, timeToBeatData] = await Promise.all([
         fetchIGDB('/games', detailsQuery),
-        fetchIGDB('/time_to_beats', `fields *; where game_id = ${numericId};`)
+        fetchIGDB('/time_to_beats', `fields *; where game_id = ${numericId};`),
       ])
 
       if (!gameData[0]) {
@@ -112,7 +112,6 @@ where id = ${numericId};`
       const game = gameData[0]
       const timeToBeat = timeToBeatData[0]
 
-
       return {
         ...mapGameBasic(game),
         description: game.storyline || game.summary || '',
@@ -120,11 +119,14 @@ where id = ${numericId};`
         storyline: game.storyline || '',
         summary: game.summary || '',
         website: game.url,
-        time_to_beat: timeToBeat ? {
-          hastily: timeToBeat.hastily,
-          normally: timeToBeat.normally,
-          completely: timeToBeat.completely
-        } : null,
+        time_to_beat: timeToBeat
+          ? {
+              hastily: timeToBeat.hastily,
+              normally: timeToBeat.normally,
+              completely: timeToBeat.completely,
+            }
+          : null,
+        websites: game.websites || [],
       }
     } catch (error) {
       console.error('Error getting game details:', error)
@@ -137,9 +139,9 @@ where id = ${numericId};`
   async getGameScreenshots(id: string): Promise<string[]> {
     try {
       // Convert string ID back to number for IGDB
-      const numericId = parseInt(id);
+      const numericId = parseInt(id)
       if (isNaN(numericId)) {
-        throw new IGDBError('Invalid game ID');
+        throw new IGDBError('Invalid game ID')
       }
 
       const screenshotsQuery = `fields url;

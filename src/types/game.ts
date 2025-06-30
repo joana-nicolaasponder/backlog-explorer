@@ -33,6 +33,13 @@ export interface GameDetailed extends GameBasic {
     normally?: number
     completely?: number
   } | null
+  websites?: {
+    category: number
+    checksum: string
+    trusted: boolean
+    type: number
+    url: string
+  }[]
 }
 
 export interface GameSearchResult {

@@ -6,6 +6,8 @@ import { Platform as GamePlatform, Genre as GameGenre } from '../types/game'
 
 import { Mood, Platform } from '../types'
 
+type UIPlatform = { id: string; name: string }
+
 interface EditableGame
   extends Omit<
     Game,
@@ -19,7 +21,8 @@ interface EditableGame
   > {
   genres: string[]
   platforms: string[]
-  availablePlatforms?: { id: string; name: string }[]
+  availablePlatforms?: string[]
+  rawg_id?: string | number
 }
 
 interface EditGameModalProps {
@@ -69,10 +72,10 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
   }, [game])
   const [platformOptions, setPlatformOptions] = useState<GamePlatform[]>([])
   const [genreOptions, setGenreOptions] = useState<GameGenre[]>([])
-// Use the availablePlatforms passed from the game object
-const [availablePlatforms, setAvailablePlatforms] = useState<Platform[]>(
-  game.availablePlatforms || []
-)
+  // Use the availablePlatforms passed from the game object
+  const [availablePlatforms, setAvailablePlatforms] = useState<UIPlatform[]>(
+    game.availablePlatforms?.map((name) => ({ id: name, name })) || []
+  )
   // Platforms are managed in formData.platforms
   const [availableMoods, setAvailableMoods] = useState<Mood[]>([])
   const [selectedMoods, setSelectedMoods] = useState<string[]>(game.moods || [])
@@ -112,87 +115,120 @@ const [availablePlatforms, setAvailablePlatforms] = useState<Platform[]>(
     const loadGamePlatforms = async () => {
       try {
         // Check if this is a Steam game (igdb_id is a Steam app ID)
-        const isSteamGame = game.igdb_id && /^\d+$/.test(game.igdb_id.toString()) && game.igdb_id.toString().length >= 5;
-        
+        const isSteamGame =
+          game.igdb_id &&
+          /^\d+$/.test(game.igdb_id.toString()) &&
+          game.igdb_id.toString().length >= 5
+
         // If it's a Steam game, ensure 'Steam' is in the available platforms
         if (isSteamGame || game.provider === 'steam') {
-          const steamPlatform = { id: 'Steam', name: 'Steam' };
-          setAvailablePlatforms(prev => {
+          const steamPlatform = { id: 'Steam', name: 'Steam' }
+          setAvailablePlatforms((prev) => {
             // Check if Steam is already in the list
-            if (!prev.some(p => p.name === 'Steam')) {
-              return [...prev, steamPlatform];
+            if (!prev.some((p) => p.name === 'Steam')) {
+              return [...prev, steamPlatform]
             }
-            return prev;
-          });
-          
+            return prev
+          })
+          console.log('is steam game', isSteamGame, game.igdb_id)
+
           // Try to find a matching game on IGDB by title for additional platforms
           try {
-            const searchResult = await gameService.searchGames(game.title);
+            const searchResult = await gameService.searchGames(game.title)
             if (searchResult.results.length > 0) {
-              const igdbGame = searchResult.results[0];
-              const gameDetails = await gameService.getGameDetails(igdbGame.id);
-              
+              const igdbGame = searchResult.results[0]
+              const gameDetails = await gameService.getGameDetails(igdbGame.id)
+              console.log(
+                'IGDB game details for platform loading:',
+                gameDetails
+              )
               if (gameDetails?.platforms?.length) {
                 // Convert IGDB platforms to our platform format
                 const platforms = gameDetails.platforms.map((p) => ({
                   id: p.name,
                   name: p.name,
-                }));
-                
+                }))
+
                 // Add Steam if it's not already in the list
-                if (!platforms.some(p => p.name === 'Steam')) {
-                  platforms.push(steamPlatform);
+                if (!platforms.some((p) => p.name === 'Steam')) {
+                  platforms.push(steamPlatform)
                 }
-                
+
                 // Set the available platforms from IGDB
-                setAvailablePlatforms(platforms);
-                
+                setAvailablePlatforms(platforms)
+
                 // If we have user-selected platforms that aren't in IGDB's list,
                 // add them to available platforms to preserve user's selections
-                const igdbPlatformNames = platforms.map((p) => p.name);
-                const userPlatforms = Array.isArray(game.platforms) ? game.platforms : [];
+                const igdbPlatformNames = platforms.map((p) => p.name)
+                const userPlatforms = Array.isArray(game.platforms)
+                  ? game.platforms
+                  : []
                 const missingPlatforms = userPlatforms
                   .filter((p) => !igdbPlatformNames.includes(p))
-                  .map((name) => ({ id: name, name }));
-                
+                  .map((name) => ({ id: name, name }))
+
                 if (missingPlatforms.length > 0) {
-                  setAvailablePlatforms((prev) => [...prev, ...missingPlatforms]);
+                  setAvailablePlatforms((prev) => [
+                    ...prev,
+                    ...missingPlatforms,
+                  ])
                 }
               }
             }
           } catch (searchError) {
-            console.log('Could not find matching IGDB game for Steam game:', searchError);
+            console.log(
+              'Could not find matching IGDB game for Steam game:',
+              searchError
+            )
           }
         }
         // Regular IGDB game handling
         else if (game.provider === 'igdb' && game.igdb_id) {
           // Get game details from IGDB to get available platforms
-          const gameDetails = await gameService.getGameDetails(game.igdb_id.toString());
+          const gameDetails = await gameService.getGameDetails(
+            game.igdb_id.toString()
+          )
+          // --- STEAM LINK LOGIC ---
+          const hasSteamLink =
+            Array.isArray(gameDetails.websites) &&
+            gameDetails.websites.some(
+              (w) => w.type === 13 || w.url?.includes('store.steampowered.com')
+            )
+          const steamPlatform = { id: 'Steam', name: 'Steam' }
+          // --- END STEAM LINK LOGIC ---
+          console.log('IGDB game details for platform loading:', gameDetails)
           if (gameDetails?.platforms?.length) {
             // Convert IGDB platforms to our platform format
             const platforms = gameDetails.platforms.map((p) => ({
               id: p.name, // Use name as id since it's unique
               name: p.name,
-            }));
+            }))
 
-            // Set the available platforms from IGDB
-            setAvailablePlatforms(platforms);
+            // If there is a Steam link in IGDB websites, add Steam if not present
+            if (hasSteamLink && !platforms.some((p) => p.name === 'Steam')) {
+              platforms.push(steamPlatform)
+            }
+
+            // Set the available platforms from IGDB (+Steam if above)
+            setAvailablePlatforms(platforms)
 
             // If we have user-selected platforms that aren't in IGDB's list,
             // add them to available platforms to preserve user's selections
-            const igdbPlatformNames = platforms.map((p) => p.name);
-            const userPlatforms = Array.isArray(game.platforms) ? game.platforms : [];
+            const igdbPlatformNames = platforms.map((p) => p.name)
+            const userPlatforms = Array.isArray(game.platforms)
+              ? game.platforms
+              : []
             const missingPlatforms = userPlatforms
               .filter((p) => !igdbPlatformNames.includes(p))
-              .map((name) => ({ id: name, name }));
+              .map((name) => ({ id: name, name }))
 
             if (missingPlatforms.length > 0) {
-              setAvailablePlatforms((prev) => [...prev, ...missingPlatforms]);
+              setAvailablePlatforms((prev) => [...prev, ...missingPlatforms])
             }
           }
         }
       } catch (error) {
-        console.error('Error in loadGamePlatforms:', error);
+        console.error('Error in loadGamePlatforms:', error)
       }
     }
 
@@ -302,32 +338,6 @@ const [availablePlatforms, setAvailablePlatforms] = useState<Platform[]>(
       mounted = false
     }
   }, [game.id, userId, showModal])
-
-  useEffect(() => {
-    const loadRawgData = async () => {
-      if (game.rawg_id) {
-        try {
-          const gameDetails = await getGameDetails(Number(game.rawg_id))
-          if (gameDetails) {
-            // Update form data with RAWG data while preserving user's status and progress
-            setFormData((prev) => ({
-              ...prev,
-              title: gameDetails.name,
-              genres: gameDetails.genres.map((g: RAWGGenre) => g.name), // Set genres from RAWG
-              // Only update image if there's no custom image
-              image: prev.hasCustomImage
-                ? prev.image
-                : gameDetails.image || undefined,
-              hasCustomImage: prev.hasCustomImage,
-            }))
-          }
-        } catch (error) {
-          setError('Failed to load game details. Please try again.')
-        }
-      }
-    }
-    loadRawgData()
-  }, [game.rawg_id])
 
   const handleMoodChange = (moods: string[]) => {
     setSelectedMoods(moods)
@@ -858,7 +868,9 @@ const [availablePlatforms, setAvailablePlatforms] = useState<Platform[]>(
             </p>
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <h3 className="text-sm font-medium text-base-content/70">Moods</h3>
+                <h3 className="text-sm font-medium text-base-content/70">
+                  Moods
+                </h3>
                 <span className="text-xs text-base-content/60">
                   {selectedMoods.length} / 5 max
                 </span>
@@ -866,7 +878,8 @@ const [availablePlatforms, setAvailablePlatforms] = useState<Platform[]>(
               <div className="flex flex-wrap gap-2">
                 {availableMoods.map((mood) => {
                   const isSelected = selectedMoods.includes(mood.id)
-                  const disabled = !isSelected && selectedMoods.length >= 5
+                  // Selected moods are never disabled, even if cap is reached
+                  const disabled = selectedMoods.length >= 5 && !isSelected
                   return (
                     <div key={mood.id} className="relative group">
                       <label className="cursor-pointer">
@@ -887,10 +900,10 @@ const [availablePlatforms, setAvailablePlatforms] = useState<Platform[]>(
                             className="hidden"
                             checked={isSelected}
                             onChange={(e) => {
-                              const newMoods = e.target.checked
-                                ? Array.from(new Set([...selectedMoods, mood.id]))
-                                : selectedMoods.filter((id) => id !== mood.id)
-                              handleMoodChange(newMoods)
+                          const newMoods = e.target.checked
+                            ? [...selectedMoods, mood.id]
+                            : selectedMoods.filter((id) => id !== mood.id)
+                          handleMoodChange(newMoods)
                             }}
                             disabled={disabled}
                           />

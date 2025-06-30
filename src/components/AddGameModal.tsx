@@ -46,10 +46,80 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
     image: '',
     moods: [] as string[],
   })
-  const [platformOptions, setPlatformOptions] = useState<string[]>([])
+  const [availablePlatforms, setAvailablePlatforms] = useState<
+    { id: string; name: string }[]
+  >([])
+  const [selectedGame, setSelectedGame] = useState<GameDetailed | null>(null)
+  useEffect(() => {
+    if (!selectedGame) return
+    // Log when selectedGame is loaded but missing websites
+    if (!selectedGame.websites) {
+      console.log('Selected game loaded but missing websites:', selectedGame)
+    }
+
+    const loadSteamLogic = async () => {
+      // Detect a Steam link in the IGDB game websites (category 13 = Steam)
+      const hasSteamLink =
+        Array.isArray(selectedGame.websites) &&
+        selectedGame.websites.some(
+          (w) => w.type === 13 || w.url?.includes('store.steampowered.com')
+        )
+      console.log('selectedGame.websites', selectedGame.websites)
+      const steamPlat = { id: 'Steam', name: 'Steam' }
+      console.log('hasSteamLink', hasSteamLink)
+
+      // Start with IGDB platforms
+      let platforms = (selectedGame.platforms || []).map((p) => ({
+        id: p.name,
+        name: p.name,
+      }))
+
+      // If Steam game, ensure Steam is included and enrich via title search
+      if (hasSteamLink) {
+        if (!platforms.some((p) => p.name === 'Steam')) {
+          platforms.push(steamPlat)
+        }
+        try {
+          const searchResult = await gameService.searchGames(selectedGame.name)
+          if (searchResult.results.length) {
+            const details = await gameService.getGameDetails(
+              searchResult.results[0].id
+            )
+            if (details.platforms?.length) {
+              const fetched = details.platforms.map((p) => ({
+                id: p.name,
+                name: p.name,
+              }))
+              const combined = Array.from(
+                new Map(
+                  [...fetched, steamPlat].map((x) => [x.name, x])
+                ).values()
+              )
+              platforms = combined
+            }
+          }
+        } catch (err) {
+          console.warn('Couldn’t enrich Steam platforms:', err)
+        }
+      }
+
+      // Preserve any user-selected platforms
+      const userChosen = Array.isArray(formData.platforms)
+        ? formData.platforms
+        : []
+      userChosen.forEach((name) => {
+        if (!platforms.some((p) => p.name === name)) {
+          platforms.push({ id: name, name })
+        }
+      })
+
+      setAvailablePlatforms(platforms)
+    }
+
+    loadSteamLogic()
+  }, [selectedGame, formData.platforms])
   const [_genreOptions, setGenreOptions] = useState<string[]>([])
   const [availableMoods, setAvailableMoods] = useState<Mood[]>([])
-  const [selectedGame, setSelectedGame] = useState<GameDetailed | null>(null)
   const [_statusOptions] = useState<string[]>([
     'Endless',
     'Satisfied',
@@ -129,8 +199,6 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
     }
   }
 
-
-
   const handleGameSelect = async (game: GameBasic) => {
     try {
       const gameDetails = await gameService.getGameDetails(game.id)
@@ -164,6 +232,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
       // Combine both results to check for existing games
       const allExistingGames = [...(existingGames || []), ...(rawgGames || [])]
       const existingGame = allExistingGames[0]
+      const resolvedGameId = existingGame?.id
 
       // Only check for user game if we found an existing game
       let existingUserGame = null
@@ -219,14 +288,54 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
           description: undefined,
         })
       } else {
-        // Get available platforms from IGDB
-        const availablePlatforms = (game.platforms || []).map((p) => p.name)
-        setPlatformOptions(availablePlatforms)
+        // Build platform options from both IGDB and existing Supabase platforms for this game
+        const igdbPlatformNames = (game.platforms || []).map((p) => p.name)
+
+        // Fetch additional platforms from Supabase if the game already exists
+        let extraPlatformNames: string[] = []
+        // Use resolvedGameId instead of gameDetails.id for the game_platforms query
+        if (resolvedGameId) {
+          // Step 1: Get platform IDs from game_platforms
+          const { data: gamePlatformLinks, error: linkError } = await supabase
+            .from('game_platforms')
+            .select('platform_id')
+            .eq('game_id', resolvedGameId)
+
+          if (linkError) {
+            console.error('Error fetching game_platforms:', linkError)
+          }
+
+          const platformIds =
+            gamePlatformLinks?.map((gp) => gp.platform_id) || []
+
+          // Step 2: Get platform names from platforms table
+          const { data: platformsData, error: platformError } = await supabase
+            .from('platforms')
+            .select('name')
+            .in('id', platformIds)
+
+          if (platformError) {
+            console.error('Error fetching platforms:', platformError)
+          }
+
+          extraPlatformNames = (platformsData || [])
+            .map((p) => p.name)
+            .filter((name) => name && !igdbPlatformNames.includes(name))
+        }
+
+        const combinedPlatforms = [
+          ...igdbPlatformNames,
+          ...extraPlatformNames,
+        ].filter((value, index, self) => self.indexOf(value) === index)
+
+        setAvailablePlatforms(
+          combinedPlatforms.map((name) => ({ id: name, name }))
+        )
 
         // Set form data with IGDB data
         setFormData({
           title: game.name,
-          platforms: [], // User will select from availablePlatforms
+          platforms: [], // User will select from combinedPlatforms
           genres: (game.genres || []).map((g) => g.name), // Use IGDB genres
           status: 'Not Started',
           progress: 0,
@@ -788,29 +897,31 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
                   )}
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {platformOptions.map((platform) => (
+                  {availablePlatforms.map((platform) => (
                     <button
-                      key={platform}
+                      key={platform.id}
                       type="button"
                       onClick={() => {
                         const newPlatforms = formData.platforms.includes(
-                          platform
+                          platform.name
                         )
-                          ? formData.platforms.filter((p) => p !== platform)
-                          : [...formData.platforms, platform]
+                          ? formData.platforms.filter(
+                              (p) => p !== platform.name
+                            )
+                          : [...formData.platforms, platform.name]
                         setFormData({ ...formData, platforms: newPlatforms })
                       }}
                       className={`
                         btn btn-sm normal-case
                         ${
-                          formData.platforms.includes(platform)
+                          formData.platforms.includes(platform.name)
                             ? 'bg-primary text-primary-content hover:bg-primary-focus'
                             : 'btn-ghost hover:bg-base-300'
                         }
                         transition-all duration-200
                       `}
                     >
-                      {platform}
+                      {platform.name}
                     </button>
                   ))}
                 </div>
@@ -834,13 +945,18 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
             </div>
 
             <div className="card bg-base-200 shadow-sm p-6 space-y-4">
-              <h2 className="card-title text-base-content text-lg">Game Moods</h2>
+              <h2 className="card-title text-base-content text-lg">
+                Game Moods
+              </h2>
               <p className="text-sm text-base-content/60">
-                Select up to 5 moods that capture the emotional tone of this game.
+                Select up to 5 moods that capture the emotional tone of this
+                game.
               </p>
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-sm font-medium text-base-content/70">Moods</h3>
+                  <h3 className="text-sm font-medium text-base-content/70">
+                    Moods
+                  </h3>
                   <span className="text-xs text-base-content/60">
                     {formData.moods.length} / 5 max
                   </span>
@@ -872,7 +988,9 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
                               onChange={(e) => {
                                 const newMoods = e.target.checked
                                   ? [...formData.moods, mood.id]
-                                  : formData.moods.filter((id) => id !== mood.id)
+                                  : formData.moods.filter(
+                                      (id) => id !== mood.id
+                                    )
                                 setFormData({ ...formData, moods: newMoods })
                               }}
                             />
