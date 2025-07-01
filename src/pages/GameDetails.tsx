@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import supabase from '../supabaseClient'
 import { Game, GameNote, RawgGameDetails } from '../types'
 import EditGameModal from '../components/EditGameModal'
@@ -10,6 +10,7 @@ import { uploadScreenshot } from '../utils/uploadScreenshot'
 
 const GameDetails = () => {
   const { id } = useParams()
+  const navigate = useNavigate()
   const [userId, setUserId] = useState<string>('')
   const [game, setGame] = useState<Game | null>(null)
   const [notes, setNotes] = useState<GameNote[]>([])
@@ -460,18 +461,32 @@ const GameDetails = () => {
     // If it's an IGDB game, fetch details from IGDB
     if (game.provider === 'igdb' && game.igdb_id) {
       try {
+        if (!gameService.getGameDetails) return
         const [gameDetails, screenshots] = await Promise.all([
           gameService.getGameDetails(game.igdb_id.toString()),
-          gameService.getGameScreenshots(game.igdb_id.toString()),
+          gameService.getGameScreenshots
+            ? gameService.getGameScreenshots(game.igdb_id.toString())
+            : Promise.resolve([]),
         ])
 
         setDetails(gameDetails)
         const rawgDetails = {
-          description_raw: gameDetails.summary || '',
-          metacritic: gameDetails.aggregated_rating || 0,
+          description_raw:
+            (gameDetails as any)?.summary ||
+            (gameDetails as any)?.description_raw ||
+            '',
+          metacritic:
+            (gameDetails as any)?.aggregated_rating ||
+            (gameDetails as any)?.metacritic ||
+            0,
           playtime: 0,
-          background_image: gameDetails.background_image || '',
-          screenshots: screenshots.map((url) => ({ image: url })),
+          background_image: (gameDetails as any)?.background_image || '',
+          screenshots: screenshots.map((url: string, idx: number) => ({
+            id: idx,
+            image: url,
+            width: 0,
+            height: 0,
+          })),
         }
 
         setRawgDetails(rawgDetails)
@@ -501,34 +516,9 @@ const GameDetails = () => {
         if (migratedGame) {
           console.log('Successfully migrated Steam game to IGDB')
 
-          // Option 1: Redirect to the new IGDB game page
-          window.location.href = `/game/${migratedGame.id}`
+          // Redirect to the new IGDB game page
+          navigate(`/app/game/${migratedGame.id}`)
           return
-
-          /* Option 2: Update the current page with the migrated game data
-          setGame(migratedGame);
-          
-          // Fetch details for the newly migrated IGDB game
-          try {
-            const [gameDetails, screenshots] = await Promise.all([
-              gameService.getGameDetails(migratedGame.igdb_id.toString()),
-              gameService.getGameScreenshots(migratedGame.igdb_id.toString()),
-            ])
-
-            setDetails(gameDetails);
-            const rawgDetails = {
-              description_raw: gameDetails.summary || '',
-              metacritic: gameDetails.aggregated_rating || 0,
-              playtime: 0,
-              background_image: gameDetails.background_image || '',
-              screenshots: screenshots.map((url) => ({ image: url })),
-            }
-
-            setRawgDetails(rawgDetails);
-          } catch (detailsError) {
-            console.error('Error fetching IGDB details after migration:', detailsError);
-          }
-          */
         } else {
           console.log('Could not migrate Steam game to IGDB, using Steam data')
         }
@@ -631,29 +621,56 @@ const GameDetails = () => {
         return
       }
 
+      // Defensive: userGameData.game may be an array if Supabase returns a join as array
+      const gameObj = Array.isArray(userGameData.game)
+        ? userGameData.game[0]
+        : userGameData.game
+      // If this is a Steam entry, update it to IGDB and redirect
+      if (gameObj && gameObj.provider === 'steam') {
+        const { error: updateError } = await supabase
+          .from('user_games')
+          .update({ game_id: gameObj.igdb_id })
+          .eq('id', userGameData.id)
+          .eq('user_id', userId)
+        if (!updateError) {
+          navigate(`/app/game/${gameObj.igdb_id}`)
+          return
+        }
+      }
+      if (!gameObj) {
+        console.error('Game object not found in userGameData')
+        return
+      }
+      // Only set genres if present and is an array, otherwise default to []
+      const genres =
+        gameObj && 'genres' in gameObj && Array.isArray(gameObj.genres)
+          ? gameObj.genres
+          : []
       const gameData = {
-        id: userGameData.game.id,
-        title: userGameData.game.title,
+        id: gameObj.id,
+        title: gameObj.title,
         status: userGameData.status,
         progress: userGameData.progress,
-        provider: userGameData.game.provider || 'rawg',
-        igdb_id: userGameData.game.igdb_id || 0,
-        metacritic_rating: userGameData.game.metacritic_rating,
-        release_date: userGameData.game.release_date,
-        // Use custom image if available, otherwise fall back to game's background image
-        background_image:
-          userGameData.image || userGameData.game.background_image,
-        description: userGameData.game.description,
+        provider: gameObj.provider || 'rawg',
+        igdb_id: gameObj.igdb_id || 0,
+        metacritic_rating: gameObj.metacritic_rating,
+        release_date: gameObj.release_date,
+        background_image: userGameData.image || gameObj.background_image,
+        description: gameObj.description,
         platforms: userGameData.platforms || [],
-        genres: [],
-        image: userGameData.image || userGameData.game.background_image,
+        genres,
+        image: userGameData.image || gameObj.background_image,
       }
-
       setGame(gameData)
-
       // Fetch additional details from external provider
-      if (userGameData.game) {
-        fetchGameDetails(userGameData.game)
+      if (typeof fetchGameDetails === 'function' && gameObj) {
+        // Omit game_moods and any non-Game properties
+        const { game_moods, ...gameObjForDetails } = gameObj
+        fetchGameDetails({
+          ...gameObjForDetails,
+          status: userGameData.status,
+          progress: userGameData.progress,
+        })
       }
 
       // Fetch game notes
@@ -782,6 +799,14 @@ const GameDetails = () => {
       return
     }
 
+    // Only allow images
+    for (const file of files) {
+      if (!file.type.startsWith('image/')) {
+        setFormError('Invalid file type')
+        return
+      }
+    }
+
     // Sequentially upload files and handle errors
     const uploadResults: { file: File; url: string }[] = []
     for (const file of files) {
@@ -791,12 +816,12 @@ const GameDetails = () => {
           uploadResults.push({ file, url })
         }
       } catch (err: any) {
-        console.log('caught upload error', err.message)
         if (err.message.includes('too large')) {
           setFormError('File is too large')
-          console.log('FORM ERROR SET:', err.message)
+          return
         } else {
-          console.error('Upload failed:', err)
+          setFormError('Failed to upload screenshot')
+          return
         }
       }
     }
@@ -835,9 +860,9 @@ const GameDetails = () => {
         duration: noteForm.duration || null,
         accomplishments: noteForm.accomplishments || [],
         mood: noteForm.mood || null,
-        next_session_plan: noteForm.next_session_plan || {
-          intent: null,
-          note: null,
+        next_session_plan: {
+          intent: noteForm.next_session_plan?.intent ?? '',
+          note: noteForm.next_session_plan?.note ?? '',
         },
         is_completion_entry: noteForm.is_completion_entry || false,
         completion_date: noteForm.completion_date || null,
@@ -916,7 +941,10 @@ const GameDetails = () => {
       duration: note.duration,
       accomplishments: note.accomplishments || [],
       mood: note.mood,
-      next_session_plan: note.next_session_plan || { intent: null, note: null },
+      next_session_plan: {
+        intent: note.next_session_plan?.intent ?? '',
+        note: note.next_session_plan?.note ?? '',
+      },
       is_completion_entry: note.is_completion_entry,
       completion_date: note.completion_date,
     })
@@ -1062,7 +1090,15 @@ const GameDetails = () => {
     <div className="p-2 sm:p-4 max-w-4xl mx-auto">
       {/* Game Header */}
       {/* Form error display */}
-      {formError && <p className="text-sm text-red-500 mt-2">{formError}</p>}
+      {/* {formError && (
+        <>
+            {console.log('FORM ERROR:', formError)}
+
+        <p className="text-sm text-red-500 mt-2" data-testid="form-error">
+          {formError}
+        </p>
+        </>
+      )} */}
       <div className="mb-4 sm:mb-6">
         <div className="flex justify-between items-start mb-2">
           <h1 className="text-2xl sm:text-3xl font-bold">{game.title}</h1>
@@ -1446,12 +1482,13 @@ const GameDetails = () => {
                 />
                 {formError && (
                   <p
-                    className="text-red-500 text-sm mt-2"
-                    data-testid="screenshot-error"
+                    className="text-sm text-red-500 mt-2"
+                    data-testid="form-error"
                   >
                     {formError}
                   </p>
                 )}
+
                 {noteForm.screenshots && noteForm.screenshots.length > 0 && (
                   <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-4">
                     {noteForm.screenshots.map((url, index) => (
@@ -1675,8 +1712,8 @@ const GameDetails = () => {
                           setNoteForm({
                             ...noteForm,
                             next_session_plan: {
-                              ...noteForm.next_session_plan,
                               intent,
+                              note: noteForm.next_session_plan?.note ?? '',
                             },
                           })
                         }
@@ -1696,8 +1733,8 @@ const GameDetails = () => {
                         setNoteForm({
                           ...noteForm,
                           next_session_plan: {
-                            ...noteForm.next_session_plan,
                             note: e.target.value,
+                            intent: noteForm.next_session_plan?.intent ?? '',
                           },
                         })
                       }
@@ -1771,7 +1808,11 @@ const GameDetails = () => {
       {/* Edit Game Modal */}
       {game && (
         <EditGameModal
-          game={game}
+          game={{
+            ...game,
+            genres: game.genres || [],
+            platforms: game.platforms || [],
+          }}
           userId={userId}
           showModal={showEditModal}
           setShowModal={setShowEditModal}

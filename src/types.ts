@@ -160,4 +160,8 @@ export interface GameNote {
   // Metadata
   is_completion_entry: boolean
   completion_date: string | null
+
+  // Optional fields for compatibility with tests and UI
+  rating?: number | null
+  hours_played?: number | null
 }

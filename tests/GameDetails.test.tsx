@@ -14,19 +14,20 @@ import '@testing-library/jest-dom'
 import GameDetails from '../src/pages/GameDetails'
 import supabaseClient from '../src/supabaseClient'
 
+var mockNavigate = vi.fn()
+function getMockNavigate() { return mockNavigate }
+
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom')
   return {
     ...actual,
-    useNavigate: () => mockNavigate,
+    useNavigate: () => getMockNavigate(),
   }
 })
 
 vi.mock('browser-image-compression', () => ({
   default: vi.fn(async (file) => file),
 }))
-
-const mockNavigate = vi.fn()
 
 const mockUserGame = {
   id: 'usergame-1',
@@ -168,7 +169,7 @@ describe('GameDetails Page', () => {
       })
 
       expect(await screen.findByText(/invalid file type/i)).toBeInTheDocument()
-      expect(screen.queryByAltText(/screenshot \d+/i)).toBeInTheDocument()
+      expect(screen.queryByAltText(/screenshot \d+/i)).not.toBeInTheDocument()
     })
 
     it('should compress images before upload', async () => {
@@ -246,9 +247,10 @@ describe('GameDetails Page', () => {
       })
 
       fireEvent.change(fileInput, { target: { files: [file] } })
-      await waitFor(() => {
-        expect(screen.getByText(/file is too large/i)).toBeInTheDocument()
-      })
+      const error = await screen.findByTestId('form-error')
+      console.log('TEST ERROR TEXT:', error.textContent)
+
+      expect(error).toHaveTextContent(/file is too large/i)
     })
 
     it('should allow up to 6 screenshots only', async () => {
@@ -280,6 +282,7 @@ describe('GameDetails Page', () => {
 
       const images = await screen.findAllByAltText(/screenshot \d+/i)
       expect(images.length).toBe(6)
+      console.log('hello')
 
       // Try to upload one more
       const extraFile = new File([new ArrayBuffer(1024)], 'extra.png', {
@@ -576,5 +579,120 @@ describe('Game Progress Bar', () => {
 
     // Finish update
     resolveUpdate()
+  })
+})
+
+// Migration to IGDB (Steam/RAWG Fallback)
+
+describe('Migration to IGDB (Steam/RAWG Fallback)', () => {
+  it('should migrate Steam games to IGDB if provider is "steam"', async () => {
+    const steamGame = {
+      ...mockUserGame,
+      provider: 'steam',
+    }
+
+    vi.mocked(supabaseClient.from).mockImplementationOnce(
+      () =>
+        ({
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({ data: steamGame }),
+              })),
+            })),
+          })),
+          update: vi.fn().mockResolvedValue({ error: null }),
+        } as any)
+    )
+
+    render(
+      <MemoryRouter initialEntries={['/app/game/game-1']}>
+        <GameDetails />
+      </MemoryRouter>
+    )
+
+    expect(await screen.findByText('Test Game')).toBeInTheDocument()
+    // Add more specific migration UI or log expectations if available
+  })
+
+  it('should fallback to RAWG data if migration fails', async () => {
+    const steamGame = {
+      ...mockUserGame,
+      provider: 'steam',
+    }
+
+    vi.mocked(supabaseClient.from).mockImplementationOnce(
+      () =>
+        ({
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({ data: steamGame }),
+              })),
+            })),
+          })),
+          update: vi
+            .fn()
+            .mockResolvedValue({ error: new Error('Migration failed') }),
+        } as any)
+    )
+
+    render(
+      <MemoryRouter initialEntries={['/app/game/game-1']}>
+        <GameDetails />
+      </MemoryRouter>
+    )
+
+    expect(await screen.findByText('Test Game')).toBeInTheDocument()
+    // Add expectations for RAWG fallback data
+  })
+
+  it('should redirect to new IGDB game page after migration (if configured)', async () => {
+    const steamGame = {
+      ...mockUserGame,
+      provider: 'steam',
+      game: {
+        ...mockUserGame.game,
+        provider: 'steam',
+        igdb_id: 999,
+      },
+    }
+
+    vi.spyOn(supabaseClient, 'from').mockImplementation((tableName: string) => {
+      if (tableName === 'user_games') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({ data: steamGame }),
+              })),
+            })),
+          })),
+          update: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() =>
+                Promise.resolve({ error: null })
+              ),
+            })),
+          })),
+        }
+      }
+
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => Promise.resolve({ data: [], error: null })),
+        })),
+      }
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/app/game/game-1']}>
+        <GameDetails />
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/app/game/999')
+    }, { timeout: 3000 })
   })
 })
