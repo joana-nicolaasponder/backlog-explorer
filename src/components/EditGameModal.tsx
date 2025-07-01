@@ -40,6 +40,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
   showModal,
   setShowModal,
 }) => {
+  const [hasLoadedMoods, setHasLoadedMoods] = useState(false)
   const [formData, setFormData] = useState({
     status: game.status || '',
     progress: game.progress || 0,
@@ -289,20 +290,14 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     loadMoods()
   }, [])
 
-  // Load game's existing moods when modal opens
+  // Load game's existing moods when modal opens, but only if not already loaded
   useEffect(() => {
     let mounted = true
 
     const loadGameMoods = async () => {
       if (!showModal || !mounted) return
+      if (!game.id || !userId) return
 
-      // Reset states first
-      setSelectedMoods([])
-      setOriginalMoods([])
-      // Don't try to load moods if we don't have both game.id and userId
-      if (!game.id || !userId) {
-        return
-      }
       try {
         const { data: gameMoods, error } = await supabase
           .from('game_moods')
@@ -311,33 +306,46 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           .eq('user_id', userId)
 
         if (error) throw error
-        if (gameMoods) {
-          if (mounted) {
-            const moodIds = gameMoods.map((gm) => gm.mood_id)
 
-            setSelectedMoods(moodIds)
-            setOriginalMoods(moodIds)
-          }
-        } else {
-          // No moods found, reset to empty if modal is open
-          if (showModal) {
-            setSelectedMoods([])
-            setOriginalMoods([])
-          }
+        const moodIds = gameMoods?.map((gm) => gm.mood_id) || []
+
+        if (mounted) {
+          setSelectedMoods(moodIds)
+          setOriginalMoods(moodIds)
+          setHasLoadedMoods(true)
         }
       } catch (error) {
         setError('Failed to load game moods. Please try again.')
       }
     }
 
-    if (game.id && showModal) {
+    if (showModal && !hasLoadedMoods) {
       loadGameMoods()
     }
 
     return () => {
       mounted = false
     }
-  }, [game.id, userId, showModal])
+  }, [game.id, userId, showModal, hasLoadedMoods])
+
+  // Reset hasLoadedMoods when modal closes or when tab visibility changes
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && showModal) {
+        setHasLoadedMoods(false)
+      }
+    }
+
+    if (!showModal) {
+      setHasLoadedMoods(false)
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [showModal])
 
   const handleMoodChange = (moods: string[]) => {
     setSelectedMoods(moods)
