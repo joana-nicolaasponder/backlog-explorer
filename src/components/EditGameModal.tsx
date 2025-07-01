@@ -53,24 +53,29 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     // Track if the image is custom
     hasCustomImage: !!game.image,
   })
+  // Track the originally loaded platforms
+  const [originalPlatforms, setOriginalPlatforms] = useState<string[]>(
+    game.platforms || []
+  )
 
-  // Update formData and selections when game prop changes
+  // Update formData and selections when modal opens
   useEffect(() => {
-    setFormData({
-      status: game.status || '',
-      progress: game.progress || 0,
-      title: game.title || '',
-      genres: game.genres || [],
-      image: game.image || '',
-      moods: game.moods || [],
-      platforms: Array.isArray(game.platforms) ? game.platforms : [],
-      hasCustomImage: !!game.image,
-    })
-    // Platforms are managed in formData.platforms
-    // Update moods
-    setSelectedMoods(game.moods || [])
-    setOriginalMoods(game.moods || [])
-  }, [game])
+    if (showModal) {
+      setFormData({
+        status: game.status || '',
+        progress: game.progress || 0,
+        title: game.title || '',
+        genres: game.genres || [],
+        image: game.image || '',
+        moods: game.moods || [],
+        platforms: Array.isArray(game.platforms) ? game.platforms : [],
+        hasCustomImage: !!game.image,
+      })
+      setSelectedMoods(game.moods || [])
+      setOriginalMoods(game.moods || [])
+      setOriginalPlatforms(game.platforms || [])
+    }
+  }, [showModal])
   const [platformOptions, setPlatformOptions] = useState<GamePlatform[]>([])
   const [genreOptions, setGenreOptions] = useState<GameGenre[]>([])
   // Use the availablePlatforms passed from the game object
@@ -290,7 +295,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     loadMoods()
   }, [])
 
-  // Load game's existing moods when modal opens, but only if not already loaded
+  // Load game's existing moods when modal opens, but only if not already loaded and user hasn't made changes
   useEffect(() => {
     let mounted = true
 
@@ -319,31 +324,31 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
       }
     }
 
-    if (showModal && !hasLoadedMoods) {
+    // Only reload moods if the user hasn't made any changes (i.e., no unsaved changes)
+    const moodUnchanged = arraysEqual(selectedMoods, originalMoods)
+    const platformUnchanged = arraysEqual(formData.platforms, originalPlatforms)
+    if (showModal && !hasLoadedMoods && moodUnchanged && platformUnchanged) {
       loadGameMoods()
     }
 
     return () => {
       mounted = false
     }
-  }, [game.id, userId, showModal, hasLoadedMoods])
+  }, [
+    game.id,
+    userId,
+    showModal,
+    hasLoadedMoods,
+    selectedMoods,
+    originalMoods,
+    formData.platforms,
+    originalPlatforms,
+  ])
 
-  // Reset hasLoadedMoods when modal closes or when tab visibility changes
+  // Reset hasLoadedMoods when modal closes
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && showModal) {
-        setHasLoadedMoods(false)
-      }
-    }
-
     if (!showModal) {
       setHasLoadedMoods(false)
-    }
-
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [showModal])
 
@@ -908,10 +913,10 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                             className="hidden"
                             checked={isSelected}
                             onChange={(e) => {
-                          const newMoods = e.target.checked
-                            ? [...selectedMoods, mood.id]
-                            : selectedMoods.filter((id) => id !== mood.id)
-                          handleMoodChange(newMoods)
+                              const newMoods = e.target.checked
+                                ? [...selectedMoods, mood.id]
+                                : selectedMoods.filter((id) => id !== mood.id)
+                              handleMoodChange(newMoods)
                             }}
                             disabled={disabled}
                           />
