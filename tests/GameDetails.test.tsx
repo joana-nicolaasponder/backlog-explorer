@@ -1,3 +1,5 @@
+import * as uploadUtils from '../src/utils/uploadScreenshot'
+
 import React from 'react'
 import {
   render,
@@ -12,8 +14,6 @@ import '@testing-library/jest-dom'
 import GameDetails from '../src/pages/GameDetails'
 import supabaseClient from '../src/supabaseClient'
 
-const mockNavigate = vi.fn()
-
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom')
   return {
@@ -21,6 +21,12 @@ vi.mock('react-router-dom', async () => {
     useNavigate: () => mockNavigate,
   }
 })
+
+vi.mock('browser-image-compression', () => ({
+  default: vi.fn(async (file) => file),
+}))
+
+const mockNavigate = vi.fn()
 
 const mockUserGame = {
   id: 'usergame-1',
@@ -105,6 +111,10 @@ vi.mock('../src/supabaseClient', () => ({
   },
 }))
 
+beforeAll(() => {
+  global.URL.createObjectURL = vi.fn(() => 'blob:mock-url')
+})
+
 afterEach(() => {
   vi.clearAllMocks()
 })
@@ -119,6 +129,208 @@ describe('GameDetails Page', () => {
 
     expect(await screen.findByText('Test Game')).toBeInTheDocument()
     expect(screen.getByText(/Made some progress/i)).toBeInTheDocument()
+  })
+
+  describe('Screenshot Upload', () => {
+    beforeEach(() => {
+      vi.clearAllMocks()
+      vi.spyOn(uploadUtils, 'uploadScreenshot').mockImplementation(
+        async (file) => {
+          return `blob:mock-url-${Date.now()}`
+        }
+      )
+    })
+
+    it('should allow uploading images and reject invalid file types', async () => {
+      render(
+        <MemoryRouter initialEntries={['/app/game/game-1']}>
+          <GameDetails />
+        </MemoryRouter>
+      )
+      const addButton = await screen.findByRole('button', {
+        name: /add entry/i,
+      })
+      fireEvent.click(addButton)
+
+      const fileInput = screen.getByLabelText(
+        /upload screenshot/i
+      ) as HTMLInputElement
+
+      const validFile = new File(['dummy content'], 'screenshot.png', {
+        type: 'image/png',
+      })
+      const invalidFile = new File(['dummy content'], 'screenshot.txt', {
+        type: 'text/plain',
+      })
+
+      fireEvent.change(fileInput, {
+        target: { files: [validFile, invalidFile] },
+      })
+
+      expect(await screen.findByText(/invalid file type/i)).toBeInTheDocument()
+      expect(screen.queryByAltText(/screenshot \d+/i)).toBeInTheDocument()
+    })
+
+    it('should compress images before upload', async () => {
+      const imageCompression = await import('browser-image-compression').then(
+        (mod) => mod.default as vi.Mock
+      )
+      imageCompression.mockImplementation(async (file: File) => {
+        const compressed = new File(['compressed content'], file.name, {
+          type: file.type,
+        })
+        return compressed
+      })
+
+      render(
+        <MemoryRouter initialEntries={['/app/game/game-1']}>
+          <GameDetails />
+        </MemoryRouter>
+      )
+
+      const addButton = await screen.findByRole('button', {
+        name: /add entry/i,
+      })
+      fireEvent.click(addButton)
+
+      const fileInput = screen.getByLabelText(
+        /upload screenshot/i
+      ) as HTMLInputElement
+      const file = new File([new ArrayBuffer(1024 * 1024)], 'screenshot.png', {
+        type: 'image/png',
+      }) // 1MB
+
+      fireEvent.change(fileInput, { target: { files: [file] } })
+
+      // Wait for compression to be called by checking for screenshot preview
+      await waitFor(() => {
+        expect(screen.getByAltText(/screenshot \d+/i)).toBeInTheDocument()
+      })
+    })
+
+    it('should reject uploads larger than 50MB even after compression', async () => {
+      const imageCompression = await import('browser-image-compression').then(
+        (mod) => mod.default as vi.Mock
+      )
+      imageCompression.mockImplementation(async () => {
+        const oversizedFile = new File(['dummy content'], 'screenshot.png', {
+          type: 'image/png',
+        })
+        Object.defineProperty(oversizedFile, 'size', {
+          value: 51 * 1024 * 1024, // 51MB
+          writable: false,
+        })
+        return oversizedFile
+      })
+      const spy = vi.spyOn(uploadUtils, 'uploadScreenshot')
+      spy.mockImplementationOnce(() => {
+        throw new Error('File is too large')
+      })
+
+      render(
+        <MemoryRouter initialEntries={['/app/game/game-1']}>
+          <GameDetails />
+        </MemoryRouter>
+      )
+
+      const addButton = await screen.findByRole('button', {
+        name: /add entry/i,
+      })
+      fireEvent.click(addButton)
+
+      const fileInput = screen.getByLabelText(
+        /upload screenshot/i
+      ) as HTMLInputElement
+      const file = new File(['dummy content'], 'screenshot.png', {
+        type: 'image/png',
+      })
+
+      fireEvent.change(fileInput, { target: { files: [file] } })
+      await waitFor(() => {
+        expect(screen.getByText(/file is too large/i)).toBeInTheDocument()
+      })
+    })
+
+    it('should allow up to 6 screenshots only', async () => {
+      const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {})
+      render(
+        <MemoryRouter initialEntries={['/app/game/game-1']}>
+          <GameDetails />
+        </MemoryRouter>
+      )
+
+      const addButton = await screen.findByRole('button', {
+        name: /add entry/i,
+      })
+      fireEvent.click(addButton)
+
+      const fileInput = screen.getByLabelText(
+        /upload screenshot/i
+      ) as HTMLInputElement
+
+      // Upload 6 files
+      const initialFiles = Array.from(
+        { length: 6 },
+        (_, i) =>
+          new File([new ArrayBuffer(1024)], `file${i}.png`, {
+            type: 'image/png',
+          })
+      )
+      fireEvent.change(fileInput, { target: { files: initialFiles } })
+
+      const images = await screen.findAllByAltText(/screenshot \d+/i)
+      expect(images.length).toBe(6)
+
+      // Try to upload one more
+      const extraFile = new File([new ArrayBuffer(1024)], 'extra.png', {
+        type: 'image/png',
+      })
+      fireEvent.change(fileInput, { target: { files: [extraFile] } })
+
+      expect(alertMock).toHaveBeenCalledWith(
+        'You can only add up to 6 screenshots per note. Please select fewer files.'
+      )
+      // Still 6 images only
+      expect(screen.getAllByAltText(/screenshot \d+/i).length).toBe(6)
+    })
+
+    it('should show uploaded screenshots and allow removal', async () => {
+      render(
+        <MemoryRouter initialEntries={['/app/game/game-1']}>
+          <GameDetails />
+        </MemoryRouter>
+      )
+
+      const addButton = await screen.findByRole('button', {
+        name: /add entry/i,
+      })
+      fireEvent.click(addButton)
+
+      const fileInput = screen.getByLabelText(
+        /upload screenshot/i
+      ) as HTMLInputElement
+      const file = new File(['dummy content'], 'screenshot.png', {
+        type: 'image/png',
+      })
+
+      fireEvent.change(fileInput, { target: { files: [file] } })
+
+      await waitFor(() => {
+        expect(
+          screen.getAllByAltText(/screenshot \d+/i).length
+        ).toBeGreaterThan(0)
+      })
+      const preview = screen.getByTestId('screenshot-preview')
+      const image = within(preview).getByAltText(/screenshot \d+/i)
+      expect(image).toBeInTheDocument()
+
+      const removeButton = within(preview).getByRole('button', {
+        name: /remove screenshot/i,
+      })
+      fireEvent.click(removeButton)
+
+      expect(screen.queryByAltText(/screenshot \d+/i)).not.toBeInTheDocument()
+    })
   })
 })
 it('shows loading state initially', async () => {

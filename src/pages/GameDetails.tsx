@@ -6,6 +6,7 @@ import EditGameModal from '../components/EditGameModal'
 import ExpandableText from '../components/ExpandableText'
 import imageCompression from 'browser-image-compression'
 import { gameService } from '../services/gameService'
+import { uploadScreenshot } from '../utils/uploadScreenshot'
 
 const GameDetails = () => {
   const { id } = useParams()
@@ -61,8 +62,8 @@ const GameDetails = () => {
 
       const normalizedTitle = normalize(game.title)
 
-      const igdbGame = searchResult.results.find((g) =>
-        g.name && normalize(g.name).includes(normalizedTitle)
+      const igdbGame = searchResult.results.find(
+        (g) => g.name && normalize(g.name).includes(normalizedTitle)
       )
 
       if (!igdbGame) {
@@ -717,51 +718,53 @@ const GameDetails = () => {
     }
   }
 
-  const uploadScreenshot = async (file: File) => {
-    try {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        throw new Error(
-          `Invalid file type: ${file.name}. Only images are allowed.`
-        )
-      }
+  // const uploadScreenshot = async (file: File) => {
+  //   try {
+  //     // Validate file type
+  //     if (!file.type.startsWith('image/')) {
+  //       throw new Error(
+  //         `Invalid file type: ${file.name}. Only images are allowed.`
+  //       )
+  //     }
 
-      // Compress image before size check
-      const compressedFile = await compressImage(file)
+  //     // Compress image before size check
+  //     const compressedFile = await compressImage(file)
 
-      // Validate compressed file size
-      if (compressedFile.size > MAX_FILE_SIZE) {
-        throw new Error(`File still too large after compression: ${file.name}`)
-      }
+  //     // Validate compressed file size
+  //     if (compressedFile.size > MAX_FILE_SIZE) {
+  //       throw new Error(`File still too large after compression: ${file.name}`)
+  //     }
 
-      const { data: userData } = await supabase.auth.getUser()
-      const user_id = userData.user?.id
+  //     const { data: userData } = await supabase.auth.getUser()
+  //     const user_id = userData.user?.id
 
-      // Create a unique file path
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${Math.random()
-        .toString(36)
-        .substring(2)}${Date.now()}.${fileExt}`
-      const filePath = `${user_id}/${id}/${fileName}`
+  //     // Create a unique file path
+  //     const fileExt = file.name.split('.').pop()
+  //     const fileName = `${Math.random()
+  //       .toString(36)
+  //       .substring(2)}${Date.now()}.${fileExt}`
+  //     const filePath = `${user_id}/${id}/${fileName}`
 
-      // Upload to Supabase storage
-      const { error: uploadError } = await supabase.storage
-        .from('game-screenshots')
-        .upload(filePath, compressedFile)
+  //     // Upload to Supabase storage
+  //     const { error: uploadError } = await supabase.storage
+  //       .from('game-screenshots')
+  //       .upload(filePath, compressedFile)
 
-      if (uploadError) throw uploadError
+  //     if (uploadError) throw uploadError
 
-      // Get public URL
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from('game-screenshots').getPublicUrl(filePath)
+  //     // Get public URL
+  //     const {
+  //       data: { publicUrl },
+  //     } = supabase.storage.from('game-screenshots').getPublicUrl(filePath)
 
-      return publicUrl
-    } catch (error) {
-      console.error('Error uploading screenshot:', error)
-      throw error
-    }
-  }
+  //     return publicUrl
+  //   } catch (error) {
+  //     console.error('Error uploading screenshot:', error)
+  //     throw error
+  //   }
+  // }
+
+  const [formError, setFormError] = useState<string | null>(null)
 
   const handleScreenshotUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
@@ -769,54 +772,41 @@ const GameDetails = () => {
     const files = event.target.files
     if (!files || files.length === 0) return
 
-    try {
-      // Check total number of files
-      const currentCount = noteForm.screenshots?.length || 0
-      if (currentCount + files.length > MAX_FILES_PER_NOTE) {
-        alert(
-          `You can only add up to ${MAX_FILES_PER_NOTE} screenshots per note. Please select fewer files.`
-        )
-        return
-      }
-
-      // Upload files
-      const uploadPromises = Array.from(files).map((file) =>
-        uploadScreenshot(file)
+    setFormError(null)
+    // Check total number of files
+    const currentCount = noteForm.screenshots?.length || 0
+    if (currentCount + files.length > MAX_FILES_PER_NOTE) {
+      alert(
+        'You can only add up to 6 screenshots per note. Please select fewer files.'
       )
-      const results = await Promise.allSettled(uploadPromises)
+      return
+    }
 
-      // Filter successful uploads and handle errors
-      const successfulUrls = results
-        .filter(
-          (result): result is PromiseFulfilledResult<string> =>
-            result.status === 'fulfilled'
-        )
-        .map((result) => result.value)
-
-      const errors = results
-        .filter(
-          (result): result is PromiseRejectedResult =>
-            result.status === 'rejected'
-        )
-        .map((result) => result.reason)
-
-      if (errors.length > 0) {
-        alert(
-          `Some files failed to upload:\n${errors
-            .map((e) => e.message)
-            .join('\n')}`
-        )
+    // Sequentially upload files and handle errors
+    const uploadResults: { file: File; url: string }[] = []
+    for (const file of files) {
+      try {
+        const url = await uploadScreenshot(file)
+        if (url) {
+          uploadResults.push({ file, url })
+        }
+      } catch (err: any) {
+        console.log('caught upload error', err.message)
+        if (err.message.includes('too large')) {
+          setFormError('File is too large')
+          console.log('FORM ERROR SET:', err.message)
+        } else {
+          console.error('Upload failed:', err)
+        }
       }
+    }
 
-      if (successfulUrls.length > 0) {
-        setNoteForm((prev) => ({
-          ...prev,
-          screenshots: [...(prev.screenshots || []), ...successfulUrls],
-        }))
-      }
-    } catch (error) {
-      console.error('Error handling screenshots:', error)
-      alert('Error uploading screenshots. Please try again.')
+    if (uploadResults.length > 0) {
+      const successfulUrls = uploadResults.map((r) => r.url)
+      setNoteForm((prev) => ({
+        ...prev,
+        screenshots: [...(prev.screenshots || []), ...successfulUrls],
+      }))
     }
   }
 
@@ -1071,6 +1061,8 @@ const GameDetails = () => {
   return (
     <div className="p-2 sm:p-4 max-w-4xl mx-auto">
       {/* Game Header */}
+      {/* Form error display */}
+      {formError && <p className="text-sm text-red-500 mt-2">{formError}</p>}
       <div className="mb-4 sm:mb-6">
         <div className="flex justify-between items-start mb-2">
           <h1 className="text-2xl sm:text-3xl font-bold">{game.title}</h1>
@@ -1360,22 +1352,25 @@ const GameDetails = () => {
                       </button>
                     </div>
                   </div>
-                      <p className="mt-2 whitespace-pre-wrap">{note.content}</p>
-                      {(note.next_session_plan?.intent || note.next_session_plan?.note) && (
-                        <div className="mt-4 bg-base-200 p-3 rounded-lg">
-                          <h4 className="font-semibold mb-1">🎯 Next Time</h4>
-                          {note.next_session_plan.intent && (
-                            <p className="text-sm">
-                              <span className="font-medium">Plan:</span> {note.next_session_plan.intent}
-                            </p>
-                          )}
-                          {note.next_session_plan.note && (
-                            <p className="text-sm mt-1">
-                              <span className="font-medium">Note:</span> {note.next_session_plan.note}
-                            </p>
-                          )}
-                        </div>
+                  <p className="mt-2 whitespace-pre-wrap">{note.content}</p>
+                  {(note.next_session_plan?.intent ||
+                    note.next_session_plan?.note) && (
+                    <div className="mt-4 bg-base-200 p-3 rounded-lg">
+                      <h4 className="font-semibold mb-1">🎯 Next Time</h4>
+                      {note.next_session_plan.intent && (
+                        <p className="text-sm">
+                          <span className="font-medium">Plan:</span>{' '}
+                          {note.next_session_plan.intent}
+                        </p>
                       )}
+                      {note.next_session_plan.note && (
+                        <p className="text-sm mt-1">
+                          <span className="font-medium">Note:</span>{' '}
+                          {note.next_session_plan.note}
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   {/* Screenshots */}
                   {note.screenshots && note.screenshots.length > 0 && (
@@ -1447,17 +1442,31 @@ const GameDetails = () => {
                   multiple
                   onChange={handleScreenshotUpload}
                   className="file-input file-input-bordered w-full"
+                  aria-label="Upload Screenshot"
                 />
+                {formError && (
+                  <p
+                    className="text-red-500 text-sm mt-2"
+                    data-testid="screenshot-error"
+                  >
+                    {formError}
+                  </p>
+                )}
                 {noteForm.screenshots && noteForm.screenshots.length > 0 && (
                   <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-4">
                     {noteForm.screenshots.map((url, index) => (
-                      <div key={index} className="relative group">
+                      <div
+                        key={index}
+                        className="relative group"
+                        data-testid="screenshot-preview"
+                      >
                         <img
                           src={url}
                           alt={`Screenshot ${index + 1}`}
                           className="w-full h-32 object-cover rounded-lg"
                         />
                         <button
+                          aria-label="Remove Screenshot"
                           onClick={() => removeScreenshot(index)}
                           className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                         >
