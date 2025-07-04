@@ -13,9 +13,12 @@ import { vi } from 'vitest'
 import '@testing-library/jest-dom'
 import GameDetails from '../src/pages/GameDetails'
 import supabaseClient from '../src/supabaseClient'
+import { gameService } from '../src/services/gameService'
 
-var mockNavigate = vi.fn()
-function getMockNavigate() { return mockNavigate }
+const mockNavigate = vi.fn()
+function getMockNavigate() {
+  return mockNavigate
+}
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom')
@@ -73,10 +76,20 @@ vi.mock('../src/supabaseClient', () => ({
   default: {
     auth: {
       getUser: vi.fn().mockResolvedValue({
-        data: { user: { id: 'test-user-id' } },
+        data: {
+          user: {
+            id: 'test-user-id',
+            app_metadata: {},
+            user_metadata: {},
+            aud: 'authenticated',
+            created_at: new Date().toISOString(),
+          },
+        },
+        error: null,
       }),
     },
     from: vi.fn((tableName: string) => {
+      console.log('MOCK supabaseClient.from called with:', tableName)
       if (tableName === 'user_games') {
         return {
           select: vi.fn(() => ({
@@ -86,6 +99,9 @@ vi.mock('../src/supabaseClient', () => ({
               })),
             })),
           })),
+          delete: () => ({
+            eq: vi.fn(),
+          }),
         }
       }
 
@@ -670,9 +686,7 @@ describe('Migration to IGDB (Steam/RAWG Fallback)', () => {
           })),
           update: vi.fn(() => ({
             eq: vi.fn(() => ({
-              eq: vi.fn(() =>
-                Promise.resolve({ error: null })
-              ),
+              eq: vi.fn(() => Promise.resolve({ error: null })),
             })),
           })),
         }
@@ -691,8 +705,204 @@ describe('Migration to IGDB (Steam/RAWG Fallback)', () => {
       </MemoryRouter>
     )
 
+    console.log('mockNavigate calls:', mockNavigate.mock.calls)
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith('/app/game/999')
-    }, { timeout: 3000 })
+    })
+  })
+
+  it('should NOT redirect if no IGDB match is found (no igdb_id)', async () => {
+    const steamGame = {
+      ...mockUserGame,
+      provider: 'steam',
+      game: {
+        ...mockUserGame.game,
+        provider: 'steam',
+        igdb_id: null, // No IGDB match
+      },
+    }
+
+    vi.spyOn(supabaseClient, 'from').mockImplementation((tableName: string) => {
+      if (tableName === 'user_games') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({ data: steamGame }),
+              })),
+            })),
+          })),
+          update: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => Promise.resolve({ error: null })),
+            })),
+          })),
+        }
+      }
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => Promise.resolve({ data: [], error: null })),
+        })),
+      }
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/app/game/game-1']}>
+        <GameDetails />
+      </MemoryRouter>
+    )
+    console.log('mockNavigate calls:', mockNavigate.mock.calls)
+    await waitFor(() => {
+      expect(mockNavigate).not.toHaveBeenCalled()
+    })
+  })
+
+  it('should delete Steam user_game if user already has IGDB version (no duplicate created)', async () => {
+    const deleteSpy = vi.fn().mockResolvedValue({ error: null })
+    const maybeSingleSpy = vi.fn().mockResolvedValue({
+      data: { id: 'usergame-igdb' },
+      error: null,
+    })
+  
+    // Mock auth user
+    vi.spyOn(supabaseClient.auth, 'getUser').mockResolvedValue({
+      data: {
+        user: {
+          id: 'test-user-id',
+          app_metadata: {},
+          user_metadata: {},
+          aud: 'authenticated',
+          created_at: new Date().toISOString(),
+        },
+      },
+      error: null,
+    })
+  
+    // Mock game service search
+    vi.spyOn(gameService, 'searchGames').mockResolvedValue({
+      results: [{
+        id: 999,
+        name: 'Test Game',
+        summary: 'Test summary',
+        cover: { url: 'test-cover-url' },
+        platforms: [{ name: 'PC' }],
+        genres: [{ name: 'Action' }],
+      }],
+    })
+  
+    // Create chainable objects
+    const userGamesChainable = {
+      eq: vi.fn().mockReturnThis(),
+      single: vi.fn().mockResolvedValue({
+        data: {
+          id: 'usergame-steam',
+          status: 'Playing',
+          progress: 40,
+          platforms: [],
+          image: '',
+          user_id: 'test-user-id',
+          provider: 'steam',
+          game_id: 'game-steam',
+          game: {
+            id: 'game-steam',
+            title: 'Test Game',
+            igdb_id: 999,
+            provider: 'steam',
+          },
+        },
+      }),
+      select: vi.fn().mockResolvedValue({
+        data: [{
+          id: 'usergame-steam',
+          status: 'Playing',
+          progress: 40,
+          platforms: [],
+          image: '',
+          user_id: 'test-user-id',
+          provider: 'steam',
+          game_id: 'game-steam',
+          game: {
+            id: 'game-steam',
+            title: 'Test Game',
+            igdb_id: 999,
+            provider: 'steam',
+          },
+        }],
+        error: null,
+      }),
+      maybeSingle: maybeSingleSpy,
+      delete: () => ({ eq: deleteSpy }),
+      insert: vi.fn(),
+      upsert: vi.fn(),
+      update: vi.fn(),
+    }
+  
+    const gamesChainable = {
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({
+        data: {
+          id: 'game-igdb',
+          title: 'Test Game',
+          provider: 'igdb',
+          igdb_id: 999,
+        },
+        error: null,
+      }),
+      insert: vi.fn(),
+      upsert: vi.fn(),
+    }
+  
+    // Mock supabase
+    vi.spyOn(supabaseClient, 'from').mockImplementation((tableName) => {
+      if (tableName === 'user_games') {
+        return {
+          select: vi.fn(() => userGamesChainable),
+          delete: () => userGamesChainable,
+          insert: vi.fn(),
+          upsert: vi.fn(),
+          update: vi.fn(),
+        }
+      }
+      if (tableName === 'games') {
+        return {
+          select: vi.fn(() => gamesChainable),
+          insert: vi.fn(),
+          upsert: vi.fn(),
+        }
+      }
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+        })),
+        insert: vi.fn(),
+        upsert: vi.fn(),
+        update: vi.fn(),
+      }
+    })
+  
+    // First render to get user ID
+    const { rerender } = render(
+      <MemoryRouter initialEntries={['/app/game/game-steam']}>
+        <GameDetails />
+      </MemoryRouter>
+    )
+  
+    // Wait for user ID to be set
+    await new Promise(resolve => setTimeout(resolve, 100))
+  
+    // Rerender with user ID
+    rerender(
+      <MemoryRouter initialEntries={['/app/game/game-steam']}>
+        <GameDetails />
+      </MemoryRouter>
+    )
+  
+    // Wait for migration to complete
+    await waitFor(
+      () => {
+        expect(deleteSpy).toHaveBeenCalled()
+      },
+      { timeout: 2000 }
+    )
   })
 })

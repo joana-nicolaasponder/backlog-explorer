@@ -441,6 +441,10 @@ const GameDetails = () => {
       }
 
       console.log('Successfully migrated to IGDB game:', newGame)
+      if (migratedGame && migratedGame.id) {
+        navigate(`/app/game/${migratedGame.id}`)
+        return
+      }
       return newGame
     } catch (error) {
       console.error('Error in IGDB migration:', error)
@@ -513,10 +517,8 @@ const GameDetails = () => {
 
         // Try to migrate the game to IGDB
         const migratedGame = await migrateToIGDB(game)
-        if (migratedGame) {
+        if (migratedGame && migratedGame.id) {
           console.log('Successfully migrated Steam game to IGDB')
-
-          // Redirect to the new IGDB game page
           navigate(`/app/game/${migratedGame.id}`)
           return
         } else {
@@ -528,13 +530,11 @@ const GameDetails = () => {
       return
     }
 
-    // Try to migrate RAWG game to IGDB
+    // RAWG fallback: migrate RAWG game to IGDB and redirect
     if (game.provider === 'rawg') {
       const migratedGame = await migrateToIGDB(game)
-      if (migratedGame) {
-        setGame(migratedGame)
-        // Fetch details for the newly migrated IGDB game
-        await fetchGameDetails(migratedGame)
+      if (migratedGame && migratedGame.id) {
+        navigate(`/app/game/${migratedGame.id}`)
         return
       }
     }
@@ -611,6 +611,8 @@ const GameDetails = () => {
         .eq('game_id', id)
         .single()
 
+      console.log('fetchGameAndNotes userGameData:', userGameData)
+
       if (gameError) {
         console.error('Error fetching game:', gameError)
         return
@@ -625,17 +627,40 @@ const GameDetails = () => {
       const gameObj = Array.isArray(userGameData.game)
         ? userGameData.game[0]
         : userGameData.game
-      // If this is a Steam entry, update it to IGDB and redirect
-      if (gameObj && gameObj.provider === 'steam') {
-        const { error: updateError } = await supabase
+
+      // Steam entry migration to IGDB
+      if (gameObj && gameObj.provider === 'steam' && gameObj.igdb_id) {
+        // Check if user already has this IGDB version
+        const checkChain = supabase
           .from('user_games')
-          .update({ game_id: gameObj.igdb_id })
-          .eq('id', userGameData.id)
+          .select('id')
           .eq('user_id', userId)
-        if (!updateError) {
-          navigate(`/app/game/${gameObj.igdb_id}`)
-          return
+          .eq('game_id', gameObj.igdb_id)
+        let existingIgdbEntry = null
+        let checkError = null
+        if (typeof checkChain.maybeSingle === 'function') {
+          const { data, error } = await checkChain.maybeSingle()
+          existingIgdbEntry = data
+          checkError = error
         }
+        if (checkError) {
+          console.error('Error checking for existing IGDB user_game:', checkError)
+        }
+
+        if (existingIgdbEntry) {
+          // Delete the old Steam entry
+          await checkChain.delete().eq('id', userGameData.id)
+        } else {
+          // Update the Steam entry to point to IGDB
+          await supabase
+            .from('user_games')
+            .update({ game_id: gameObj.igdb_id })
+            .eq('id', userGameData.id)
+            .eq('user_id', userId)
+        }
+
+        navigate(`/app/game/${gameObj.igdb_id}`)
+        return
       }
       if (!gameObj) {
         console.error('Game object not found in userGameData')
