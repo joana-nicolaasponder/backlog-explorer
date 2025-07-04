@@ -1,5 +1,20 @@
 import * as uploadUtils from '../src/utils/uploadScreenshot'
 
+import * as gameService from '@/services/gameService'
+vi.spyOn(gameService, 'getGameDetails').mockResolvedValue({
+  id: 999,
+  name: 'Mock Game',
+  summary: 'Mock summary',
+  cover: { url: 'mock-cover.jpg' },
+  genres: [{ name: 'Action' }],
+  platforms: [{ name: 'PC' }]
+});
+
+vi.spyOn(gameService, 'getGameScreenshots').mockResolvedValue([
+  { url: 'mock-screenshot.jpg' }
+]);
+
+
 import React from 'react'
 import {
   render,
