@@ -644,7 +644,10 @@ const GameDetails = () => {
           checkError = error
         }
         if (checkError) {
-          console.error('Error checking for existing IGDB user_game:', checkError)
+          console.error(
+            'Error checking for existing IGDB user_game:',
+            checkError
+          )
         }
 
         if (existingIgdbEntry) {
@@ -1546,13 +1549,14 @@ const GameDetails = () => {
 
                 {/* Date & Time */}
                 <div>
-                  <label className="label">
+                  <label htmlFor="session-date">When did you play? 
                     <span className="label-text font-medium">
                       📅 When did you play?
                     </span>
                     <span className="label-text-alt opacity-70">Required</span>
                   </label>
                   <input
+                    id="session-date"
                     type="datetime-local"
                     className="input input-bordered w-full"
                     required

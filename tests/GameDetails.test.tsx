@@ -7,13 +7,12 @@ vi.spyOn(gameService, 'getGameDetails').mockResolvedValue({
   summary: 'Mock summary',
   cover: { url: 'mock-cover.jpg' },
   genres: [{ name: 'Action' }],
-  platforms: [{ name: 'PC' }]
-});
+  platforms: [{ name: 'PC' }],
+})
 
 vi.spyOn(gameService, 'getGameScreenshots').mockResolvedValue([
-  { url: 'mock-screenshot.jpg' }
-]);
-
+  { url: 'mock-screenshot.jpg' },
+])
 
 import React from 'react'
 import {
@@ -76,6 +75,7 @@ const mockGameNotes = [
     mood: 'Great',
     rating: 4,
     hours_played: 30,
+    duration: 45, // <-- ADD THIS LINE
     is_completion_entry: false,
     completion_date: null,
     screenshots: [],
@@ -90,6 +90,19 @@ const mockGameNotes = [
 vi.mock('../src/supabaseClient', () => ({
   default: {
     auth: {
+      getSession: vi.fn().mockResolvedValue({
+        data: {
+          session: {
+            user: {
+              id: 'test-user-id',
+              app_metadata: {},
+              user_metadata: {},
+              aud: 'authenticated',
+              created_at: new Date().toISOString(),
+            },
+          },
+        },
+      }),
       getUser: vi.fn().mockResolvedValue({
         data: {
           user: {
@@ -161,6 +174,55 @@ describe('GameDetails Page', () => {
 
     expect(await screen.findByText('Test Game')).toBeInTheDocument()
     expect(screen.getByText(/Made some progress/i)).toBeInTheDocument()
+  })
+
+  it('renders game summary and storyline if available', async () => {
+    vi.spyOn(gameService, 'getGameDetails').mockResolvedValueOnce({
+      id: 999,
+      name: 'Mock Game with Story',
+      summary: 'This is a test summary.',
+      storyline: 'Once upon a time in a mock game world...',
+      cover: { url: 'mock-cover.jpg' },
+      genres: [{ name: 'Adventure' }],
+      platforms: [{ name: 'PC' }],
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/app/game/game-1']}>
+        <GameDetails />
+      </MemoryRouter>
+    )
+
+    expect(
+      await screen.findByText(/this is a test summary/i)
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(/once upon a time in a mock game world/i)
+    ).toBeInTheDocument()
+  })
+
+  it('renders all game screenshots returned by getGameScreenshots', async () => {
+    const mockScreenshots = [
+      'screenshot-1.jpg',
+      'screenshot-2.jpg',
+      'screenshot-3.jpg',
+    ]
+
+    vi.spyOn(gameService, 'getGameScreenshots').mockResolvedValueOnce(
+      mockScreenshots
+    )
+
+    render(
+      <MemoryRouter initialEntries={['/app/game/game-1']}>
+        <GameDetails />
+      </MemoryRouter>
+    )
+
+    const screenshots = await screen.findAllByAltText(/screenshot/i)
+    expect(screenshots.length).toBe(mockScreenshots.length)
+    screenshots.forEach((img, index) => {
+      expect(img.getAttribute('src') ?? '').toContain(mockScreenshots[index])
+    })
   })
 
   describe('Screenshot Upload', () => {
@@ -425,6 +487,80 @@ it('shows the "Add Journal Entry" modal when the button is clicked', async () =>
   fireEvent.click(addButton)
 
   expect(screen.getByRole('dialog')).toBeInTheDocument()
+})
+
+it('should allow selecting a mood and reflect visually', async () => {
+  render(
+    <MemoryRouter initialEntries={['/app/game/game-1']}>
+      <GameDetails />
+    </MemoryRouter>
+  )
+
+  // Open the modal
+  const addButton = await screen.findByRole('button', {
+    name: /add entry/i,
+  })
+  fireEvent.click(addButton)
+
+  // Select a mood
+  const moodButton = await screen.findByRole('img', { name: /great/i })
+  fireEvent.click(moodButton)
+
+  // Expect it to now have the ring class or some indication it is selected
+  const moodLabel = moodButton.closest('label')
+  expect(moodLabel).toHaveClass('ring-success')
+})
+
+it('should save session duration, accomplishments, and next session plan', async () => {
+  render(
+    <MemoryRouter initialEntries={['/app/game/game-1']}>
+      <GameDetails />
+    </MemoryRouter>
+  )
+
+  // Open the Add Entry modal
+  const addButton = await screen.findByRole('button', { name: /add entry/i })
+  fireEvent.click(addButton)
+
+  // Fill in the content (required)
+  const contentArea = screen.getByPlaceholderText(
+    /share your gaming experience/i
+  )
+  fireEvent.change(contentArea, { target: { value: 'Session details test' } })
+
+  // Fill in the date (required)
+  const dateInput = screen.getByLabelText(/when did you play/i)
+  fireEvent.change(dateInput, { target: { value: '2025-07-04T12:00' } })
+
+  // Fill in the duration
+  const durationInput = screen.getByPlaceholderText('30')
+  fireEvent.change(durationInput, { target: { value: '45' } })
+
+  // Select some accomplishments
+  const checkbox = await screen.findByRole('checkbox', {
+    name: /story progress/i,
+  })
+  fireEvent.click(checkbox)
+
+  // Select a next session intent
+  const intentButton = screen.getByText(/continue story/i)
+  fireEvent.click(intentButton)
+
+  // Type a next session note
+  const nextNote = screen.getByPlaceholderText(/any other thoughts/i)
+  fireEvent.change(nextNote, { target: { value: 'Look for hidden areas' } })
+
+  // Submit
+  const submitButton = screen.getByRole('button', { name: /add note/i })
+  fireEvent.click(submitButton)
+
+  // Wait for note to appear
+  screen.debug()
+  expect(await screen.findByText(/session details test/i)).toBeInTheDocument()
+  expect(screen.getByText(/45m 0s/)).toBeInTheDocument()
+  expect(screen.getByText(/story progress/i)).toBeInTheDocument()
+  expect(screen.getByText(/continue story/i)).toBeInTheDocument()
+  expect(await screen.findByText(/look for hidden areas/i)).toBeInTheDocument()
 })
 
 it('disables submit button if required fields are missing', async () => {
@@ -778,7 +914,7 @@ describe('Migration to IGDB (Steam/RAWG Fallback)', () => {
       data: { id: 'usergame-igdb' },
       error: null,
     })
-  
+
     // Mock auth user
     vi.spyOn(supabaseClient.auth, 'getUser').mockResolvedValue({
       data: {
@@ -792,19 +928,21 @@ describe('Migration to IGDB (Steam/RAWG Fallback)', () => {
       },
       error: null,
     })
-  
+
     // Mock game service search
     vi.spyOn(gameService, 'searchGames').mockResolvedValue({
-      results: [{
-        id: 999,
-        name: 'Test Game',
-        summary: 'Test summary',
-        cover: { url: 'test-cover-url' },
-        platforms: [{ name: 'PC' }],
-        genres: [{ name: 'Action' }],
-      }],
+      results: [
+        {
+          id: 999,
+          name: 'Test Game',
+          summary: 'Test summary',
+          cover: { url: 'test-cover-url' },
+          platforms: [{ name: 'PC' }],
+          genres: [{ name: 'Action' }],
+        },
+      ],
     })
-  
+
     // Create chainable objects
     const userGamesChainable = {
       eq: vi.fn().mockReturnThis(),
@@ -827,22 +965,24 @@ describe('Migration to IGDB (Steam/RAWG Fallback)', () => {
         },
       }),
       select: vi.fn().mockResolvedValue({
-        data: [{
-          id: 'usergame-steam',
-          status: 'Playing',
-          progress: 40,
-          platforms: [],
-          image: '',
-          user_id: 'test-user-id',
-          provider: 'steam',
-          game_id: 'game-steam',
-          game: {
-            id: 'game-steam',
-            title: 'Test Game',
-            igdb_id: 999,
+        data: [
+          {
+            id: 'usergame-steam',
+            status: 'Playing',
+            progress: 40,
+            platforms: [],
+            image: '',
+            user_id: 'test-user-id',
             provider: 'steam',
+            game_id: 'game-steam',
+            game: {
+              id: 'game-steam',
+              title: 'Test Game',
+              igdb_id: 999,
+              provider: 'steam',
+            },
           },
-        }],
+        ],
         error: null,
       }),
       maybeSingle: maybeSingleSpy,
@@ -851,7 +991,7 @@ describe('Migration to IGDB (Steam/RAWG Fallback)', () => {
       upsert: vi.fn(),
       update: vi.fn(),
     }
-  
+
     const gamesChainable = {
       eq: vi.fn().mockReturnThis(),
       maybeSingle: vi.fn().mockResolvedValue({
@@ -866,7 +1006,7 @@ describe('Migration to IGDB (Steam/RAWG Fallback)', () => {
       insert: vi.fn(),
       upsert: vi.fn(),
     }
-  
+
     // Mock supabase
     vi.spyOn(supabaseClient, 'from').mockImplementation((tableName) => {
       if (tableName === 'user_games') {
@@ -894,24 +1034,24 @@ describe('Migration to IGDB (Steam/RAWG Fallback)', () => {
         update: vi.fn(),
       }
     })
-  
+
     // First render to get user ID
     const { rerender } = render(
       <MemoryRouter initialEntries={['/app/game/game-steam']}>
         <GameDetails />
       </MemoryRouter>
     )
-  
+
     // Wait for user ID to be set
-    await new Promise(resolve => setTimeout(resolve, 100))
-  
+    await new Promise((resolve) => setTimeout(resolve, 100))
+
     // Rerender with user ID
     rerender(
       <MemoryRouter initialEntries={['/app/game/game-steam']}>
         <GameDetails />
       </MemoryRouter>
     )
-  
+
     // Wait for migration to complete
     await waitFor(
       () => {
