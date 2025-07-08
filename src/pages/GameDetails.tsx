@@ -22,15 +22,17 @@ const GameDetails = () => {
 
   // Get current user
   useEffect(() => {
-    const getCurrentUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (user) {
-        setUserId(user.id)
+    const fetchCurrentUser = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          setUserId(user.id)
+        }
+      } catch (error) {
+        console.error('Error fetching user:', error)
       }
     }
-    getCurrentUser()
+    fetchCurrentUser()
   }, [])
   const [noteForm, setNoteForm] = useState<Partial<GameNote>>({
     content: '',
