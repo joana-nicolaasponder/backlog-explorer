@@ -22,6 +22,10 @@ import FeedbackPage from './pages/FeedbackPage'
 import ProfilePage from './pages/ProfilePage'
 import MoodRecommendations from './pages/MoodRecommendations'
 import ComingSoon from './pages/ComingSoon'
+import Footer from './components/Footer'
+import PrivacyPolicy from './pages/PrivacyPolicy'
+import TermsOfService from './pages/TermsOfService'
+import AuthCallback from './components/AuthCallback'
 
 const ResetPassword = () => {
   const [newPassword, setNewPassword] = useState('')
@@ -108,31 +112,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
           return
         }
 
-        // Check if the email is in the allowlist
-        const { data: allowedUser, error: allowlistError } = await supabase
-          .from('allowed_emails')
-          .select('email')
-          .eq('email', currentSession.user.email)
-
-        if (allowlistError) {
-          console.error('Error checking allowlist:', allowlistError)
-          throw allowlistError
-        }
-
-        if (!allowedUser || allowedUser.length === 0) {
-          await supabase.auth.signOut()
-          if (mounted) {
-            setSession(null)
-            setLoading(false)
-          }
-          navigate('/login', {
-            state: {
-              error:
-                'You are not authorized to access this application. Please contact the administrator.',
-            },
-          })
-          return
-        }
 
         // User is allowed, update the session
         if (mounted) {
@@ -232,23 +211,25 @@ const App: React.FC = () => {
 
   return (
     <ThemeProvider>
-      <div className="min-h-screen">
+      <div className="min-h-screen flex flex-col">
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Auth onAuth={setSession} />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<TermsOfService />} />
 
           {/* Protected Routes */}
           <Route
             path="/app"
             element={
               <ProtectedRoute>
-                <div className="flex h-screen bg-base-200">
+                <div className="flex flex-1 bg-base-200">
                   <SideBar
                     onLogout={handleLogout}
                     onAddGame={() => setShowAddGame(true)}
                   />
-                  <main className="flex-1 overflow-auto pt-16 lg:pt-0">
+                  <main className="flex-1 pt-16 lg:pt-0">
                     <HomePage />
                     {showAddGame && (
                       <AddGameModal
@@ -266,12 +247,12 @@ const App: React.FC = () => {
             path="/app/dashboard"
             element={
               <ProtectedRoute>
-                <div className="flex h-screen bg-base-200">
+                <div className="flex flex-1 bg-base-200">
                   <SideBar
                     onLogout={handleLogout}
                     onAddGame={() => setShowAddGame(true)}
                   />
-                  <main className="flex-1 overflow-auto pt-16 lg:pt-0">
+                  <main className="flex-1 pt-16 lg:pt-0">
                     <Dashboard />
                     {showAddGame && (
                       <AddGameModal
@@ -289,12 +270,12 @@ const App: React.FC = () => {
             path="/app/library"
             element={
               <ProtectedRoute>
-                <div className="flex h-screen bg-base-200">
+                <div className="flex flex-1 bg-base-200">
                   <SideBar
                     onLogout={handleLogout}
                     onAddGame={() => setShowAddGame(true)}
                   />
-                  <main className="flex-1 overflow-auto pt-16 lg:pt-0">
+                  <main className="flex-1 pt-16 lg:pt-0">
                     <Library ref={libraryRef} />
                     {showAddGame && (
                       <AddGameModal
@@ -312,12 +293,12 @@ const App: React.FC = () => {
             path="/app/coming-soon"
             element={
               <ProtectedRoute>
-                <div className="flex h-screen bg-base-200">
+                <div className="flex flex-1 bg-base-200">
                   <SideBar
                     onLogout={handleLogout}
                     onAddGame={() => setShowAddGame(true)}
                   />
-                  <main className="flex-1 overflow-auto pt-16 lg:pt-0">
+                  <main className="flex-1 pt-16 lg:pt-0">
                     <ComingSoon />
                     {showAddGame && (
                       <AddGameModal
@@ -335,12 +316,12 @@ const App: React.FC = () => {
             path="/app/profile"
             element={
               <ProtectedRoute>
-                <div className="flex h-screen bg-base-200">
+                <div className="flex flex-1 bg-base-200">
                   <SideBar
                     onLogout={handleLogout}
                     onAddGame={() => setShowAddGame(true)}
                   />
-                  <main className="flex-1 overflow-auto pt-16 lg:pt-0">
+                  <main className="flex-1 pt-16 lg:pt-0">
                     <ProfilePage />
                     {showAddGame && (
                       <AddGameModal
@@ -359,12 +340,12 @@ const App: React.FC = () => {
             path="/app/feedback"
             element={
               <ProtectedRoute>
-                <div className="flex h-screen bg-base-200">
+                <div className="flex flex-1 bg-base-200">
                   <SideBar
                     onLogout={handleLogout}
                     onAddGame={() => setShowAddGame(true)}
                   />
-                  <main className="flex-1 overflow-auto pt-16 lg:pt-0">
+                  <main className="flex-1 pt-16 lg:pt-0">
                     <FeedbackPage />
                     {showAddGame && (
                       <AddGameModal
@@ -383,12 +364,12 @@ const App: React.FC = () => {
             path="/app/mood-recommendations"
             element={
               <ProtectedRoute>
-                <div className="flex h-screen bg-base-200">
+                <div className="flex flex-1 bg-base-200">
                   <SideBar
                     onLogout={handleLogout}
                     onAddGame={() => setShowAddGame(true)}
                   />
-                  <main className="flex-1 overflow-auto pt-16 lg:pt-0">
+                  <main className="flex-1 pt-16 lg:pt-0">
                     <MoodRecommendations />
                     {showAddGame && (
                       <AddGameModal
@@ -407,12 +388,12 @@ const App: React.FC = () => {
             path="/app/explore"
             element={
               <ProtectedRoute>
-                <div className="flex h-screen bg-base-200">
+                <div className="flex flex-1 bg-base-200">
                   <SideBar
                     onLogout={handleLogout}
                     onAddGame={() => setShowAddGame(true)}
                   />
-                  <main className="flex-1 overflow-auto pt-16 lg:pt-0">
+                  <main className="flex-1 pt-16 lg:pt-0">
                     <Explore
                       isDevUser={
                         session?.user?.email === 'joanaponder@gmail.com'
@@ -435,12 +416,12 @@ const App: React.FC = () => {
             path="/app/game/:id"
             element={
               <ProtectedRoute>
-                <div className="flex h-screen bg-base-200">
+                <div className="flex flex-1 bg-base-200">
                   <SideBar
                     onLogout={handleLogout}
                     onAddGame={() => setShowAddGame(true)}
                   />
-                  <main className="flex-1 overflow-auto pt-16 lg:pt-0">
+                  <main className="flex-1 pt-16 lg:pt-0">
                     <GameDetails />
                     {showAddGame && (
                       <AddGameModal
@@ -454,6 +435,7 @@ const App: React.FC = () => {
               </ProtectedRoute>
             }
           />
+          <Route path="/auth/callback" element={<AuthCallback />} />
         </Routes>
         <div id="success-toast" className="toast toast-end hidden">
           <div className="alert alert-success">
@@ -465,6 +447,7 @@ const App: React.FC = () => {
             <span>Error saving changes. Please try again.</span>
           </div>
         </div>
+        <Footer />
       </div>
     </ThemeProvider>
   )

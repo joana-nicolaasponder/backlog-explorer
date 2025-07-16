@@ -18,7 +18,9 @@ const Auth: React.FC<AuthProps> = ({ onAuth }) => {
   const [resetSent, setResetSent] = useState<boolean>(false)
   const [loading, setLoading] = useState<boolean>(false)
   const [googleLoading, setGoogleLoading] = useState<boolean>(false)
-  const [error, setError] = useState<string>((location.state as { error?: string })?.error || '')
+  const [error, setError] = useState<string>(
+    (location.state as { error?: string })?.error || ''
+  )
   const [success, setSuccess] = useState<string>('')
 
   const validateEmail = (email: string) => {
@@ -67,37 +69,26 @@ const Auth: React.FC<AuthProps> = ({ onAuth }) => {
           email,
           password,
           options: {
-            redirectTo: `${window.location.origin}/app`
-          }
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
+          },
         })
         if (error) throw error
         setSuccess(
           'Sign-up successful! Please check your email to confirm your account.'
         )
       } else {
-
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
-          password
+          password,
         })
         if (error) throw error
         onAuth(data.session)
 
-        // Check if the email is in the allowlist after setting session
-        const { data: allowedUser, error: allowlistError } = await supabase
-          .from('allowed_emails')
-          .select('email')
-          .eq('email', data.session?.user?.email || '')
-          .single()
-
-        if (allowlistError || !allowedUser) {
-          await supabase.auth.signOut()
-          throw new Error('You are not authorized to access this application. Please contact the administrator.')
-        }
-        navigate('/app');
+        navigate('/app')
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'An unexpected error occurred'
+      const message =
+        err instanceof Error ? err.message : 'An unexpected error occurred'
       setError(message)
       console.error(message)
     } finally {
@@ -106,7 +97,9 @@ const Auth: React.FC<AuthProps> = ({ onAuth }) => {
   }
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, _session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, _session) => {
       // Handle auth state changes if needed in the future
     })
 
@@ -122,26 +115,11 @@ const Auth: React.FC<AuthProps> = ({ onAuth }) => {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/app`,
+          redirectTo: `${window.location.origin}/auth/callback`,
         },
       })
-      
-      if (error) throw error
-      
-      // If we have a session, check if the email is allowed
-      const session = await supabase.auth.getSession()
-      if (session?.data?.session?.user?.email) {
-        const { data: allowedUser, error: allowlistError } = await supabase
-          .from('allowed_emails')
-          .select('email')
-          .eq('email', session.data.session.user.email)
-          .single()
 
-        if (allowlistError || !allowedUser) {
-          await supabase.auth.signOut()
-          throw new Error('You are not authorized to access this application. Please contact the administrator.')
-        }
-      }
+      if (error) throw error
     } catch (err: any) {
       setError(err.message)
       console.error('Google sign-in error:', err.message)
