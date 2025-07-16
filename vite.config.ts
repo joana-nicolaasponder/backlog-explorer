@@ -23,6 +23,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [
+
       react(),
       ...(environment === "production"
         ? [
@@ -51,6 +52,11 @@ export default defineConfig(({ mode }) => {
       globals: true,
       environment: 'jsdom',
       setupFiles: './tests/vitest.setup.ts',
+    },
+    server: {
+      proxy: {
+        '/api': 'http://localhost:3001',
+      },
     },
   }
 })

@@ -392,6 +392,23 @@ app.post('/api/recommend', async (req, res) => {
   }
 })
 
+// Feedback email endpoint
+const { sendFeedbackMail } = require('./feedbackMailer');
+
+app.post('/api/feedback', async (req, res) => {
+  const { name, email, message } = req.body;
+  if (!message || typeof message !== 'string' || message.trim().length < 5) {
+    return res.status(400).json({ error: 'Feedback message is required.' });
+  }
+  try {
+    await sendFeedbackMail({ name, email, message });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error sending feedback email:', error);
+    res.status(500).json({ error: 'Failed to send feedback email.' });
+  }
+});
+
 app.listen(port, () => {
   console.log(`Server running on port ${port}`)
 })

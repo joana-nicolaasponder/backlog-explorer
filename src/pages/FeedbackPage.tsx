@@ -15,23 +15,33 @@ const FeedbackPage = () => {
     setMessage('');
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        navigate('/login');
-        return;
+      // Optionally get user info for name/email (if available)
+      let userName = '';
+      let userEmail = '';
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          userName = user.user_metadata?.full_name || user.email || '';
+          userEmail = user.email || '';
+        }
+      } catch (e) {
+        // Not critical if user info fails
       }
 
-      const { error } = await supabase
-        .from('feedback')
-        .insert([
-          {
-            user_id: user.id,
-            content,
-            category,
-          },
-        ]);
+      const res = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: userName,
+          email: userEmail,
+          message: content,
+        }),
+      });
 
-      if (error) throw error;
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to send feedback');
+      }
 
       setContent('');
       setCategory('general');
