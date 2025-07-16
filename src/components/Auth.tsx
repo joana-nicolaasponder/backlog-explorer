@@ -5,16 +5,17 @@ import supabase from '../supabaseClient'
 
 interface AuthProps {
   onAuth: (session: Session | null) => void
+  initialMode?: 'login' | 'signup' | 'reset'
 }
 
-const Auth: React.FC<AuthProps> = ({ onAuth }) => {
+const Auth: React.FC<AuthProps> = ({ onAuth, initialMode = 'login' }) => {
   const location = useLocation()
   const navigate = useNavigate()
   const [email, setEmail] = useState<string>('')
   const [password, setPassword] = useState<string>('')
   const [confirmPassword, setConfirmPassword] = useState<string>('')
-  const [isSignUp, setIsSignUp] = useState<boolean>(false)
-  const [isResetPassword, setIsResetPassword] = useState<boolean>(false)
+  const [isSignUp, setIsSignUp] = useState<boolean>(initialMode === 'signup')
+  const [isResetPassword, setIsResetPassword] = useState<boolean>(initialMode === 'reset')
   const [resetSent, setResetSent] = useState<boolean>(false)
   const [loading, setLoading] = useState<boolean>(false)
   const [googleLoading, setGoogleLoading] = useState<boolean>(false)
@@ -95,6 +96,11 @@ const Auth: React.FC<AuthProps> = ({ onAuth }) => {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    setIsSignUp(initialMode === 'signup');
+    setIsResetPassword(initialMode === 'reset');
+  }, [initialMode]);
 
   useEffect(() => {
     const {

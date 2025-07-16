@@ -1,7 +1,7 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
+import { sentryVitePlugin } from "@sentry/vite-plugin";
 
-// https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
   const env = loadEnv(mode, process.cwd(), '')
@@ -22,20 +22,30 @@ export default defineConfig(({ mode }) => {
   const environment = getEnvironment()
 
   return {
-    plugins: [react()],
+    plugins: [
+      react(),
+      ...(environment === "production"
+        ? [
+            sentryVitePlugin({
+              authToken: process.env.SENTRY_AUTH_TOKEN,
+              org: "joana-ponder",
+              project: "javascript-react",
+              // Add further options here if needed
+            }),
+          ]
+        : []),
+    ],
     define: {
       __DEV__: environment === 'development',
       // Ensure environment variables are properly replaced
       'process.env.VITE_API_URL': JSON.stringify(env.VITE_API_URL),
-      'process.env.VITE_BACKLOG_EXPLORER_URL': JSON.stringify(
-        env.VITE_BACKLOG_EXPLORER_URL
-      ),
+      'process.env.VITE_BACKLOG_EXPLORER_URL': JSON.stringify(env.VITE_BACKLOG_EXPLORER_URL),
       'process.env.VITE_APP_ENV': JSON.stringify(environment),
     },
     envDir: './',
     mode: environment,
     build: {
-      sourcemap: environment !== 'production',
+      sourcemap: environment === 'production', // Sentry requires sourcemaps in production
     },
     test: {
       globals: true,

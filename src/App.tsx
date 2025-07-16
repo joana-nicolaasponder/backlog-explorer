@@ -10,6 +10,7 @@ import {
 import supabase from './supabaseClient'
 import { ThemeProvider } from './contexts/ThemeContext'
 import Auth from './components/Auth'
+import AuthPage from './pages/AuthPage'
 import Library from './pages/Library'
 import Explore from './pages/Explore'
 import GameDetails from './pages/GameDetails'
@@ -215,6 +216,7 @@ const App: React.FC = () => {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Auth onAuth={setSession} />} />
+          <Route path="/auth" element={<AuthPage />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<TermsOfService />} />

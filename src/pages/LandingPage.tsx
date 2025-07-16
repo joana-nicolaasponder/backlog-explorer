@@ -47,9 +47,14 @@ const LandingPage = () => {
               Backlog Explorer
             </Link>
           </div>
-          {/* <div className="flex-none">
-            <Link to="/login" className="btn btn-ghost">Login</Link>
-          </div> */}
+          <div className="flex-none space-x-2">
+            <Link to="/auth?mode=login" className="btn btn-ghost">
+              Login
+            </Link>
+            <Link to="/auth?mode=signup" className="btn btn-primary">
+              Sign Up
+            </Link>
+          </div>
         </div>
       </nav>
 

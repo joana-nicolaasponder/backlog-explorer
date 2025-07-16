@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import OnboardingFlow from '../components/OnboardingFlow'
-import { extractFirstName, fetchFormattedCurrentGames, getUserOrRedirect, isNewUser } from './helpers/homePageHelpers'
+import {
+  extractFirstName,
+  fetchFormattedCurrentGames,
+  getUserOrRedirect,
+  isNewUser,
+} from './helpers/homePageHelpers'
 
 interface Game {
   id: string
@@ -32,9 +37,7 @@ const HomePage = () => {
 
         setShowOnboarding(await isNewUser(user.id))
 
-
         setCurrentGames(await fetchFormattedCurrentGames(user.id))
-
       } catch (error) {
         console.error('Error fetching current games:', error)
       } finally {
@@ -48,7 +51,7 @@ const HomePage = () => {
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <div className="loading loading-spinner loading-lg" role='status'></div>
+        <div className="loading loading-spinner loading-lg" role="status"></div>
       </div>
     )
   }
@@ -69,7 +72,8 @@ const HomePage = () => {
       <h1 className="text-4xl font-bold mb-8">
         {userName ? `Welcome back, ${userName}! 👋🏼` : 'Welcome Back! 👋🏼'}
       </h1>
-
+     
+    
       <div className="mb-12">
         <h2 className="text-2xl font-semibold mb-4">Currently Playing</h2>
         {currentGames.length === 0 ? (
