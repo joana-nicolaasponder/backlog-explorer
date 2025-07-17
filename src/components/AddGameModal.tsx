@@ -64,9 +64,9 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
         selectedGame.websites.some(
           (w) => w.type === 13 || w.url?.includes('store.steampowered.com')
         )
-      console.log('selectedGame.websites', selectedGame.websites)
+      // console.log removed for production
       const steamPlat = { id: 'Steam', name: 'Steam' }
-      console.log('hasSteamLink', hasSteamLink)
+      // console.log removed for production
 
       // Start with IGDB platforms
       let platforms = (selectedGame.platforms || []).map((p) => ({
@@ -148,7 +148,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
     type?: string
     duration?: number
   }) => {
-    console.log('SHOWING TOAST:', message, type)
+    // console.log removed for production
 
     // Create a toast element using DaisyUI
     const toastContainer = document.createElement('div')
@@ -174,7 +174,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
 
     // Remove after duration
     setTimeout(() => {
-      console.log('HIDING TOAST')
+      // console.log removed for production
       if (document.body.contains(toastContainer)) {
         document.body.removeChild(toastContainer)
       }

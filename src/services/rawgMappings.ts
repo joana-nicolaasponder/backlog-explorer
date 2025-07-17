@@ -75,7 +75,7 @@ export async function syncPlatformMapping(rawgPlatform: { id: number; name: stri
 }
 
 export async function syncGenreMapping(rawgGenre: { id: number; name: string }): Promise<string | null> {
-  console.log('Syncing genre:', rawgGenre.name);
+  // console.log removed for production
 
   // Check if mapping already exists
   const { data: existingMappings, error: mappingError } = await supabase
@@ -88,7 +88,7 @@ export async function syncGenreMapping(rawgGenre: { id: number; name: string }):
     return null;
   }
 
-  console.log('Existing mappings:', existingMappings);
+  // console.log removed for production
   const existingMapping = existingMappings?.[0];
 
   if (existingMapping) {

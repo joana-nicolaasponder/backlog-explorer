@@ -33,7 +33,7 @@ const corsOptions = {
     }
   },
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'sentry-trace', 'baggage'],
   credentials: true,
 }
 
@@ -47,10 +47,7 @@ const STEAM_OPENID_URL = 'https://steamcommunity.com/openid/login'
 const STEAM_API_URL = 'https://api.steampowered.com'
 
 app.post('/api/igdb/:endpoint', async (req, res) => {
-  console.log(
-    `[IGDB PROXY] Called /api/igdb/${req.params.endpoint} | Body:`,
-    req.body.query
-  )
+  // Removed verbose IGDB proxy log for production
   try {
     const { endpoint } = req.params
     const { query } = req.body
@@ -393,21 +390,21 @@ app.post('/api/recommend', async (req, res) => {
 })
 
 // Feedback email endpoint
-const { sendFeedbackMail } = require('./feedbackMailer');
+const { sendFeedbackMail } = require('./feedbackMailer')
 
 app.post('/api/feedback', async (req, res) => {
-  const { name, email, message } = req.body;
+  const { name, email, message } = req.body
   if (!message || typeof message !== 'string' || message.trim().length < 5) {
-    return res.status(400).json({ error: 'Feedback message is required.' });
+    return res.status(400).json({ error: 'Feedback message is required.' })
   }
   try {
-    await sendFeedbackMail({ name, email, message });
-    res.json({ success: true });
+    await sendFeedbackMail({ name, email, message })
+    res.json({ success: true })
   } catch (error) {
-    console.error('Error sending feedback email:', error);
-    res.status(500).json({ error: 'Failed to send feedback email.' });
+    console.error('Error sending feedback email:', error)
+    res.status(500).json({ error: 'Failed to send feedback email.' })
   }
-});
+})
 
 app.listen(port, () => {
   console.log(`Server running on port ${port}`)

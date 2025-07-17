@@ -242,7 +242,7 @@ const SideBar = ({ onLogout, onAddGame }: SideBarProps) => {
                   <span>Send Feedback</span>
                 </Link>
 
-                <Link
+                {/* <Link
                   to="/app/mood-recommendations"
                   className={`flex items-center space-x-2 p-2 rounded-lg hover:bg-base-200 ${
                     location.pathname === '/app/mood-recommendations'
@@ -253,7 +253,7 @@ const SideBar = ({ onLogout, onAddGame }: SideBarProps) => {
                 >
                   <FontAwesomeIcon icon={faFaceSmile} className="h-5 w-5" />
                   <span>Mood Recommendations</span>
-                </Link>
+                </Link> */}
               </nav>
             </div>
 
