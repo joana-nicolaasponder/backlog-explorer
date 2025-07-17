@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import SteamConnectButton from './SteamConnectButton'
 import { useNavigate } from 'react-router-dom'
 import supabase from '../supabaseClient'
 import GameSearch from './GameSearch'
@@ -52,6 +53,13 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
   const [selectedGame, setSelectedGame] = useState<GameDetailed | null>(null)
   useEffect(() => {
     if (!selectedGame) return
+    // Auto-select the only platform if there's just one
+    if (availablePlatforms.length === 1 && !formData.platforms.includes(availablePlatforms[0].name)) {
+      setFormData((prev) => ({
+        ...prev,
+        platforms: [availablePlatforms[0].name],
+      }))
+    }
     // Log when selectedGame is loaded but missing websites
     if (!selectedGame.websites) {
       console.log('Selected game loaded but missing websites:', selectedGame)
@@ -684,6 +692,26 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
     navigate('/app/library')
   }
 
+  // --- STEAM OAUTH HANDLER (copied from ProfilePage) ---
+  const BASE_URL =
+    import.meta.env.MODE === 'development'
+      ? 'http://localhost:5173'
+      : import.meta.env.VITE_BACKLOG_EXPLORER_URL
+  const handleConnectToSteam = () => {
+    const params = {
+      'openid.ns': 'http://specs.openid.net/auth/2.0',
+      'openid.mode': 'checkid_setup',
+      'openid.return_to': `${BASE_URL}/app/profile`,
+      'openid.realm': BASE_URL,
+      'openid.identity': 'http://specs.openid.net/auth/2.0/identifier_select',
+      'openid.claimed_id': 'http://specs.openid.net/auth/2.0/identifier_select',
+    }
+    const steamLoginUrl = `https://steamcommunity.com/openid/login?${new URLSearchParams(
+      params
+    )}`
+    window.location.href = steamLoginUrl
+  }
+
   return (
     <div
       className={`modal ${showModal ? 'modal-open' : ''} ${
@@ -773,12 +801,18 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
                 </svg>
                 <span>
                   Can't find your game? Try searching by the game's official
-                  title. If you still can't find it,
+                  title. If you still can't find it,{' '}
                   <a href="/app/feedback" className="link link-primary">
                     let us know
                   </a>
                   !
                 </span>
+              </div>
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-base-content/70 text-sm">
+                  Or import your Steam library
+                </span>
+                <SteamConnectButton onConnect={handleConnectToSteam} />
               </div>
             </div>
           ) : (
