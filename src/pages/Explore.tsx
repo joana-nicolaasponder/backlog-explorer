@@ -30,7 +30,7 @@ const Explore = ({ isDevUser }: { isDevUser: boolean }) => {
               <h2 className="text-lg font-semibold mb-2">🎮 Mood-based Recommendations</h2>
               <p className="text-sm mb-4">Discover games from your library that match your current mood. Whether you're looking for something relaxing, challenging, or story-driven.</p>
               {isDevUser ? (
-              <button onClick={() => setActiveFeature('mood')} className="btn btn-sm btn-primary">Go</button>
+                <button onClick={() => setActiveFeature('mood')} className="btn btn-sm btn-primary">Go</button>
               ) : <span className="text-sm font-medium text-gray-400">Coming Soon</span>}
             </div>
             <div className="bg-base-100 border p-6 rounded-lg shadow">

@@ -113,7 +113,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
           return
         }
 
-
         // User is allowed, update the session
         if (mounted) {
           setSession(currentSession)
@@ -240,6 +239,7 @@ const App: React.FC = () => {
                         setShowModal={setShowAddGame}
                       />
                     )}
+                    <Footer />
                   </main>
                 </div>
               </ProtectedRoute>
@@ -263,6 +263,7 @@ const App: React.FC = () => {
                         setShowModal={setShowAddGame}
                       />
                     )}
+                    <Footer />
                   </main>
                 </div>
               </ProtectedRoute>
@@ -286,6 +287,7 @@ const App: React.FC = () => {
                         setShowModal={setShowAddGame}
                       />
                     )}
+                    <Footer />
                   </main>
                 </div>
               </ProtectedRoute>
@@ -309,6 +311,7 @@ const App: React.FC = () => {
                         setShowModal={setShowAddGame}
                       />
                     )}
+                    <Footer />
                   </main>
                 </div>
               </ProtectedRoute>
@@ -332,12 +335,12 @@ const App: React.FC = () => {
                         setShowModal={setShowAddGame}
                       />
                     )}
+                    <Footer />
                   </main>
                 </div>
               </ProtectedRoute>
             }
           />
-
           <Route
             path="/app/feedback"
             element={
@@ -356,6 +359,7 @@ const App: React.FC = () => {
                         setShowModal={setShowAddGame}
                       />
                     )}
+                    <Footer />
                   </main>
                 </div>
               </ProtectedRoute>
@@ -380,6 +384,7 @@ const App: React.FC = () => {
                         setShowModal={setShowAddGame}
                       />
                     )}
+                    <Footer />
                   </main>
                 </div>
               </ProtectedRoute>
@@ -408,6 +413,7 @@ const App: React.FC = () => {
                         setShowModal={setShowAddGame}
                       />
                     )}
+                    <Footer />
                   </main>
                 </div>
               </ProtectedRoute>
@@ -432,6 +438,7 @@ const App: React.FC = () => {
                         setShowModal={setShowAddGame}
                       />
                     )}
+                    <Footer />
                   </main>
                 </div>
               </ProtectedRoute>
@@ -449,7 +456,6 @@ const App: React.FC = () => {
             <span>Error saving changes. Please try again.</span>
           </div>
         </div>
-        <Footer />
       </div>
     </ThemeProvider>
   )

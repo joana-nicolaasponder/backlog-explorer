@@ -1,13 +1,14 @@
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
 
 const ComingSoon = () => {
+  const navigate = useNavigate()
   return (
     <div className="container mx-auto p-4">
       <div className="text-center mb-12">
         <h1 className="text-4xl font-bold mb-4">Coming Soon!</h1>
         <p className="text-xl text-base-content/70">
-          We're working on something exciting! The Explore page will be your
-          personal game discovery hub.
+          We're working on something exciting!
         </p>
       </div>
 
@@ -58,6 +59,23 @@ const ComingSoon = () => {
               <div className="badge badge-outline">Coming Soon</div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Feedback Prompt */}
+      <div className="max-w-2xl mx-auto mb-16">
+        <div className="bg-base-200 p-6 rounded-lg flex flex-col items-center shadow-lg">
+          <h3 className="text-2xl font-bold mb-2">We want your feedback!</h3>
+          <p className="mb-4 text-base-content/70 text-center">
+            Have ideas, requests, or found a bug? Help shape Backlog Explorer by
+            sharing your thoughts. Your feedback is super valuable during Beta!
+          </p>
+          <button
+            className="btn btn-primary"
+            onClick={() => navigate('/app/feedback')}
+          >
+            Send Feedback
+          </button>
         </div>
       </div>
 
@@ -122,9 +140,9 @@ const ComingSoon = () => {
             <div className="relative">
               <div className="flex items-center">
                 <div className="flex-1 pr-8"></div>
-                <div className="absolute left-1/2 transform -translate-x-1/2 w-4 h-4 bg-primary rounded-full shadow-lg shadow-primary/50"></div>
+                <div className="absolute left-1/2 transform -translate-x-1/2 w-4 h-4 bg-secondary rounded-full shadow-lg shadow-secondary/50"></div>
                 <div className="flex-1 pl-8">
-                  <div className="badge badge-primary mb-2">Completed</div>
+                  <div className="badge badge-secondary mb-2">In Progress</div>
                   <h3 className="text-xl font-semibold">
                     Mood-based Recommendations
                   </h3>
@@ -169,6 +187,39 @@ const ComingSoon = () => {
             </div>
 
             {/* Planned Features */}
+            {/* Playlists Feature */}
+            <div className="relative">
+              <div className="flex items-center">
+                <div className="flex-1 text-right pr-8">
+                  <div className="badge badge-outline mb-2">Planned</div>
+                  <h3 className="text-xl font-semibold flex items-center gap-2">
+                    <span role="img" aria-label="Playlist">📝</span> Playlists
+                  </h3>
+                  <p className="text-base-content/70">
+                    Create and share custom game playlists with your own themes, challenges, or recommendations.
+                  </p>
+                </div>
+                <div className="absolute left-1/2 transform -translate-x-1/2 w-4 h-4 bg-base-300 rounded-full shadow-lg"></div>
+                <div className="flex-1 pl-8"></div>
+              </div>
+            </div>
+
+            {/* Community/Social Feature */}
+            <div className="relative">
+              <div className="flex items-center">
+                <div className="flex-1 pr-8"></div>
+                <div className="absolute left-1/2 transform -translate-x-1/2 w-4 h-4 bg-base-300 rounded-full shadow-lg"></div>
+                <div className="flex-1 pl-8">
+                  <div className="badge badge-outline mb-2">Planned</div>
+                  <h3 className="text-xl font-semibold flex items-center gap-2">
+                    <span role="img" aria-label="Community">🌐</span> Social & Community
+                  </h3>
+                  <p className="text-base-content/70">
+                    Connect with friends, share your library, and join the Backlog Explorer community for playlist sharing, recommendations, and more.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

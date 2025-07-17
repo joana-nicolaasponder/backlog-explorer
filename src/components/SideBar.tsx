@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useState } from 'react'
+import BetaPill from './BetaPill'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faHouse,
@@ -46,16 +47,22 @@ const SideBar = ({ onLogout, onAddGame }: SideBarProps) => {
             ></path>
           </svg>
         </button>
-        <h1 className="text-2xl font-bold">Backlog Explorer</h1>
+        <div className="flex items-center gap-2">
+  <h1 className="text-2xl font-bold">Backlog Explorer</h1>
+  <span className="lg:hidden align-middle"><BetaPill /></span>
+</div>
         <div className="w-10"></div> {/* Spacer to center the title */}
       </div>
 
       {/* Desktop Sidebar */}
-      <div className="hidden lg:flex lg:sticky lg:top-0 lg:h-screen w-64 bg-base-100 text-base-content shadow-lg flex-col overflow-y-auto">
+      <div className="hidden lg:flex lg:sticky lg:top-0 lg:h-screen w-64 bg-base-100 text-base-content shadow-lg flex-col overflow-y-auto overflow-x-hidden">
         {/* Sidebar Content */}
         <div className="p-4 flex-1">
           <div className="mb-8">
-            <h1 className="text-2xl font-bold mb-4">Backlog Explorer</h1>
+            <div>
+  <h1 className="text-2xl font-bold mb-1">Backlog Explorer</h1>
+  <div className="hidden lg:block mt-2"><BetaPill /></div>
+</div>
           </div>
 
           <nav className="space-y-2">

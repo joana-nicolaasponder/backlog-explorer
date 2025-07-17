@@ -2,7 +2,7 @@ import React from 'react'
 
 const Footer: React.FC = () => {
   return (
-    <footer className="w-full py-4 px-6 mt-8 border-t text-center text-sm text-gray-500 bg-base-200">
+    <footer className="w-full py-4 px-6 mt-8 text-center text-sm text-gray-500 bg-base-200">
       <div className="flex flex-col md:flex-row justify-center gap-4 items-center">
         <a href="/privacy" className="hover:underline focus:outline-none focus:ring-2 focus:ring-primary rounded">Privacy Policy</a>
         <a href="/terms" className="hover:underline focus:outline-none focus:ring-2 focus:ring-primary rounded">Terms of Service</a>
