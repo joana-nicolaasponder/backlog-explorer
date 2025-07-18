@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import supabase from '../supabaseClient';
+const API_BASE_URL = import.meta.env.VITE_API_URL
 
 const FeedbackPage = () => {
   const navigate = useNavigate();
@@ -28,7 +29,7 @@ const FeedbackPage = () => {
         // Not critical if user info fails
       }
 
-      const res = await fetch('/api/feedback', {
+      const res = await fetch(`${API_BASE_URL}/api/feedback`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
