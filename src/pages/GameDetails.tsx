@@ -45,6 +45,83 @@ const GameDetails = () => {
     screenshots: [],
   })
   const [isUpdatingProgress, setIsUpdatingProgress] = useState(false)
+  const [localProgress, setLocalProgress] = useState<number>(0)
+
+  // Sync localProgress with game.progress when game changes
+  useEffect(() => {
+    if (game) setLocalProgress(game.progress)
+  }, [game])
+
+  // Commit progress to Supabase only if changed
+  const handleProgressCommit = async () => {
+    if (!game) {
+      
+      return
+    }
+    if (isUpdatingProgress) {
+      
+      return
+    }
+    if (localProgress === game.progress) {
+      
+      return
+    }
+    setIsUpdatingProgress(true)
+    try {
+      const { data: userData } = await supabase.auth.getUser()
+      const user_id = userData.user?.id
+      if (!user_id) throw new Error('No user ID found')
+      const { data: existingUserGame, error: fetchError } = await supabase
+        .from('user_games')
+        .select('id')
+        .eq('game_id', game.id)
+        .eq('user_id', user_id)
+        .maybeSingle()
+      
+      if (fetchError) {
+        console.error('[handleProgressCommit] fetchError:', fetchError)
+        throw fetchError
+      }
+      
+      if (!existingUserGame) {
+        console.warn('[handleProgressCommit] No user_game found, skipping update')
+        return
+      }
+      
+      const updatePayload = {
+        progress: localProgress,
+        status: localProgress === 100 ? 'Done' : game.status,
+        updated_at: new Date().toISOString(),
+      }
+      const { data: updateData, error: updateError } = await supabase
+        .from('user_games')
+        .update(updatePayload)
+        .eq('id', existingUserGame.id)
+        .eq('user_id', user_id)
+        .select()
+      
+      
+      if (!updateError) {
+        // Ensure we refetch from backend to sync state
+        fetchGameAndNotes()
+      }
+
+      setGame((prev) =>
+        prev
+          ? {
+              ...prev,
+              progress: localProgress,
+              status: localProgress === 100 ? 'Done' : prev.status,
+            }
+          : null
+      )
+    } catch (error) {
+      console.error('Error updating progress:', error)
+    } finally {
+      setIsUpdatingProgress(false)
+    }
+  }
+
   const [selectedScreenshot, setSelectedScreenshot] = useState<string | null>(
     null
   )
@@ -649,6 +726,7 @@ const GameDetails = () => {
       }
 
       setGame(gameData)
+      console.log('Fetched game from backend:', gameData)
 
       // Fetch additional details from external provider
       if (userGameData.game) {
@@ -972,41 +1050,7 @@ const GameDetails = () => {
     }
   }
 
-  const updateProgress = async (newProgress: number) => {
-    if (!game) return
-    setIsUpdatingProgress(true)
-
-    try {
-      const { data: userData } = await supabase.auth.getUser()
-      const user_id = userData.user?.id
-
-      const { error } = await supabase
-        .from('user_games')
-        .update({
-          progress: newProgress,
-          status: newProgress === 100 ? 'Done' : game.status,
-        })
-        .eq('game_id', game.id)
-        .eq('user_id', user_id)
-
-      if (error) throw error
-
-      // Update local state
-      setGame((prev) =>
-        prev
-          ? {
-              ...prev,
-              progress: newProgress,
-              status: newProgress === 100 ? 'Done' : prev.status,
-            }
-          : null
-      )
-    } catch (error) {
-      console.error('Error updating progress:', error)
-    } finally {
-      setIsUpdatingProgress(false)
-    }
-  }
+  
 
   const getMoodEmoji = (mood: GameNote['mood']) => {
     const emojiMap = {
@@ -1099,14 +1143,22 @@ const GameDetails = () => {
                   <span className="text-sm font-medium">{game.progress}%</span>
                 </div>
                 <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={game.progress}
-                  className="range range-primary range-sm"
-                  step="5"
-                  onChange={(e) => updateProgress(parseInt(e.target.value))}
-                />
+  type="range"
+  min="0"
+  max="100"
+  value={localProgress}
+  className="range range-primary range-sm"
+  step="5"
+  onChange={(e) => {
+    const val = parseInt(e.target.value)
+    setLocalProgress(val)
+    // Removed setGame to avoid premature progress sync
+  }}
+  onMouseUp={handleProgressCommit}
+  onTouchEnd={handleProgressCommit}
+  onBlur={handleProgressCommit}
+/>
+
                 <div className="w-full flex justify-between text-xs px-1 mt-1">
                   <span>|</span>
                   <span>|</span>
