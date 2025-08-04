@@ -13,16 +13,7 @@ const Dashboard = () => {
     }
   }, [error, navigate])
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('Supabase session:', session)
-      if (session) {
-        console.log('User ID:', session.user.id)
-      } else {
-        console.log('No user is authenticated.')
-      }
-    })
-  }, [])
+
 
   return (
     <div className="p-8">
