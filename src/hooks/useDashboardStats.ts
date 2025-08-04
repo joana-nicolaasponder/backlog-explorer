@@ -1,53 +1,11 @@
 import { useEffect, useState } from 'react'
 import supabase from '../supabaseClient'
-import { UserGameResponse } from '../types'
 
-const IGNORED_GENRES = ['Adventure', 'Indie', 'RPG', 'Simulation', 'Strategy']
-
-function getTopItem(counts: { [key: string]: number }) {
-  if (Object.keys(counts).length === 0) return 'None'
-  return Object.entries(counts).reduce((a, b) => (a[1] > b[1] ? a : b))[0]
-}
 
 const COMPLETED_STATUSES = ['Endless', 'Done', 'Satisfied', 'DNF']
 const BACKLOG_STATUSES = ['Try Again', 'Started', 'Owned', 'Come back!']
 
-function filterCompletedGames(games: UserGameResponse[]) {
-  return games.filter((game) => COMPLETED_STATUSES.includes(game.status))
-}
 
-function countMoodOccurrences(games: UserGameResponse[]) {
-  return games.reduce((acc: { [key: string]: number }, game) => {
-    if (game.games && Array.isArray(game.games.game_moods)) {
-      game.games.game_moods.forEach((gm) => {
-        const name = gm.moods.name
-        acc[name] = (acc[name] || 0) + 1
-      })
-    }
-    return acc
-  }, {})
-}
-
-function countGenreOccurrences(games: UserGameResponse[]) {
-  return games.reduce((acc: { [key: string]: number }, game) => {
-    const genres = game.games?.game_genres || []
-    const meaningful = genres.find((g) => !IGNORED_GENRES.includes(g.genres.name))
-    if (meaningful) {
-      const name = meaningful.genres.name
-      acc[name] = (acc[name] || 0) + 1
-    }
-    return acc
-  }, {})
-}
-
-function countPlatformOccurrences(games: UserGameResponse[]) {
-  return games.reduce((acc: { [key: string]: number }, game) => {
-    (game.platforms || []).forEach((name: string) => {
-      acc[name] = (acc[name] || 0) + 1
-    })
-    return acc
-  }, {})
-}
 
 interface GameStats {
   totalLibrary: number
@@ -76,8 +34,7 @@ export function useDashboardStats() {
     topMood: '',
     recentActivity: null,
   })
-  const [topGenreCompleted, setTopGenreCompleted] = useState('')
-  const [topMoodCompleted, setTopMoodCompleted] = useState('')
+
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -92,99 +49,86 @@ export function useDashboardStats() {
           return
         }
 
-        const { data: userGames, error } = (await supabase
+        // Aggregate counts for stats
+        const [
+          { count: totalLibrary },
+          { count: backlog },
+          { count: currentlyPlaying },
+          { count: completed },
+        ] = await Promise.all([
+          supabase
+            .from('user_games')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', user.id),
+          supabase
+            .from('user_games')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', user.id)
+            .in('status', BACKLOG_STATUSES),
+          supabase
+            .from('user_games')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', user.id)
+            .eq('status', 'Currently Playing'),
+          supabase
+            .from('user_games')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', user.id)
+            .in('status', COMPLETED_STATUSES),
+        ])
 
+        // Fetch games minimally for top stats (genre, platform, mood)
+        const { data: userGamesMin } = await supabase
           .from('user_games')
           .select(
-            `
-            status,
-            progress,
-            game_id,
-            updated_at,
-            platforms,
-            games!user_games_game_id_fkey (
-              id,
-              title,
-              game_genres (
-                genres (
-                  name
-                )
-              ),
-              game_platforms (
-                platforms (
-                  name
-                )
-              ),
-              game_moods (
-                moods (
-                  name
-                )
-              )
-            )
-          `
+            `status, updated_at, platforms, games!user_games_game_id_fkey (game_genres (genres (name)), game_platforms (platforms (name)), game_moods (moods (name)))`
           )
-          .eq('user_id', user.id)) as {
-          data: UserGameResponse[] | null
-          error: Error | null
-        }
-
+          .eq('user_id', user.id)
+          .limit(2000) // increase if needed, or use pagination if >2000
 
         const currentYear = new Date().getFullYear()
-        // const { data: completionNotes } = await supabase
-        //   .from('game_notes')
-        //   .select('*')
-        //   .eq('user_id', user.id)
-        //   .eq('is_completion_entry', true)
-        //   .gte('completion_date', `${currentYear}-01-01`)
-        //   .lte('completion_date', `${currentYear}-12-31`)
+        // Fetch top stats using SQL functions (RPCs)
+        const [
+          { data: topGenreData },
+          { data: topPlatformData },
+          { data: topMoodData },
+        ] = await Promise.all([
+          supabase.rpc('get_top_genre', { user_id: user.id }),
+          supabase.rpc('get_top_platform', { user_id: user.id }),
+          supabase.rpc('get_top_mood', { user_id: user.id }),
+        ])
+        const topGenre = topGenreData?.[0]?.genre || ''
+        const topPlatform = topPlatformData?.[0]?.platform || ''
+        const topMood = topMoodData?.[0]?.mood || ''
 
-        // if (error) throw error
-
-        const { data: recentNotes } = await supabase
-          .from('game_notes')
-          .select('created_at, content')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-
-        const recentNote = recentNotes?.[0]
-
-        if (!userGames) {
-          throw new Error('No user games found')
-        }
-
-        const completedUserGames = filterCompletedGames(userGames)
-        const completedMoodCounts = countMoodOccurrences(completedUserGames)
-        const genreCounts = countGenreOccurrences(completedUserGames)
-        const platformCounts = countPlatformOccurrences(completedUserGames)
-        const allMoodCounts = countMoodOccurrences(userGames)
-
-        const completedGames = completedUserGames.length
-
-        const gamesCompletedThisYear = userGames.filter((game) => {
+        // For completedThisYear, still use minimal fetch
+        const gamesCompletedThisYear = (userGamesMin || []).filter((game) => {
           const updatedAt = new Date(game.updated_at)
           return (
             COMPLETED_STATUSES.includes(game.status) &&
             updatedAt.getFullYear() === currentYear
           )
         })
-
         const completedThisYear = gamesCompletedThisYear.length
 
-        setTopGenreCompleted(getTopItem(genreCounts))
-        setTopMoodCompleted(getTopItem(completedMoodCounts))
-
-      
+        // Recent activity (unchanged)
+        const { data: recentNotes } = await supabase
+          .from('game_notes')
+          .select('created_at, content')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+        const recentNote = recentNotes?.[0]
 
         setStats({
-          totalLibrary: userGames?.length || 0,
-          backlog: userGames.filter((g) => BACKLOG_STATUSES.includes(g.status)).length,
-          currentlyPlaying: userGames.filter((g) => g.status === 'Currently Playing').length,
-          completed: completedGames,
+          totalLibrary: totalLibrary || 0,
+          backlog: backlog || 0,
+          currentlyPlaying: currentlyPlaying || 0,
+          completed: completed || 0,
           completedThisYear: completedThisYear,
-          topGenre: getTopItem(genreCounts),
-          topPlatform: getTopItem(platformCounts),
-          topMood: getTopItem(allMoodCounts),
+          topGenre,
+          topPlatform,
+          topMood,
           recentActivity: recentNote
             ? {
                 date: new Date(recentNote.created_at).toLocaleDateString(),
@@ -205,10 +149,30 @@ export function useDashboardStats() {
     fetchGameStats()
   }, [])
 
+  const [topGenreMoodCombo, setTopGenreMoodCombo] = useState<{
+    genre: string
+    mood: string
+    count: number
+  } | null>(null)
+
+  useEffect(() => {
+    const fetchGenreMoodCombo = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) return
+      const { data } = await supabase.rpc('get_top_genre_mood_combo', {
+        user_id: user.id,
+      })
+      setTopGenreMoodCombo(data?.[0] || null)
+    }
+    fetchGenreMoodCombo()
+  }, [])
+
   return {
     stats,
-    topGenreCompleted,
-    topMoodCompleted,
+
+    topGenreMoodCombo,
     loading,
     error,
   }

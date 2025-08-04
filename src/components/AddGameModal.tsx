@@ -37,6 +37,76 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
   showModal,
   setShowModal,
 }) => {
+  // IGDB ID input and fetch-by-ID state
+  const [igdbIdInput, setIgdbIdInput] = useState('')
+  const [isFetchingById, setIsFetchingById] = useState(false)
+  const [fetchByIdError, setFetchByIdError] = useState<string | null>(null)
+
+  // Handler for IGDB ID fetch
+  const handleFetchByIgdbId = async () => {
+    setFetchByIdError(null)
+    setIsFetchingById(true)
+    try {
+      if (!/^\d+$/.test(igdbIdInput)) {
+        setFetchByIdError('Please enter a valid IGDB numeric ID.')
+        setIsFetchingById(false)
+        return
+      }
+      const game = await gameService.getGameDetails(igdbIdInput.trim())
+      if (!game) {
+        setFetchByIdError('No game found for that IGDB ID.')
+        setIsFetchingById(false)
+        return
+      }
+      // Check if user already has this game
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) throw new Error('No user found')
+      const { data: existingGames } = await supabase
+        .from('games')
+        .select('id')
+        .eq('igdb_id', game.id)
+        .eq('provider', GAME_PROVIDER)
+      const existingGameId = existingGames?.[0]?.id
+      if (existingGameId) {
+        const { data: userGames } = await supabase
+          .from('user_games')
+          .select('id, status')
+          .eq('game_id', existingGameId)
+          .eq('user_id', user.id)
+        if (userGames?.length) {
+          setFetchByIdError('You already have this game in your library.')
+          setIsFetchingById(false)
+          return
+        }
+      }
+      // Set selected game and form data
+      setSelectedGame(game)
+      setFormData({
+        title: game.name,
+        platforms: [],
+        genres: (game.genres || []).map((g: any) => g.name),
+        status: 'Not Started',
+        progress: 0,
+        moods: [],
+        image: game.background_image || '',
+        igdb_id: game.id?.toString(),
+        provider: GAME_PROVIDER,
+        metacritic_rating: game.metacritic || undefined,
+        release_date: game.released || undefined,
+        background_image: game.background_image || undefined,
+        description: game.summary || '',
+      })
+      setFetchByIdError(null)
+      setIgdbIdInput('')
+    } catch (e: any) {
+      setFetchByIdError(e?.message || 'Failed to fetch game by IGDB ID.')
+    } finally {
+      setIsFetchingById(false)
+    }
+  }
+
   const navigate = useNavigate()
   const [formData, setFormData] = useState<GameFormData>({
     title: '',
@@ -54,7 +124,10 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
   useEffect(() => {
     if (!selectedGame) return
     // Auto-select the only platform if there's just one
-    if (availablePlatforms.length === 1 && !formData.platforms.includes(availablePlatforms[0].name)) {
+    if (
+      availablePlatforms.length === 1 &&
+      !formData.platforms.includes(availablePlatforms[0].name)
+    ) {
       setFormData((prev) => ({
         ...prev,
         platforms: [availablePlatforms[0].name],
@@ -619,17 +692,20 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
         return
       } else {
         // Create new user_game
-        await supabase.from('user_games').insert({
-          user_id: user.id,
-          game_id: gameId,
-          status: formData.status,
-          progress: formData.progress,
-          platforms: formData.platforms, // Store user's selected platforms
-          image:
-            formData.image !== formData.background_image
-              ? formData.image
-              : null, // Store user's custom image
-        })
+        await supabase.from('user_games').upsert(
+          {
+            user_id: user.id,
+            game_id: gameId,
+            status: formData.status,
+            progress: formData.progress,
+            platforms: formData.platforms, // Store user's selected platforms
+            image:
+              formData.image !== formData.background_image
+                ? formData.image
+                : null, // Store user's custom image
+          },
+          { onConflict: ['user_id', 'game_id'] }
+        )
       }
 
       // Insert moods if any are selected
@@ -808,8 +884,38 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
                   !
                 </span>
               </div>
+              {/* IGDB ID Fallback Add */}
               <div className="flex flex-col items-center gap-2">
-                <span className="text-base-content/70 text-sm">
+                <span className="text-base-content/70 text-sm mb-2">
+                  Or add by IGDB ID (advanced)
+                </span>
+                <div className="flex gap-2 w-full justify-center">
+                  <input
+                    type="text"
+                    className="input input-bordered input-sm max-w-xs"
+                    placeholder="Enter IGDB ID (e.g. 255090)"
+                    value={igdbIdInput}
+                    onChange={(e) => setIgdbIdInput(e.target.value)}
+                  />
+                  <button
+                    className="btn btn-sm btn-primary"
+                    disabled={isFetchingById || !/^\d+$/.test(igdbIdInput)}
+                    onClick={handleFetchByIgdbId}
+                    type="button"
+                  >
+                    {isFetchingById ? (
+                      <span className="loading loading-spinner loading-xs"></span>
+                    ) : (
+                      'Fetch by ID'
+                    )}
+                  </button>
+                </div>
+                {fetchByIdError && (
+                  <span className="text-error text-xs mt-1">
+                    {fetchByIdError}
+                  </span>
+                )}
+                <span className="text-base-content/70 text-sm mt-2">
                   Or import your Steam library
                 </span>
                 <SteamConnectButton onConnect={handleConnectToSteam} />

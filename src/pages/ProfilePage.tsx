@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import supabase from '../supabaseClient'
 import { useTheme } from '../contexts/ThemeContext'
 import { gameService } from '../services/gameService'
+import GameDisambiguationModal, { GameOption } from '../components/GameDisambiguationModal'
 const BASE_URL =
   import.meta.env.MODE === 'development'
     ? 'http://localhost:5173'
@@ -291,7 +292,25 @@ const ProfilePage = () => {
     return true
   }
 
-  const addSelectedGamesToLibrary = async () => {
+  const [disambiguationOpen, setDisambiguationOpen] = useState(false)
+const [disambiguationGames, setDisambiguationGames] = useState<GameOption[]>([])
+const [disambiguationResolve, setDisambiguationResolve] = useState<((game: GameOption|null) => void) | null>(null)
+
+// Helper to show modal and get user choice
+const resolveGameDisambiguation = (games: GameOption[]): Promise<GameOption|null> => {
+  setDisambiguationGames(games)
+  setDisambiguationOpen(true)
+  return new Promise((resolve) => {
+    setDisambiguationResolve(() => (game) => {
+      setDisambiguationOpen(false)
+      setDisambiguationGames([])
+      setDisambiguationResolve(null)
+      resolve(game)
+    })
+  })
+}
+
+const addSelectedGamesToLibrary = async () => {
     if (!user?.id) {
       console.error('No user ID found')
       return
@@ -325,23 +344,42 @@ const ProfilePage = () => {
               }
 
               const igdbGame = exactMatch || searchResult.results[0]
-              const genres =
-                igdbGame.genres?.map((genre) => ({
-                  name: genre.name,
-                  slug: genre.slug,
-                })) || []
+              const genres = igdbGame.genres?.map((genre: any) => ({
+                name: genre.name,
+                slug: genre.slug,
+              })) || []
 
-              const { data: existingIgdbGame } = await supabase
+              // Find all possible IGDB matches in our DB
+              const { data: possibleMatches } = await supabase
                 .from('games')
                 .select('*')
                 .eq('igdb_id', igdbGame.id.toString())
                 .eq('provider', 'igdb')
-                .maybeSingle()
 
-              if (existingIgdbGame) {
+              let selectedIgdbGame = null
+              if (possibleMatches && possibleMatches.length > 1) {
+                // Let user pick
+                const userChoice = await resolveGameDisambiguation(possibleMatches.map((g: any) => ({
+                  id: g.id,
+                  title: g.title,
+                  provider: g.provider,
+                  background_image: g.background_image,
+                  release_date: g.release_date,
+                })))
+                if (userChoice) {
+                  selectedIgdbGame = possibleMatches.find((g: any) => g.id === userChoice.id)
+                } else {
+                  // User cancelled, skip this game
+                  return null
+                }
+              } else if (possibleMatches && possibleMatches.length === 1) {
+                selectedIgdbGame = possibleMatches[0]
+              }
+
+              if (selectedIgdbGame) {
                 return {
                   steamGame: game,
-                  igdbData: existingIgdbGame,
+                  igdbData: selectedIgdbGame,
                   genres: genres,
                   existingIgdbGame: true,
                 }
@@ -426,32 +464,41 @@ const ProfilePage = () => {
       // Process genres
       for (let i = 0; i < enrichedGamesData.length; i++) {
         const gameData = enrichedGamesData[i]
+        console.log('[Mapping Debug] Steam game:', gameData.steamGame?.name, 'IGDB data:', gameData.igdbData, 'existingIgdbGame:', gameData.existingIgdbGame);
         const insertedGame = insertedGames.find((game) => {
           if (gameData.existingIgdbGame) {
-            return game.id === gameData.igdbData.id
+            const match = game.id === gameData.igdbData.id;
+            if (match) console.log('[Mapping Debug] Matched by id:', game.id, game.title);
+            return match;
           }
-          return (
+          const match = (
             game.igdb_id === gameData.igdbData.igdb_id &&
             game.provider === gameData.igdbData.provider &&
             game.title === gameData.igdbData.title
-          )
+          );
+          if (match) console.log('[Mapping Debug] Matched by igdb_id/provider/title:', game.igdb_id, game.provider, game.title);
+          return match;
         })
 
         if (!insertedGame) {
+          console.warn('[Mapping Debug] No strict match for', gameData.steamGame?.name, 'Trying lenient match...');
           const lenientMatch = insertedGames.find(
             (game) =>
               game.title === gameData.igdbData.title ||
               game.igdb_id === gameData.igdbData.igdb_id
-          )
+          );
 
           if (lenientMatch) {
+            console.log('[Mapping Debug] Lenient match found:', lenientMatch.id, lenientMatch.title);
             await processGameGenres(gameData, lenientMatch)
             continue
           } else {
+            console.warn('[Mapping Debug] No lenient match for', gameData.steamGame?.name);
             continue
           }
         }
 
+        console.log('[Mapping Debug] Using insertedGame:', insertedGame.id, insertedGame.title);
         await processGameGenres(gameData, insertedGame)
       }
 
@@ -521,8 +568,15 @@ const ProfilePage = () => {
 
       // Insert and update games
       if (newUserGames.length > 0) {
-        const { error } = await supabase.from('user_games').insert(newUserGames)
-        if (error) throw error
+        console.log('Attempting to upsert user_games:', newUserGames)
+        const { data: upsertedUserGames, error } = await supabase
+          .from('user_games')
+          .upsert(newUserGames, { onConflict: 'user_id,game_id' })
+        if (error) {
+          console.error('Upsert error in user_games:', error)
+          throw error
+        }
+        console.log('Upserted user_games result:', upsertedUserGames)
       }
 
       if (existingGamesToUpdate.length > 0) {
@@ -1050,8 +1104,16 @@ const ProfilePage = () => {
           </div>
         </div>
       </div>
+      {/* Disambiguation Modal for IGDB matches */}
+      <GameDisambiguationModal
+        open={disambiguationOpen}
+        games={disambiguationGames}
+        onSelect={(game) => disambiguationResolve && disambiguationResolve(game)}
+        onCancel={() => disambiguationResolve && disambiguationResolve(null)}
+      />
     </div>
   )
 }
 
+{/* Disambiguation Modal for IGDB matches */}
 export default ProfilePage

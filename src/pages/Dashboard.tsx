@@ -1,16 +1,28 @@
 import { useNavigate } from 'react-router-dom'
 import { useDashboardStats } from '../hooks/useDashboardStats'
 import { useEffect } from 'react'
+import supabase from '../supabaseClient'
 
 const Dashboard = () => {
   const navigate = useNavigate()
-  const { stats, topGenreCompleted, topMoodCompleted, loading, error } = useDashboardStats()
+  const { stats, topGenreMoodCombo, loading, error } = useDashboardStats()
 
   useEffect(() => {
-  if (error === 'unauthenticated') {
-    navigate('/login')
-  }
-}, [error, navigate])
+    if (error === 'unauthenticated') {
+      navigate('/login')
+    }
+  }, [error, navigate])
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Supabase session:', session)
+      if (session) {
+        console.log('User ID:', session.user.id)
+      } else {
+        console.log('No user is authenticated.')
+      }
+    })
+  }, [])
 
   return (
     <div className="p-8">
@@ -22,7 +34,11 @@ const Dashboard = () => {
       ) : loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="card bg-base-100 shadow-xl animate-pulse" role="status">
+            <div
+              key={i}
+              className="card bg-base-100 shadow-xl animate-pulse"
+              role="status"
+            >
               <div className="card-body">
                 <div className="h-6 bg-base-300 rounded w-3/4 mb-2"></div>
                 <div className="h-4 bg-base-300 rounded w-1/4"></div>
@@ -38,7 +54,9 @@ const Dashboard = () => {
           >
             <div className="card-body">
               <h2 className="card-title">Total Library</h2>
-              <p className="text-4xl font-bold" data-testid="total-library">{stats.totalLibrary}</p>
+              <p className="text-4xl font-bold" data-testid="total-library">
+                {stats.totalLibrary}
+              </p>
               <p className="text-sm opacity-70">Games in your collection</p>
             </div>
           </div>
@@ -55,7 +73,9 @@ const Dashboard = () => {
           >
             <div className="card-body">
               <h2 className="card-title">Games in Backlog</h2>
-              <p className="text-4xl font-bold" data-testid="backlog">{stats.backlog}</p>
+              <p className="text-4xl font-bold" data-testid="backlog">
+                {stats.backlog}
+              </p>
               <p className="text-sm opacity-70">
                 {((stats.backlog / stats.totalLibrary) * 100).toFixed(1)}% of
                 your library
@@ -73,7 +93,9 @@ const Dashboard = () => {
           >
             <div className="card-body">
               <h2 className="card-title">Currently Playing</h2>
-              <p className="text-4xl font-bold" data-testid="currently-playing">{stats.currentlyPlaying}</p>
+              <p className="text-4xl font-bold" data-testid="currently-playing">
+                {stats.currentlyPlaying}
+              </p>
               <p className="text-sm opacity-70">Active games in progress</p>
             </div>
           </div>
@@ -90,7 +112,9 @@ const Dashboard = () => {
           >
             <div className="card-body">
               <h2 className="card-title">Completed Games</h2>
-              <p className="text-4xl font-bold" data-testid="completed">{stats.completed}</p>
+              <p className="text-4xl font-bold" data-testid="completed">
+                {stats.completed}
+              </p>
               <p className="text-sm opacity-70">
                 {((stats.completed / stats.totalLibrary) * 100).toFixed(1)}%
                 completion rate
@@ -99,14 +123,35 @@ const Dashboard = () => {
           </div>
           <div
             className="card bg-base-100 shadow-xl tooltip"
-            data-tip="Based on the most common genre and mood in your completed games"
+            data-tip="The genre that appears most frequently across your game collection"
           >
             <div className="card-body">
-              <h2 className="card-title">Favorite Game Type</h2>
-              <p className="text-4xl font-bold capitalize" data-testid="favorite-game-type">
-                {topGenreCompleted || 'Unknown'} • {topMoodCompleted || 'Unknown'}
+              <h2 className="card-title">Favorite Genre</h2>
+              <p
+                className="text-4xl font-bold capitalize"
+                data-testid="favorite-genre"
+              >
+                {stats.topGenre || 'Unknown'}
               </p>
-              <p className="text-sm opacity-70">Your most-played vibe</p>
+              <p className="text-sm opacity-70">Your most-played genre</p>
+            </div>
+          </div>
+
+          <div
+            className="card bg-base-100 shadow-xl tooltip"
+            data-tip="The most common genre and mood combination across your collection"
+          >
+            <div className="card-body">
+              <h2 className="card-title">Most Common Genre/Mood Combo</h2>
+              <p
+                className="text-2xl font-bold capitalize"
+                data-testid="most-common-genre-mood-combo"
+              >
+                {topGenreMoodCombo
+                  ? `${topGenreMoodCombo.genre} • ${topGenreMoodCombo.mood}`
+                  : 'No common combo found'}
+              </p>
+              <p className="text-sm opacity-70">Your signature game vibe</p>
             </div>
           </div>
           <div
@@ -115,7 +160,12 @@ const Dashboard = () => {
           >
             <div className="card-body">
               <h2 className="card-title">Most Used Platform</h2>
-              <p className="text-4xl font-bold" data-testid="most-used-platform">{stats.topPlatform}</p>
+              <p
+                className="text-4xl font-bold"
+                data-testid="most-used-platform"
+              >
+                {stats.topPlatform}
+              </p>
               <p className="text-sm opacity-70">Your primary gaming platform</p>
             </div>
           </div>
@@ -134,7 +184,12 @@ const Dashboard = () => {
           >
             <div className="card-body">
               <h2 className="card-title">Completed in 2025</h2>
-              <p className="text-4xl font-bold" data-testid="completed-this-year">{stats.completedThisYear}</p>
+              <p
+                className="text-4xl font-bold"
+                data-testid="completed-this-year"
+              >
+                {stats.completedThisYear}
+              </p>
               <p className="text-sm opacity-70">
                 {((stats.completedThisYear / stats.totalLibrary) * 100).toFixed(
                   1
@@ -150,7 +205,12 @@ const Dashboard = () => {
           >
             <div className="card-body">
               <h2 className="card-title">Most Common Mood</h2>
-              <p className="text-4xl font-bold capitalize" data-testid="most-common-mood">{stats.topMood}</p>
+              <p
+                className="text-4xl font-bold capitalize"
+                data-testid="most-common-mood"
+              >
+                {stats.topMood}
+              </p>
               <p className="text-sm opacity-70">How your games make you feel</p>
             </div>
           </div>
