@@ -88,9 +88,10 @@ export function useLibraryGames(userId: string | null, filterLetter?: string) {
         .eq('user_id', userId)
         .order('game(title)', { ascending: true })
 
-      if (filterLetter === '#') {
+      if (searchQuery) {
+        query = query.ilike('game.title', `%${searchQuery}%`)
+      } else if (filterLetter === '#') {
         // Exclude A-Z (case-insensitive)
-        // Supabase does not support regex, so chain .not.ilike for each letter A-Z
         for (let i = 0; i < 26; i++) {
           const letter = String.fromCharCode(65 + i);
           query = query.not('game.title', 'ilike', `${letter}%`)
