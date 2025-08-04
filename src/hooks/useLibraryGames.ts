@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import supabase from '../supabaseClient'
 
 // Custom hook for library games with filtering, sorting, and options
-export function useLibraryGames(userId: string | null) {
+export function useLibraryGames(userId: string | null, filterLetter?: string) {
   // Filter states
   const [filterStatus, setFilterStatus] = useState<string[]>([])
   const [filterYear, setFilterYear] = useState<number | null>(null)
@@ -20,6 +20,11 @@ export function useLibraryGames(userId: string | null) {
   const [statusOptions, setStatusOptions] = useState<string[]>([])
   const [yearOptions, setYearOptions] = useState<number[]>([])
   const [error, setError] = useState<string | null>(null)
+
+  // Pagination states
+  const [page, setPage] = useState(1)
+  const pageSize = 30
+  const [totalCount, setTotalCount] = useState(0)
 
   // Fetch and process games from Supabase
   const fetchGames = useCallback(async () => {
@@ -40,8 +45,12 @@ export function useLibraryGames(userId: string | null) {
         'Done',
       ])
 
-      // Fetch user games with relationships
-      const { data: userGames, error: gamesError } = await supabase
+      // Calculate range for current page
+      const from = (page - 1) * pageSize
+      const to = from + pageSize - 1
+
+      // Fetch user games with relationships (paginated)
+      let query = supabase
         .from('user_games')
         .select(
           `
@@ -73,10 +82,27 @@ export function useLibraryGames(userId: string | null) {
               )
             )
           )
-        `
+        `,
+          { count: 'exact' }
         )
         .eq('user_id', userId)
         .order('game(title)', { ascending: true })
+
+      if (filterLetter === '#') {
+        // Exclude A-Z (case-insensitive)
+        // Supabase does not support regex, so chain .not.ilike for each letter A-Z
+        for (let i = 0; i < 26; i++) {
+          const letter = String.fromCharCode(65 + i);
+          query = query.not('game.title', 'ilike', `${letter}%`)
+          query = query.not('game.title', 'ilike', `${letter.toLowerCase()}%`)
+        }
+      } else if (filterLetter) {
+        query = query.ilike('game.title', `${filterLetter}%`)
+      }
+
+      query = query.range(from, to)
+
+      const { data: userGames, count, error: gamesError } = await query
 
       if (gamesError) {
         setError(gamesError.message || 'Something went wrong fetching games.')
@@ -84,20 +110,22 @@ export function useLibraryGames(userId: string | null) {
       }
 
       // Format games with platform, genre, and mood names
-      let formattedGames = (userGames || []).map((userGame: any) => ({
-        id: userGame.game.id,
-        title: userGame.game.title,
-        status: userGame.status,
-        progress: userGame.progress,
-        image: userGame.image || userGame.game.background_image,
-        created_at: userGame.game.created_at,
-        updated_at: userGame.updated_at,
-        platforms: userGame.platforms || [],
-        genres: userGame.game.game_genres.map((gg: any) => gg.genres.name),
-        moods: userGame.game.game_moods?.map((gm: any) => gm.moods.name) || [],
-        provider: userGame.game.provider || 'rawg',
-        igdb_id: userGame.game.igdb_id || 0,
-      }))
+      let formattedGames = (userGames || [])
+        .filter((userGame: any) => userGame.game)
+        .map((userGame: any) => ({
+          id: userGame.game.id,
+          title: userGame.game.title,
+          status: userGame.status,
+          progress: userGame.progress,
+          image: userGame.image || userGame.game.background_image,
+          created_at: userGame.game.created_at,
+          updated_at: userGame.updated_at,
+          platforms: userGame.platforms || [],
+          genres: userGame.game.game_genres.map((gg: any) => gg.genres.name),
+          moods: userGame.game.game_moods?.map((gm: any) => gm.moods.name) || [],
+          provider: userGame.game.provider || 'rawg',
+          igdb_id: userGame.game.igdb_id || 0,
+        }))
 
       // Build options for filters
       const years = Array.from(
@@ -184,6 +212,7 @@ export function useLibraryGames(userId: string | null) {
       }
 
       setGames(formattedGames)
+      setTotalCount(count || 0)
     } catch (err: any) {
       setError(err.message || 'Something went wrong.')
     }
@@ -197,6 +226,8 @@ export function useLibraryGames(userId: string | null) {
     filterYear,
     sortOrder,
     searchQuery,
+    page,
+    filterLetter,
   ])
 
   // Fetch games and options when dependencies change
@@ -212,6 +243,10 @@ export function useLibraryGames(userId: string | null) {
   return {
     games,
     fetchGames,
+    page,
+    setPage,
+    pageSize,
+    totalCount,
     filters: {
       filterStatus,
       filterYear,

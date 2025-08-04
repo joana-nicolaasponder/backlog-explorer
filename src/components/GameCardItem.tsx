@@ -84,14 +84,16 @@ const GameCardItem = ({ game, userId, onRefresh }: GameCardItemProps) => {
       )}
 
       <div
-        className="card bg-base-100 shadow-xl cursor-pointer hover:shadow-2xl transition-shadow duration-200"
+        className="card bg-base-100 shadow-xl cursor-pointer hover:shadow-2xl transition-shadow duration-200 max-w-full box-border"
+        style={{ minWidth: 0 }}
         onClick={() => navigate(`/app/game/${game.id}`)}
       >
         <figure>
           <img
             src={game.image || '/default-image.jpg'}
             alt={game.title}
-            className="w-full h-48 object-cover"
+            className="w-full h-48 object-cover max-w-full"
+            style={{ minWidth: 0 }}
           />
         </figure>
         <div className="card-body">
