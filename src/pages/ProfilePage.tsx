@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import supabase from '../supabaseClient'
 import { useTheme } from '../contexts/ThemeContext'
 import { gameService } from '../services/gameService'
-import GameDisambiguationModal, { GameOption } from '../components/GameDisambiguationModal'
+import GameDisambiguationModal, {
+  GameOption,
+} from '../components/GameDisambiguationModal'
 const BASE_URL =
   import.meta.env.MODE === 'development'
     ? 'http://localhost:5173'
@@ -293,24 +295,30 @@ const ProfilePage = () => {
   }
 
   const [disambiguationOpen, setDisambiguationOpen] = useState(false)
-const [disambiguationGames, setDisambiguationGames] = useState<GameOption[]>([])
-const [disambiguationResolve, setDisambiguationResolve] = useState<((game: GameOption|null) => void) | null>(null)
+  const [disambiguationGames, setDisambiguationGames] = useState<GameOption[]>(
+    []
+  )
+  const [disambiguationResolve, setDisambiguationResolve] = useState<
+    ((game: GameOption | null) => void) | null
+  >(null)
 
-// Helper to show modal and get user choice
-const resolveGameDisambiguation = (games: GameOption[]): Promise<GameOption|null> => {
-  setDisambiguationGames(games)
-  setDisambiguationOpen(true)
-  return new Promise((resolve) => {
-    setDisambiguationResolve(() => (game) => {
-      setDisambiguationOpen(false)
-      setDisambiguationGames([])
-      setDisambiguationResolve(null)
-      resolve(game)
+  // Helper to show modal and get user choice
+  const resolveGameDisambiguation = (
+    games: GameOption[]
+  ): Promise<GameOption | null> => {
+    setDisambiguationGames(games)
+    setDisambiguationOpen(true)
+    return new Promise((resolve) => {
+      setDisambiguationResolve(() => (game) => {
+        setDisambiguationOpen(false)
+        setDisambiguationGames([])
+        setDisambiguationResolve(null)
+        resolve(game)
+      })
     })
-  })
-}
+  }
 
-const addSelectedGamesToLibrary = async () => {
+  const addSelectedGamesToLibrary = async () => {
     if (!user?.id) {
       console.error('No user ID found')
       return
@@ -344,10 +352,11 @@ const addSelectedGamesToLibrary = async () => {
               }
 
               const igdbGame = exactMatch || searchResult.results[0]
-              const genres = igdbGame.genres?.map((genre: any) => ({
-                name: genre.name,
-                slug: genre.slug,
-              })) || []
+              const genres =
+                igdbGame.genres?.map((genre: any) => ({
+                  name: genre.name,
+                  slug: genre.slug,
+                })) || []
 
               // Find all possible IGDB matches in our DB
               const { data: possibleMatches } = await supabase
@@ -359,15 +368,19 @@ const addSelectedGamesToLibrary = async () => {
               let selectedIgdbGame = null
               if (possibleMatches && possibleMatches.length > 1) {
                 // Let user pick
-                const userChoice = await resolveGameDisambiguation(possibleMatches.map((g: any) => ({
-                  id: g.id,
-                  title: g.title,
-                  provider: g.provider,
-                  background_image: g.background_image,
-                  release_date: g.release_date,
-                })))
+                const userChoice = await resolveGameDisambiguation(
+                  possibleMatches.map((g: any) => ({
+                    id: g.id,
+                    title: g.title,
+                    provider: g.provider,
+                    background_image: g.background_image,
+                    release_date: g.release_date,
+                  }))
+                )
                 if (userChoice) {
-                  selectedIgdbGame = possibleMatches.find((g: any) => g.id === userChoice.id)
+                  selectedIgdbGame = possibleMatches.find(
+                    (g: any) => g.id === userChoice.id
+                  )
                 } else {
                   // User cancelled, skip this game
                   return null
@@ -464,41 +477,69 @@ const addSelectedGamesToLibrary = async () => {
       // Process genres
       for (let i = 0; i < enrichedGamesData.length; i++) {
         const gameData = enrichedGamesData[i]
-        console.log('[Mapping Debug] Steam game:', gameData.steamGame?.name, 'IGDB data:', gameData.igdbData, 'existingIgdbGame:', gameData.existingIgdbGame);
+        console.log(
+          '[Mapping Debug] Steam game:',
+          gameData.steamGame?.name,
+          'IGDB data:',
+          gameData.igdbData,
+          'existingIgdbGame:',
+          gameData.existingIgdbGame
+        )
         const insertedGame = insertedGames.find((game) => {
           if (gameData.existingIgdbGame) {
-            const match = game.id === gameData.igdbData.id;
-            if (match) console.log('[Mapping Debug] Matched by id:', game.id, game.title);
-            return match;
+            const match = game.id === gameData.igdbData.id
+            if (match)
+              console.log('[Mapping Debug] Matched by id:', game.id, game.title)
+            return match
           }
-          const match = (
+          const match =
             game.igdb_id === gameData.igdbData.igdb_id &&
             game.provider === gameData.igdbData.provider &&
             game.title === gameData.igdbData.title
-          );
-          if (match) console.log('[Mapping Debug] Matched by igdb_id/provider/title:', game.igdb_id, game.provider, game.title);
-          return match;
+          if (match)
+            console.log(
+              '[Mapping Debug] Matched by igdb_id/provider/title:',
+              game.igdb_id,
+              game.provider,
+              game.title
+            )
+          return match
         })
 
         if (!insertedGame) {
-          console.warn('[Mapping Debug] No strict match for', gameData.steamGame?.name, 'Trying lenient match...');
+          console.warn(
+            '[Mapping Debug] No strict match for',
+            gameData.steamGame?.name,
+            'Trying lenient match...'
+          )
           const lenientMatch = insertedGames.find(
             (game) =>
               game.title === gameData.igdbData.title ||
               game.igdb_id === gameData.igdbData.igdb_id
-          );
+          )
 
           if (lenientMatch) {
-            console.log('[Mapping Debug] Lenient match found:', lenientMatch.id, lenientMatch.title);
+            console.log(
+              '[Mapping Debug] Lenient match found:',
+              lenientMatch.id,
+              lenientMatch.title
+            )
             await processGameGenres(gameData, lenientMatch)
             continue
           } else {
-            console.warn('[Mapping Debug] No lenient match for', gameData.steamGame?.name);
+            console.warn(
+              '[Mapping Debug] No lenient match for',
+              gameData.steamGame?.name
+            )
             continue
           }
         }
 
-        console.log('[Mapping Debug] Using insertedGame:', insertedGame.id, insertedGame.title);
+        console.log(
+          '[Mapping Debug] Using insertedGame:',
+          insertedGame.id,
+          insertedGame.title
+        )
         await processGameGenres(gameData, insertedGame)
       }
 
@@ -966,6 +1007,28 @@ const addSelectedGamesToLibrary = async () => {
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
+                  <button
+                    className="btn btn-outline btn-primary mb-4 ml-2"
+                    type="button"
+                    onClick={() => {
+                      const filtered = steamGames
+                        .filter((game) =>
+                          game.name.toLowerCase().includes(searchTerm.toLowerCase())
+                        )
+                        .slice(0, visibleCount)
+                        .map((game) => game.appId.toString());
+                      setSelectedGames(new Set(filtered));
+                    }}
+                  >
+                    Select All Visible
+                  </button>
+                  <button
+                    className="btn btn-outline btn-secondary mb-4 ml-2"
+                    type="button"
+                    onClick={() => setSelectedGames(new Set())}
+                  >
+                    Deselect All
+                  </button>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {steamGames
                       .filter((game) =>
@@ -1108,12 +1171,16 @@ const addSelectedGamesToLibrary = async () => {
       <GameDisambiguationModal
         open={disambiguationOpen}
         games={disambiguationGames}
-        onSelect={(game) => disambiguationResolve && disambiguationResolve(game)}
+        onSelect={(game) =>
+          disambiguationResolve && disambiguationResolve(game)
+        }
         onCancel={() => disambiguationResolve && disambiguationResolve(null)}
       />
     </div>
   )
 }
 
-{/* Disambiguation Modal for IGDB matches */}
+{
+  /* Disambiguation Modal for IGDB matches */
+}
 export default ProfilePage
