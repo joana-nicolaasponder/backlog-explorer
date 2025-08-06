@@ -5,7 +5,7 @@ vi.mock('../src/supabaseClient', async () => ({
 import supabase from '../src/supabaseClient'
 import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import HomePage from '../src/pages/HomePage'
+import HomePage from '../src/pages/HomePage/HomePage'
 
 // Mock supabase client is now imported from __mocks__
 

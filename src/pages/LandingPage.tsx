@@ -90,7 +90,7 @@ const LandingPage = () => {
             </div>
           </div>
 
-          <div className="max-w-md mx-auto mb-16">
+          {/* <div className="max-w-md mx-auto mb-16">
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div>
                 <input
@@ -118,7 +118,7 @@ const LandingPage = () => {
                 <p className="text-error text-sm">{errorMessage}</p>
               )}
             </form>
-          </div>
+          </div> */}
 
           <div className="grid md:grid-cols-2 gap-8 text-left">
             <div className="card bg-base-200 hover:shadow-lg transition-shadow">

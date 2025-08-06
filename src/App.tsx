@@ -9,23 +9,23 @@ import {
 } from 'react-router-dom'
 import supabase from './supabaseClient'
 import { ThemeProvider } from './contexts/ThemeContext'
-import Auth from './components/Auth'
-import AuthPage from './pages/AuthPage'
-import Library from './pages/Library'
-import Explore from './pages/Explore'
-import GameDetails from './pages/GameDetails'
-import Dashboard from './pages/Dashboard'
-import HomePage from './pages/HomePage'
-import SideBar from './components/SideBar'
-import AddGameModal from './components/AddGameModal'
+import Auth from './pages/AuthPage/Auth'
+import AuthPage from './pages/AuthPage/AuthPage'
+import Library from './pages/Library/Library'
+import Explore from './pages/Explore/Explore'
+import GameDetails from './pages/GameDetails/GameDetails'
+import Dashboard from './pages/Dashboard/Dashboard'
+import HomePage from './pages/HomePage/HomePage'
+import SideBar from './components/Sidebar/SideBar'
+import AddGameModal from './components/AddGameModal/AddGameModal'
 import LandingPage from './pages/LandingPage'
 import FeedbackPage from './pages/FeedbackPage'
-import ProfilePage from './pages/ProfilePage'
-import MoodRecommendations from './pages/MoodRecommendations'
+import ProfilePage from './pages/ProfilePage/ProfilePage'
+import MoodRecommendations from './pages/Explore/MoodRecommendations'
 import ComingSoon from './pages/ComingSoon'
 import Footer from './components/Footer'
-import PrivacyPolicy from './pages/PrivacyPolicy'
-import TermsOfService from './pages/TermsOfService'
+import PrivacyPolicy from './pages/Policies/PrivacyPolicy'
+import TermsOfService from './pages/Policies/TermsOfService'
 import AuthCallback from './components/AuthCallback'
 
 const ResetPassword = () => {
@@ -402,9 +402,9 @@ const App: React.FC = () => {
                   />
                   <main className="flex-1 pt-16 lg:pt-0">
                     <Explore
-                      isDevUser={
-                        session?.user?.email === 'joanaponder@gmail.com'
-                      }
+                      isDevUser={['joanaponder@gmail.com'].includes(
+                        session?.user?.email ?? ''
+                      )}
                     />
                     {showAddGame && (
                       <AddGameModal

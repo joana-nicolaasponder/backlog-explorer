@@ -3,7 +3,7 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter, useNavigate } from 'react-router-dom'
 import { vi } from 'vitest'
 import '@testing-library/jest-dom'
-import Dashboard from '../src/pages/Dashboard'
+import Dashboard from '../src/pages/Dashboard/Dashboard'
 import supabaseClient from '../src/supabaseClient'
 import { User, UserResponse } from '@supabase/supabase-js'
 

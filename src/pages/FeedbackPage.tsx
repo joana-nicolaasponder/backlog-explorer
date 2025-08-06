@@ -19,23 +19,28 @@ const FeedbackPage = () => {
       // Optionally get user info for name/email (if available)
       let userName = '';
       let userEmail = '';
+      let userId = null;
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           userName = user.user_metadata?.full_name || user.email || '';
           userEmail = user.email || '';
+          userId = user.id;
         }
       } catch (e) {
         // Not critical if user info fails
       }
 
+      console.log('Submitting feedback:', { name: userName, email: userEmail, content, category, user_id: userId });
       const res = await fetch(`${API_BASE_URL}/api/feedback`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: userName,
           email: userEmail,
-          message: content,
+          content,
+          category,
+          user_id: userId,
         }),
       });
 
