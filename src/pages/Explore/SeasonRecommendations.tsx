@@ -9,7 +9,8 @@ interface Game {
   recommendationNote: string
 }
 
-import { useState } from 'react'
+import React, { useState } from 'react'
+import { logFeatureUsage } from '../../utils/logger'
 import supabase from '../../supabaseClient'
 import { getSeasonalContext } from './seasonUtils' 
 

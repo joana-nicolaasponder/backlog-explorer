@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { logFeatureUsage } from '../../utils/logger'
 import supabase from '../../supabaseClient'
 
 const BacklogBuddy = ({ isDevUser }: { isDevUser: boolean }) => {

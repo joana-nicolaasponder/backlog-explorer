@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { logFeatureUsage } from '../../utils/logger'
 import { Link } from 'react-router-dom'
 import { User } from '@supabase/supabase-js'
 import supabase from '../../supabaseClient'

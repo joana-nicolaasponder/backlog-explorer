@@ -93,6 +93,48 @@ app.post('/api/feedback', async (req, res) => {
   }
 });
 
+// Error logging endpoint
+app.post('/api/log-error', async (req, res) => {
+  const { user_id, location, message, stack, metadata } = req.body;
+  if (!message || !location) {
+    return res.status(400).json({ error: 'Missing error message or location.' });
+  }
+  try {
+    const { error } = await supabase
+      .from('errors')
+      .insert([{ user_id, location, message, stack, metadata }]);
+    if (error) {
+      console.error('Supabase error log insert:', error);
+      return res.status(500).json({ error: error.message });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error logging error:', err);
+    res.status(500).json({ error: 'Failed to log error.' });
+  }
+});
+
+// Feature usage logging endpoint
+app.post('/api/log-usage', async (req, res) => {
+  const { user_id, feature, metadata } = req.body;
+  if (!feature) {
+    return res.status(400).json({ error: 'Missing feature name.' });
+  }
+  try {
+    const { error } = await supabase
+      .from('feature_usage')
+      .insert([{ user_id, feature, metadata }]);
+    if (error) {
+      console.error('Supabase feature usage insert:', error);
+      return res.status(500).json({ error: error.message });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error logging feature usage:', err);
+    res.status(500).json({ error: 'Failed to log feature usage.' });
+  }
+});
+
 app.listen(port, () => {
   console.log(`Server running on port ${port}`)
 })
