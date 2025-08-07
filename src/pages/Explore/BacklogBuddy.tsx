@@ -56,7 +56,6 @@ const BacklogBuddy = ({ isDevUser }: { isDevUser: boolean }) => {
       return
     }
 
-
     // Fetch backlog (filtered, for GPT)
     const { data: userGames, error } = await supabase
       .from('user_games')
@@ -91,37 +90,47 @@ const BacklogBuddy = ({ isDevUser }: { isDevUser: boolean }) => {
       return str
         .toLowerCase()
         .replace(/[^a-z0-9]/gi, '') // remove punctuation and spaces
-        .trim();
+        .trim()
     }
-    const normalizedConsidering = normalize(consideringGame);
-    console.log('consideringGame:', consideringGame, 'normalized:', normalizedConsidering);
-    userGames.forEach(entry => {
-      const backlogTitle = entry.games?.title || '';
-      const normalizedBacklogTitle = normalize(backlogTitle);
-      console.log('Backlog title:', backlogTitle, 'normalized:', normalizedBacklogTitle);
-    });
+    const normalizedConsidering = normalize(consideringGame)
+    console.log(
+      'consideringGame:',
+      consideringGame,
+      'normalized:',
+      normalizedConsidering
+    )
+    userGames.forEach((entry) => {
+      const backlogTitle = entry.games?.title || ''
+      const normalizedBacklogTitle = normalize(backlogTitle)
+      console.log(
+        'Backlog title:',
+        backlogTitle,
+        'normalized:',
+        normalizedBacklogTitle
+      )
+    })
     const alreadyOwned = allUserGames.some((entry) => {
-      const backlogTitle = entry.games?.title || '';
-      const normalizedBacklogTitle = normalize(backlogTitle);
+      const backlogTitle = entry.games?.title || ''
+      const normalizedBacklogTitle = normalize(backlogTitle)
       // Match if either title contains the other
       return (
         normalizedBacklogTitle.includes(normalizedConsidering) ||
         normalizedConsidering.includes(normalizedBacklogTitle)
-      );
-    });
+      )
+    })
 
     if (alreadyOwned && !bypassOwnershipCheck) {
-      console.log('Already owned detected!');
+      console.log('Already owned detected!')
       setRawRecommendation(
         `Hey! You already own "${consideringGame}". Maybe give it a try before buying it again? If you want, I can still recommend some similar games from your backlog!`
       )
       setRecommendedGames([])
       setIsLoading(false)
       setTimeout(() => {
-        console.log('rawRecommendation:', rawRecommendation);
-        console.log('recommendedGames:', recommendedGames);
-        console.log('isLoading:', isLoading);
-      }, 100);
+        console.log('rawRecommendation:', rawRecommendation)
+        console.log('recommendedGames:', recommendedGames)
+        console.log('isLoading:', isLoading)
+      }, 100)
       return
     }
 
@@ -138,21 +147,25 @@ const BacklogBuddy = ({ isDevUser }: { isDevUser: boolean }) => {
       userId,
       isDevUser,
     }
-    const res = await fetch('http://localhost:3001/api/openai/recommend', {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/recommend`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
 
     if (res.status === 429) {
-      const { error } = await res.json();
-      setRawRecommendation(error || "You've reached your daily limit for recommendations. Please try again tomorrow!");
-      setIsLoading(false);
-      return;
+      const { error } = await res.json()
+      setRawRecommendation(
+        error ||
+          "You've reached your daily limit for recommendations. Please try again tomorrow!"
+      )
+      setIsLoading(false)
+      return
     }
 
     const result = await res.json()
-    console.log('GPT Recommendation:', result.recommendation)
+    console.log('Full API result:', result);
+    console.log('GPT Recommendation:', result.recommendation);
     setRawRecommendation(result.recommendation || '')
 
     const lines = result.recommendation.split('\n').map((line) => line.trim())
@@ -204,7 +217,7 @@ const BacklogBuddy = ({ isDevUser }: { isDevUser: boolean }) => {
       metadata: {
         backlogSize: allUserGames.length,
         consideringGame,
-        recommendedGames: (matches || []).map(g => ({
+        recommendedGames: (matches || []).map((g) => ({
           title: g.title,
           gameId: g.gameId,
           genres: g.genres,
@@ -212,7 +225,7 @@ const BacklogBuddy = ({ isDevUser }: { isDevUser: boolean }) => {
         })),
         timestamp: new Date().toISOString(),
         isDevUser,
-      }
+      },
     })
   }
 
@@ -231,8 +244,8 @@ const BacklogBuddy = ({ isDevUser }: { isDevUser: boolean }) => {
             className="input input-bordered w-full max-w-md mr-2"
             value={consideringGame}
             onChange={(e) => {
-              setConsideringGame(e.target.value);
-              setBypassOwnershipCheck(false); // Reset bypass on input change
+              setConsideringGame(e.target.value)
+              setBypassOwnershipCheck(false) // Reset bypass on input change
             }}
             placeholder="Enter the game title"
           />
@@ -259,11 +272,11 @@ const BacklogBuddy = ({ isDevUser }: { isDevUser: boolean }) => {
                   <button
                     className="btn btn-secondary btn-sm"
                     onClick={() => {
-                      setBypassOwnershipCheck(true);
-                      setIsLoading(true);
-                      setRawRecommendation('');
+                      setBypassOwnershipCheck(true)
+                      setIsLoading(true)
+                      setRawRecommendation('')
                       // Ensure bypassOwnershipCheck is true before running recommendation
-                      Promise.resolve().then(() => handleGetRecommendation());
+                      Promise.resolve().then(() => handleGetRecommendation())
                     }}
                   >
                     Recommend anyway

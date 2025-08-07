@@ -114,6 +114,87 @@ app.post('/api/log-usage', async (req, res) => {
   }
 })
 
+// --- /api/recommend endpoint ---
+const { getRecommendation } = require('./openai/recommendation');
+
+const DAILY_LIMIT = 5;
+
+app.post('/api/recommend', async (req, res) => {
+  const { backlog, season, holidays, userId, mode, isDevUser } = req.body;
+  if (!userId) {
+    return res.status(400).json({ error: 'Missing userId' });
+  }
+  console.log('[recommend] Incoming payload:', req.body);
+
+  try {
+    if (!isDevUser) {
+      // Check daily usage (count recommendations for this user today)
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const { count, error: countError } = await supabase
+        .from('recommendation_history')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .gte('created_at', today.toISOString());
+      if (countError) {
+        console.error('Supabase count error:', countError);
+        return res.status(500).json({ error: 'Database error.' });
+      }
+      if (count >= DAILY_LIMIT) {
+        return res.status(429).json({ error: 'Daily recommendation limit reached.' });
+      }
+    }
+
+    // Format backlog for prompt
+    const formattedBacklog = Array.isArray(backlog)
+      ? backlog.map(game => `${game.title} - Genre: ${game.genre || 'N/A'}${game.mood ? `, Mood: ${game.mood}` : ''}`).join('\n')
+      : '';
+
+    let systemPrompt, userPrompt;
+    if (mode === 'purchase_alternative') {
+      systemPrompt = purchaseAlternativePrompt;
+      userPrompt = `The user is considering buying: ${req.body.consideringGame || ''}\n\nBacklog:\n${formattedBacklog}`;
+    } else {
+      systemPrompt = seasonalPrompt;
+      userPrompt = `Backlog:\n${formattedBacklog}\n\nSeason: ${season}\n` +
+        (holidays?.length ? `Events: ${holidays.map(h => h.name).join(', ')}\n` : '') +
+        `Recommend games that fit the current season and events.`;
+    }
+
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt }
+    ];
+    console.log('Outgoing prompt to OpenAI:', JSON.stringify(messages, null, 2));
+
+    // Call OpenAI directly here instead of getRecommendation to use custom messages
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4',
+      messages,
+      temperature: 0.7,
+      max_tokens: 400,
+    });
+    console.log('Raw OpenAI response:', JSON.stringify(response, null, 2));
+    const recommendation = response.choices[0]?.message?.content ?? 'No recommendation available.';
+    console.log('Sending recommendation to client:', recommendation);
+
+    // Log usage
+    await supabase.from('recommendation_history').insert([
+      {
+        user_id: userId,
+        mode,
+        considering_game: req.body.consideringGame || null,
+        created_at: new Date().toISOString(),
+      }
+    ]);
+
+    res.json({ recommendation });
+  } catch (err) {
+    console.error('Error in /api/recommend:', err);
+    res.status(500).json({ error: 'Failed to generate recommendation.' });
+  }
+});
+
 app.listen(port, () => {
   console.log(`Server running on port ${port}`)
 })
