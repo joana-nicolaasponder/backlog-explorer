@@ -134,7 +134,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
     }
     // Log when selectedGame is loaded but missing websites
     if (!selectedGame.websites) {
-      console.log('Selected game loaded but missing websites:', selectedGame)
+      // console.log('Selected game loaded but missing websites:', selectedGame)
     }
 
     const loadSteamLogic = async () => {
@@ -339,7 +339,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
           `You already have ${game.name} in your library with status: ${existingUserGame.status}. You can edit it in your library.`
         )
 
-        console.log('GAME ALREADY EXISTS IN LIBRARY:', game.name)
+        // console.log('GAME ALREADY EXISTS IN LIBRARY:', game.name)
 
         // Force a small delay to ensure state updates properly
         setTimeout(() => {
@@ -672,7 +672,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
           `You already have this game in your library with status: ${existingUserGame.status}. Platforms have been updated.`
         )
 
-        console.log('UPDATING EXISTING GAME PLATFORMS')
+        // console.log('UPDATING EXISTING GAME PLATFORMS')
 
         // Force a small delay to ensure state updates properly
         setTimeout(() => {

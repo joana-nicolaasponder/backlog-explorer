@@ -53,10 +53,31 @@ const SeasonRecommendations = ({ isDevUser }: { isDevUser: boolean }) => {
       return
     }
 
-    console.log('Fetched games:', games)
-
     // Get seasonal context
     const { season, holidays } = getSeasonalContext()
+
+    // Fetch current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      console.error('User not logged in or failed to fetch user:', userError);
+      setLoading(false);
+      return;
+    }
+    const userId = user.id;
+
+    // Log feature usage after fetching games, getting context, and confirming user
+    logFeatureUsage({
+      user_id: userId,
+      feature: 'season_recommendation',
+      metadata: {
+        season,
+        holidays,
+        backlogSize: games.length,
+        isDevUser,
+      }
+    })
+
+    console.log('Fetched games:', games)
 
     const enrichedBacklog = games.map((entry) => ({
       gameId: entry.game?.id || entry.game_id,
@@ -68,16 +89,8 @@ const SeasonRecommendations = ({ isDevUser }: { isDevUser: boolean }) => {
       recommendationNote: '', // placeholder to be filled after parsing
     }))
 
-    // Fetch current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      console.error('User not logged in or failed to fetch user:', userError);
-      setLoading(false);
-      return;
-    }
-    const userId = user.id;
-
     const payload = { mode: 'seasonal', backlog: enrichedBacklog, season, holidays, userId, isDevUser };
+
     console.log('Payload sent to backend:', JSON.stringify(payload, null, 2));
 
     // Call your API

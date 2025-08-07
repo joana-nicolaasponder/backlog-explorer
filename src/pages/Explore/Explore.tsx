@@ -3,13 +3,13 @@ import MoodRecommendations from './MoodRecommendations' // Adjust path if needed
 import SeasonRecommendations from './SeasonRecommendations'
 import BacklogBuddy from './BacklogBuddy'
 import ChatBot from './ChatBot'
-import { useRecommendationQuota } from '../../hooks/useRecommendationQuota'
+import { useRecommendationQuota } from './useRecommendationQuota'
 
 const Explore = ({ isDevUser }: { isDevUser: boolean }) => {
   const [activeFeature, setActiveFeature] = useState<string | null>(null)
 
   const renderFeature = () => {
-    if (activeFeature === 'mood') return <MoodRecommendations />
+    if (activeFeature === 'mood') return <MoodRecommendations isDevUser={isDevUser} />
     if (activeFeature === 'seasonal')
       return <SeasonRecommendations isDevUser={isDevUser} />
     if (activeFeature === 'smart') return <BacklogBuddy isDevUser={isDevUser} />

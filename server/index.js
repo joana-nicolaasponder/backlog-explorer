@@ -14,11 +14,16 @@ const {
 } = require('./openai/prompts')
 const { searchGameByName } = require('./igdb/service')
 
-
 const app = express()
 const port = process.env.PORT || 3001
 
-app.use(express.json({ limit: '5mb' })); 
+// Global request logger for debugging
+app.use((req, res, next) => {
+  console.log('Incoming request:', req.method, req.url);
+  next();
+});
+
+app.use(express.json({ limit: '5mb' }))
 app.use(express.urlencoded({ extended: true }))
 
 // Configure CORS
@@ -54,86 +59,60 @@ app.use('/api/openai', openaiRoutes)
 const STEAM_OPENID_URL = 'https://steamcommunity.com/openid/login'
 const STEAM_API_URL = 'https://api.steampowered.com'
 
-app.get('/api/test', (req, res) => {
-  console.log('Test route hit!');
-  res.json({ ok: true });
-});
-
+console.log('=== SERVER STARTED ===')
 // Feedback email endpoint
 const { sendFeedbackMail } = require('./feedbackMailer')
 
 app.post('/api/feedback', async (req, res) => {
-  // Always log the received body for debugging
-  console.log('Received feedback body:', req.body);
-
-  const { user_id, name, email, content, category } = req.body;
+  const { user_id, name, email, content, category } = req.body
+  // Debug: log incoming feedback payload
+  console.log('Feedback payload:', { name, email, content, category, user_id })
   if (!content || typeof content !== 'string' || content.trim().length < 5) {
-    return res.status(400).json({ error: 'Feedback message is required.' });
+    return res.status(400).json({ error: 'Feedback message is required.' })
   }
   if (!category) {
-    return res.status(400).json({ error: 'Missing content or category' });
+    return res.status(400).json({ error: 'Missing content or category' })
   }
   try {
     // Insert into feedback table
-    console.log('Attempting to insert feedback:', { user_id, content, category });
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('feedback')
       .insert([{ user_id, content, category }]);
+    console.log('Supabase insert result:', { data, error });
     if (error) {
       console.error('Supabase insert error:', error);
       return res.status(500).json({ error: error.message });
     }
 
     // Send feedback email
-    await sendFeedbackMail({ name, email, message: content });
-    res.json({ success: true });
+    await sendFeedbackMail({ name, email, message: content })
+    res.json({ success: true })
   } catch (error) {
-    console.error('Error sending feedback email:', error);
-    res.status(500).json({ error: 'Failed to send feedback email.' });
+    console.error('Error sending feedback email:', error)
+    res.status(500).json({ error: 'Failed to send feedback email.' })
   }
-});
-
-// Error logging endpoint
-app.post('/api/log-error', async (req, res) => {
-  const { user_id, location, message, stack, metadata } = req.body;
-  if (!message || !location) {
-    return res.status(400).json({ error: 'Missing error message or location.' });
-  }
-  try {
-    const { error } = await supabase
-      .from('errors')
-      .insert([{ user_id, location, message, stack, metadata }]);
-    if (error) {
-      console.error('Supabase error log insert:', error);
-      return res.status(500).json({ error: error.message });
-    }
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Error logging error:', err);
-    res.status(500).json({ error: 'Failed to log error.' });
-  }
-});
+})
 
 // Feature usage logging endpoint
 app.post('/api/log-usage', async (req, res) => {
-  const { user_id, feature, metadata } = req.body;
+  const { user_id, feature, metadata } = req.body
   if (!feature) {
-    return res.status(400).json({ error: 'Missing feature name.' });
+    return res.status(400).json({ error: 'Missing feature name.' })
   }
   try {
     const { error } = await supabase
       .from('feature_usage')
-      .insert([{ user_id, feature, metadata }]);
+      .insert([{ user_id, feature, metadata }])
     if (error) {
-      console.error('Supabase feature usage insert:', error);
-      return res.status(500).json({ error: error.message });
+      console.error('Supabase feature usage insert:', error)
+      return res.status(500).json({ error: error.message })
     }
-    res.json({ success: true });
+    res.json({ success: true })
   } catch (err) {
-    console.error('Error logging feature usage:', err);
-    res.status(500).json({ error: 'Failed to log feature usage.' });
+    console.error('Error logging feature usage:', err)
+    res.status(500).json({ error: 'Failed to log feature usage.' })
   }
-});
+})
 
 app.listen(port, () => {
   console.log(`Server running on port ${port}`)

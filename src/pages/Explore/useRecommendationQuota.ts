@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import supabase from '../supabaseClient'
+import supabase from '../../supabaseClient'
 
 /**
  * Hook to fetch the user's daily AI recommendation quota usage and limit.

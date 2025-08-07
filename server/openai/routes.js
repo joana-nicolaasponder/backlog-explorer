@@ -128,28 +128,50 @@ router.post('/recommend', async (req, res) => {
     res.json({ recommendation: content })
 
     // Log to Supabase after successful recommendation
-    if (userId && !isDevUser) {
+    if (userId) {
+      // Try to parse recommendations for BacklogBuddy (purchase_alternative) mode
+      let recommendations = [];
+      if (mode === 'purchase_alternative') {
+        // Parse numbered lines in the response for recommended games
+        const numberedLines = content.split('\n').filter(line => /^\d+\.\s+\*\*/.test(line.trim()));
+        recommendations = numberedLines.map(line => {
+          const match = line.match(/^\d+\.\s+\*\*(.+?)\*\*\s*[-:]?\s*(.*)/);
+          if (!match) return null;
+          const [_, title, note] = match;
+          return { title: title.trim(), note: note.trim() };
+        }).filter(Boolean);
+      } else {
+        // For other modes, just store the raw content
+        recommendations = content;
+      }
       const insertPayload = {
         user_id: userId,
         feature: mode || 'unknown',
-        details: { backlog, season, holidays },
+        details: {
+          backlogSize: Array.isArray(backlog) ? backlog.length : 0,
+          season,
+          holidays,
+          consideringGame: req.body.consideringGame,
+          recommendations,
+          isDevUser,
+        },
         requested_at: new Date().toISOString(),
-      }
+      };
       const { error: insertError } = await supabase
         .from('recommendation_history')
-        .insert([insertPayload])
+        .insert([insertPayload]);
       if (insertError) {
         console.error(
           '[openai/recommend] Insert failed:',
           insertError,
           'Payload:',
           insertPayload
-        )
+        );
       } else {
         console.log(
           '[openai/recommend] Inserted recommendation_history row:',
           insertPayload
-        )
+        );
       }
     }
   } catch (error) {

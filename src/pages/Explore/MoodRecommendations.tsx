@@ -6,9 +6,15 @@ import supabase from '../../supabaseClient'
 import { Game, Mood } from '../../types/database'
 import { gameService } from '../../services/gameService'
 
+// Accepts optional cache Map
 const fetchExternalDescription = async (
-  gameId: string
+  gameId: string,
+  cache?: Map<string, string>
 ): Promise<string | null> => {
+  if (cache && cache.has(gameId)) {
+    return cache.get(gameId) || null;
+  }
+
   const { data, error } = await supabase
     .from('games')
     .select('igdb_id, provider')
@@ -22,7 +28,9 @@ const fetchExternalDescription = async (
       const gameDetails = await gameService.getGameDetails(
         data.igdb_id.toString()
       )
-      return gameDetails.summary || null
+      const desc = gameDetails.summary || null;
+      if (cache && desc) cache.set(gameId, desc);
+      return desc
     } catch (error) {
       console.error('Error fetching IGDB details:', error)
       return null
@@ -44,7 +52,13 @@ interface UserGameWithGame {
   }
 }
 
-const MoodRecommendations = () => {
+interface MoodRecommendationsProps {
+  isDevUser: boolean;
+}
+
+const MoodRecommendations = ({ isDevUser }: MoodRecommendationsProps) => {
+  // In-memory cache for IGDB descriptions (gameId -> description)
+  const igdbDescriptionCache = useRef<Map<string, string>>(new Map());
   const [user, setUser] = useState<User | null>(null)
   const [userName, setUserName] = useState<string>('')
   const [selectedMoods, setSelectedMoods] = useState<string[]>([])
@@ -140,10 +154,10 @@ const MoodRecommendations = () => {
   // Fetch recommended games when selected moods change
   useEffect(() => {
     const fetchRecommendedGames = async () => {
-      if (!user || selectedMoods.length === 0) {
-        setRecommendedGames([])
-        return
-      }
+  if (!user || selectedMoods.length === 0) {
+    setRecommendedGames([])
+    return
+  }
 
       try {
         setIsLoading(true)
@@ -157,6 +171,20 @@ const MoodRecommendations = () => {
           .throwOnError()
 
         if (userGamesError) throw userGamesError
+
+        // Log feature usage AFTER fetching userGames
+        logFeatureUsage({
+          user_id: user.id,
+          feature: 'mood_recommendation',
+          metadata: {
+            selectedMoods,
+            isDevUser,
+            status: selectedStatus,
+            backlogSize: userGames.length,
+          },
+        })
+
+        // ...continue with the rest of the recommendation logic (no duplicate fetch)
 
         // Filter by status if specified
         const filteredGameIds =
@@ -247,9 +275,14 @@ const MoodRecommendations = () => {
           sortedGames.map(async (game: Game) => {
             if (!game.description) {
               const fallbackDescription = await fetchExternalDescription(
-                game.id
+                game.id,
+                igdbDescriptionCache.current
               )
               return { ...game, description: fallbackDescription || '' }
+            }
+            // Populate cache if not present
+            if (game.description && !igdbDescriptionCache.current.has(game.id)) {
+              igdbDescriptionCache.current.set(game.id, game.description)
             }
             return game
           })

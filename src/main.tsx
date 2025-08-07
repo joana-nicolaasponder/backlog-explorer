@@ -8,9 +8,6 @@ import './styles/gradients.css'
 import App from './App.tsx'
 import ErrorBoundary from './components/ErrorBoundary'
 
-// console.log('VITE_API_URL:', import.meta.env.VITE_API_URL);
-// console.log('VITE_BACKLOG_EXPLORER_URL:', import.meta.env.VITE_BACKLOG_EXPLORER_URL);
-// console.log('VITE_APP_ENV:', import.meta.env.VITE_APP_ENV);
 
 Sentry.init({
   dsn: 'https://84a3bd6e1b07ce55348412dd9888bea6@o4509678037172224.ingest.de.sentry.io/4509678038548560',

@@ -50,11 +50,12 @@ const BacklogBuddy = ({ isDevUser }: { isDevUser: boolean }) => {
       )
       .eq('user_id', userId)
 
-    if (allGamesError || !allUserGames) {
-      console.error('Failed to fetch all user games:', allGamesError)
+    if (allGamesError) {
+      console.error('Error fetching user games:', allGamesError)
       setIsLoading(false)
       return
     }
+
 
     // Fetch backlog (filtered, for GPT)
     const { data: userGames, error } = await supabase
@@ -195,6 +196,24 @@ const BacklogBuddy = ({ isDevUser }: { isDevUser: boolean }) => {
 
     setRecommendedGames(matches as any)
     setIsLoading(false)
+
+    // Enhanced feature usage logging: include considered game and actual recommendations
+    logFeatureUsage({
+      user_id: userId,
+      feature: 'backlog_buddy',
+      metadata: {
+        backlogSize: allUserGames.length,
+        consideringGame,
+        recommendedGames: (matches || []).map(g => ({
+          title: g.title,
+          gameId: g.gameId,
+          genres: g.genres,
+          note: g.recommendationNote,
+        })),
+        timestamp: new Date().toISOString(),
+        isDevUser,
+      }
+    })
   }
 
   return (
