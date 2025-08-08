@@ -36,10 +36,32 @@ export function useRecommendationQuota() {
         // Fetch quota from backend to ensure consistent counting and time handling
         const params = new URLSearchParams({ userId: user.id })
         const envAny = (import.meta as any)?.env || {}
-        const API_BASE =
+        let API_BASE =
           envAny.VITE_API_BASE_URL || envAny.VITE_API_URL || envAny.VITE_BACKEND_URL || ''
+        // Runtime fallback: if no env base is available in prod, default by hostname
+        if (!API_BASE && typeof window !== 'undefined') {
+          const host = window.location.hostname
+          if (host === 'backlogexplorer.com' || host.endsWith('.backlogexplorer.com')) {
+            API_BASE = 'https://backlog-explorer-api.onrender.com'
+          }
+        }
         const usageUrl = `${API_BASE}/api/usage/quota?${params.toString()}`
         const openaiUrl = `${API_BASE}/api/openai/quota?${params.toString()}`
+
+        // Diagnostics: log resolved envs and URLs (temporary)
+        try {
+          const envLog = {
+            VITE_API_BASE_URL: (import.meta as any)?.env?.VITE_API_BASE_URL,
+            VITE_API_URL: (import.meta as any)?.env?.VITE_API_URL,
+            VITE_BACKEND_URL: (import.meta as any)?.env?.VITE_BACKEND_URL,
+          }
+          // eslint-disable-next-line no-console
+          console.log('[quota][env]', envLog)
+          // eslint-disable-next-line no-console
+          console.log('[quota][urls]', { usageUrl, openaiUrl, API_BASE })
+          ;(window as any).__quotaEnv = envLog
+          ;(window as any).__quotaUrls = { usageUrl, openaiUrl, API_BASE }
+        } catch {}
 
         // Helper to safely parse JSON or return null if not JSON
         const safeParseJson = async (response: Response) => {
