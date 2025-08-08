@@ -17,11 +17,11 @@ const { searchGameByName } = require('./igdb/service')
 const app = express()
 const port = process.env.PORT || 3001
 
-// Global request logger for debugging
-app.use((req, res, next) => {
-  console.log('Incoming request:', req.method, req.url);
-  next();
-});
+// // Global request logger for debugging
+// app.use((req, res, next) => {
+//   console.log('Incoming request:', req.method, req.url);
+//   next();
+// });
 
 app.use(express.json({ limit: '5mb' }))
 app.use(express.urlencoded({ extended: true }))
