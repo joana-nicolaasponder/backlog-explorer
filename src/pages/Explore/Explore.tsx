@@ -19,6 +19,8 @@ const Explore = ({ isDevUser }: { isDevUser: boolean }) => {
 
   // Use a different name for the hook's dev flag to avoid shadowing
   const { used, limit, loading, error, isDevUser: isDevUserFromHook } = useRecommendationQuota()
+  const remaining = Math.max(0, (limit ?? 0) - (used ?? 0))
+  const canRequest = (isDevUser || isDevUserFromHook) || remaining > 0
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -41,7 +43,7 @@ const Explore = ({ isDevUser }: { isDevUser: boolean }) => {
               <div className="text-sm text-success">Unlimited AI recommendations (dev user)</div>
             ) : (
               <div className="text-sm text-base-content/80">
-                <span className="font-semibold">{limit - (used ?? 0)} of {limit} AI recommendations left today</span>
+                <span className="font-semibold">{remaining} of {limit} AI recommendations left today</span>
               </div>
             )}
             <div className="text-xs text-base-content/60 mt-1">
@@ -53,7 +55,7 @@ const Explore = ({ isDevUser }: { isDevUser: boolean }) => {
             </div>
             {/* WIP Disclaimer */}
             <div className="text-xs text-base-content/60 mt-2">
-              <strong>Note:</strong> AI-powered recommendations are a work in progress. We're still improving the prompts and results—feedback is welcome!
+              <strong>Note:</strong> AI-powered recommendations are a work in progress. I'm still improving the prompts and results. Quota and limits may change as I improve the feature. Feedback is welcome!
             </div>
           </div>
 
@@ -61,7 +63,7 @@ const Explore = ({ isDevUser }: { isDevUser: boolean }) => {
             <div className="bg-base-100 border p-6 rounded-lg shadow">
               <h2 className="text-lg font-semibold mb-2 flex items-center gap-2">
                 🎮 Mood-based Recommendations
-                {/* <span className="badge badge-neutral text-xs ml-2 whitespace-nowrap">Not AI</span> */}
+                <span className="badge badge-info text-xs ml-2">AI</span>
               </h2>
               <p className="text-sm mb-2">
                 Discover games from your library that match your current mood.
@@ -69,11 +71,13 @@ const Explore = ({ isDevUser }: { isDevUser: boolean }) => {
                 story-driven.
               </p>
               <p className="text-xs text-base-content/60 mb-4">
-                <strong>Note:</strong> This feature uses simple rules and is not AI-powered.
+                <strong>Note:</strong> This feature uses AI to re-rank your games by mood fit and counts toward your AI quota.
               </p>
               <button
                 onClick={() => setActiveFeature('mood')}
                 className="btn btn-sm btn-primary"
+                disabled={!canRequest}
+                title={!canRequest ? 'Daily AI quota reached. Try again tomorrow.' : ''}
               >
                 Go
               </button>
@@ -91,6 +95,8 @@ const Explore = ({ isDevUser }: { isDevUser: boolean }) => {
               <button
                 onClick={() => setActiveFeature('seasonal')}
                 className="btn btn-sm btn-primary"
+                disabled={!canRequest}
+                title={!canRequest ? 'Daily AI quota reached. Try again tomorrow.' : ''}
               >
                 Go
               </button>
@@ -105,6 +111,8 @@ const Explore = ({ isDevUser }: { isDevUser: boolean }) => {
               <button
                 onClick={() => setActiveFeature('smart')}
                 className="btn btn-sm btn-primary"
+                disabled={!canRequest}
+                title={!canRequest ? 'Daily AI quota reached. Try again tomorrow.' : ''}
               >
                 Go
               </button>

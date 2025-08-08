@@ -103,12 +103,6 @@ const BacklogBuddy = ({ isDevUser }: { isDevUser: boolean }) => {
     userGames.forEach((entry) => {
       const backlogTitle = entry.games?.title || ''
       const normalizedBacklogTitle = normalize(backlogTitle)
-      console.log(
-        'Backlog title:',
-        backlogTitle,
-        'normalized:',
-        normalizedBacklogTitle
-      )
     })
     const alreadyOwned = allUserGames.some((entry) => {
       const backlogTitle = entry.games?.title || ''
@@ -148,11 +142,14 @@ const BacklogBuddy = ({ isDevUser }: { isDevUser: boolean }) => {
       userId,
       isDevUser,
     }
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/openai/recommend`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
+    const res = await fetch(
+      `${import.meta.env.VITE_API_URL}/api/openai/recommend`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }
+    )
 
     if (res.status === 429) {
       const { error } = await res.json()
@@ -165,11 +162,25 @@ const BacklogBuddy = ({ isDevUser }: { isDevUser: boolean }) => {
     }
 
     const result = await res.json()
-    console.log('Full API result:', result);
-    console.log('GPT Recommendation:', result.recommendation);
-    setRawRecommendation(result.recommendation || '')
+    console.log('Full API result:', result)
 
-    const lines = result.recommendation.split('\n').map((line) => line.trim())
+    // Handle server-side errors gracefully
+    if (!res.ok) {
+      const apiError =
+        typeof result?.error === 'string'
+          ? result.error
+          : 'Failed to get a recommendation.'
+      setRawRecommendation(apiError)
+      setIsLoading(false)
+      return
+    }
+
+    const recommendationText =
+      typeof result?.recommendation === 'string' ? result.recommendation : ''
+    console.log('GPT Recommendation:', recommendationText)
+    setRawRecommendation(recommendationText)
+
+    const lines = recommendationText.split('\n').map((line) => line.trim())
 
     const intro = lines.find((line) => /^instead of picking/i.test(line))
     const outro = lines.find(
@@ -180,7 +191,7 @@ const BacklogBuddy = ({ isDevUser }: { isDevUser: boolean }) => {
     setIntroLine(intro || '')
     setOutroLine(outro || '')
 
-    const numberedLines = result.recommendation
+    const numberedLines = recommendationText
       .split('\n')
       .filter((line) => /^\d+\.\s+\*\*/.test(line.trim()))
 
@@ -327,10 +338,15 @@ const BacklogBuddy = ({ isDevUser }: { isDevUser: boolean }) => {
                         if (error) {
                           console.error('Error updating status:', error.message)
                         } else {
-                          setPlaying((prev) => ({ ...prev, [game.gameId]: true }))
+                          setPlaying((prev) => ({
+                            ...prev,
+                            [game.gameId]: true,
+                          }))
                           setRecommendedGames((prev) =>
                             prev.map((g) =>
-                              g.gameId === game.gameId ? { ...g, status: 'Currently Playing' } : g
+                              g.gameId === game.gameId
+                                ? { ...g, status: 'Currently Playing' }
+                                : g
                             )
                           )
                         }

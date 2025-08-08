@@ -283,6 +283,34 @@ const MoodRecommendations = ({ isDevUser }: MoodRecommendationsProps) => {
             setTimeout(() => setShowResults(true), 600)
             return
           }
+          // Only use LLM when we have enough candidates to benefit
+          if (sortedGames.length < 6) {
+            // Fetch external descriptions for TOP items without calling LLM
+            const TOP_DESC = 6
+            const withTopDescriptions: Game[] = []
+            for (let i = 0; i < sortedGames.length; i++) {
+              const g = sortedGames[i]
+              if (!g.description && i < TOP_DESC) {
+                try {
+                  const fallbackDescription = await fetchExternalDescription(
+                    g.id,
+                    igdbDescriptionCache.current
+                  )
+                  withTopDescriptions.push({ ...g, description: fallbackDescription || '' })
+                } catch {
+                  withTopDescriptions.push(g)
+                }
+              } else {
+                if (g.description && !igdbDescriptionCache.current.has(g.id)) {
+                  igdbDescriptionCache.current.set(g.id, g.description)
+                }
+                withTopDescriptions.push(g)
+              }
+            }
+            setRecommendedGames(withTopDescriptions)
+            setTimeout(() => setShowResults(true), 600)
+            return
+          }
           const payload = {
             userId: user.id,
             userEmail: user.email,
@@ -297,11 +325,15 @@ const MoodRecommendations = ({ isDevUser }: MoodRecommendationsProps) => {
             })),
           }
 
+          // Add a strict timeout so UI never feels stuck
+          const controller = new AbortController()
+          const timeout = setTimeout(() => controller.abort(), 2500)
           const res = await fetch('/api/mood-recommend', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
-          })
+            signal: controller.signal,
+          }).finally(() => clearTimeout(timeout))
 
           // Default to deterministic order
           let finalOrdered: Game[] = [...sortedGames]
@@ -679,10 +711,12 @@ const MoodRecommendations = ({ isDevUser }: MoodRecommendationsProps) => {
                           e.preventDefault()
                           e.stopPropagation()
                           if (playing[game.id]) return
+                          if (!user?.id) return
                           const { error } = await supabase
                             .from('user_games')
                             .update({ status: 'Currently Playing' })
                             .eq('game_id', game.id)
+                            .eq('user_id', user.id)
                           if (error) {
                             console.error('Error updating status:', error.message)
                           } else {

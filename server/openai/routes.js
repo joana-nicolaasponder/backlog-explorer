@@ -26,8 +26,7 @@ router.post('/recommend', async (req, res) => {
       .from('recommendation_history')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', userId)
-      .gte('created_at', utcStart)
-
+      .gte('requested_at', utcStart)
     if (usageError) {
       console.error('[openai/recommend] Usage check failed:', usageError)
       return res.status(500).json({ error: 'Usage check failed' })
@@ -130,19 +129,23 @@ router.post('/recommend', async (req, res) => {
     // Log to Supabase after successful recommendation
     if (userId) {
       // Try to parse recommendations for BacklogBuddy (purchase_alternative) mode
-      let recommendations = [];
+      let recommendations = []
       if (mode === 'purchase_alternative') {
         // Parse numbered lines in the response for recommended games
-        const numberedLines = content.split('\n').filter(line => /^\d+\.\s+\*\*/.test(line.trim()));
-        recommendations = numberedLines.map(line => {
-          const match = line.match(/^\d+\.\s+\*\*(.+?)\*\*\s*[-:]?\s*(.*)/);
-          if (!match) return null;
-          const [_, title, note] = match;
-          return { title: title.trim(), note: note.trim() };
-        }).filter(Boolean);
+        const numberedLines = content
+          .split('\n')
+          .filter((line) => /^\d+\.\s+\*\*/.test(line.trim()))
+        recommendations = numberedLines
+          .map((line) => {
+            const match = line.match(/^\d+\.\s+\*\*(.+?)\*\*\s*[-:]?\s*(.*)/)
+            if (!match) return null
+            const [_, title, note] = match
+            return { title: title.trim(), note: note.trim() }
+          })
+          .filter(Boolean)
       } else {
         // For other modes, just store the raw content
-        recommendations = content;
+        recommendations = content
       }
       const insertPayload = {
         user_id: userId,
@@ -156,22 +159,22 @@ router.post('/recommend', async (req, res) => {
           isDevUser,
         },
         // rely on DB default created_at
-      };
+      }
       const { error: insertError } = await supabase
         .from('recommendation_history')
-        .insert([insertPayload]);
+        .insert([insertPayload])
       if (insertError) {
         console.error(
           '[openai/recommend] Insert failed:',
           insertError,
           'Payload:',
           insertPayload
-        );
+        )
       } else {
         console.log(
           '[openai/recommend] Inserted recommendation_history row:',
           insertPayload
-        );
+        )
       }
     }
   } catch (error) {

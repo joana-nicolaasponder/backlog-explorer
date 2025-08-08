@@ -39,7 +39,9 @@ async function ensurePublicUserExists(supabase, userId, userEmail) {
     if (!selErr && existing?.id) return true
 
     if (!userEmail) {
-      console.warn('[mood-recommend] public.users missing and no userEmail provided; cannot create profile')
+      console.warn(
+        '[mood-recommend] public.users missing and no userEmail provided; cannot create profile'
+      )
       return false
     }
     const { error: insErr } = await supabase
@@ -55,12 +57,18 @@ async function ensurePublicUserExists(supabase, userId, userEmail) {
           .maybeSingle()
         return !afterErr && !!after?.id
       }
-      console.warn('[mood-recommend] ensurePublicUserExists warning:', insErr.message || insErr)
+      console.warn(
+        '[mood-recommend] ensurePublicUserExists warning:',
+        insErr.message || insErr
+      )
       return false
     }
     return true
   } catch (e) {
-    console.warn('[mood-recommend] ensurePublicUserExists exception:', e?.message || e)
+    console.warn(
+      '[mood-recommend] ensurePublicUserExists exception:',
+      e?.message || e
+    )
     return false
   }
 }
@@ -69,15 +77,20 @@ async function ensurePublicUserExists(supabase, userId, userEmail) {
 async function diagnoseUserFK(supabase, userId) {
   try {
     if (!userId) return
-    const uuidV4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    const uuidV4 =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
     const looksUUIDv4 = uuidV4.test(userId)
     // Check auth.users via Admin API
     let authExists = false
     try {
-      const { data: adminUser, error: adminErr } = await supabase.auth.admin.getUserById(userId)
+      const { data: adminUser, error: adminErr } =
+        await supabase.auth.admin.getUserById(userId)
       if (!adminErr && adminUser?.user?.id) authExists = true
     } catch (e) {
-      console.warn('[mood-recommend] auth.admin.getUserById check failed:', e?.message || e)
+      console.warn(
+        '[mood-recommend] auth.admin.getUserById check failed:',
+        e?.message || e
+      )
     }
     const status = { userId, looksUUIDv4, authExists }
     console.log('[mood-recommend][FK-diagnose]', status)
@@ -99,43 +112,43 @@ app.get('/api/usage/quota', async (req, res) => {
 
     // Start of today in UTC
     const now = new Date()
-    const utcStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0))
+    const utcStart = new Date(
+      Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate(),
+        0,
+        0,
+        0
+      )
+    )
     const utcStartIso = utcStart.toISOString()
 
-    // Try count using created_at; fallback to requested_at for older schemas
-    let used = 0
-    let countError = null
-    try {
-      let query = supabase
-        .from('recommendation_history')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', userId)
-        .gte('created_at', utcStartIso)
-      if (feature) query = query.eq('feature', feature)
-      const { error, count } = await query
-      if (error) throw error
-      used = count || 0
-    } catch (e1) {
-      countError = e1
-      try {
-        let query2 = supabase
-          .from('recommendation_history')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', userId)
-          .gte('requested_at', utcStartIso)
-        if (feature) query2 = query2.eq('feature', feature)
-        const { error: e2, count: c2 } = await query2
-        if (e2) throw e2
-        used = c2 || 0
-        console.warn('[quota] fallback to requested_at succeeded')
-      } catch (e2) {
-        console.error('[quota] count error (both columns failed):', e1, e2)
-        return res.status(500).json({ error: 'Failed to fetch quota' })
-      }
+    // Count using requested_at (canonical timestamp column)
+    let query = supabase
+      .from('recommendation_history')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .gte('requested_at', utcStartIso)
+    if (feature) query = query.eq('feature', feature)
+    const { error, count } = await query
+    if (error) {
+      console.error('[quota] count error:', error)
+      return res.status(500).json({ error: 'Failed to fetch quota' })
     }
+    const used = count || 0
 
     const remaining = Math.max(0, dailyLimit - used)
-    const resetAt = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0)).toISOString()
+    const resetAt = new Date(
+      Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate() + 1,
+        0,
+        0,
+        0
+      )
+    ).toISOString()
 
     return res.json({ used, limit: dailyLimit, remaining, resetAt })
   } catch (e) {
@@ -146,7 +159,11 @@ app.get('/api/usage/quota', async (req, res) => {
 // Configure CORS
 const allowedOrigins = process.env.CORS_ORIGINS
   ? JSON.parse(process.env.CORS_ORIGINS)
-  : ['http://localhost:5173', 'https://backlogexplorer.com', 'http://localhost:4173' ]
+  : [
+      'http://localhost:5173',
+      'https://backlogexplorer.com',
+      'http://localhost:4173',
+    ]
 
 const corsOptions = {
   origin: (origin, callback) => {
@@ -196,11 +213,11 @@ app.post('/api/feedback', async (req, res) => {
     // Insert into feedback table
     const { data, error } = await supabase
       .from('feedback')
-      .insert([{ user_id, content, category }]);
-    console.log('Supabase insert result:', { data, error });
+      .insert([{ user_id, content, category }])
+    console.log('Supabase insert result:', { data, error })
     if (error) {
-      console.error('Supabase insert error:', error);
-      return res.status(500).json({ error: error.message });
+      console.error('Supabase insert error:', error)
+      return res.status(500).json({ error: error.message })
     }
 
     // Send feedback email
@@ -242,7 +259,8 @@ const moodUsageCount = new Map() // key: userId|YYYY-MM-DD -> count
 // Accepts: { userId, isDevUser, selectedMoodNames: string[], status: string, games: [{ game_id, title, description, matched_moods: string[] }] }
 app.post('/api/mood-recommend', async (req, res) => {
   try {
-    const { userId, userEmail, isDevUser, selectedMoodNames, status, games } = req.body || {}
+    const { userId, userEmail, isDevUser, selectedMoodNames, status, games } =
+      req.body || {}
 
     if (!userId) return res.status(400).json({ error: 'Missing userId' })
     if (!Array.isArray(selectedMoodNames) || selectedMoodNames.length === 0) {
@@ -257,32 +275,20 @@ app.post('/api/mood-recommend', async (req, res) => {
       const today = new Date()
       today.setUTCHours(0, 0, 0, 0)
       const utcStart = today.toISOString()
-      let count = 0
-      try {
-        const { error: e1, count: c1 } = await supabase
-          .from('recommendation_history')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', userId)
-          .gte('created_at', utcStart)
-        if (e1) throw e1
-        count = c1 || 0
-      } catch (e1) {
-        const { error: e2, count: c2 } = await supabase
-          .from('recommendation_history')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', userId)
-          .gte('requested_at', utcStart)
-        if (e2) {
-          console.error('[mood-recommend] Usage check failed (both columns):', e1, e2)
-          return res.status(500).json({ error: 'Usage check failed' })
-        }
-        count = c2 || 0
+      const { error: usageError, count } = await supabase
+        .from('recommendation_history')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .gte('requested_at', utcStart)
+      if (usageError) {
+        console.error('[mood-recommend] Usage check failed:', usageError)
+        return res.status(500).json({ error: 'Usage check failed' })
       }
       const DAILY_LIMIT = 5
       const dateKey = new Date().toISOString().slice(0, 10)
       const memKey = `${userId}|${dateKey}`
       const memCount = moodUsageCount.get(memKey) || 0
-      if (((count ?? 0) + memCount) >= DAILY_LIMIT) {
+      if ((count ?? 0) + memCount >= DAILY_LIMIT) {
         return res.status(429).json({
           error:
             'You have reached your daily limit for recommendations. Please try again tomorrow!',
@@ -293,8 +299,13 @@ app.post('/api/mood-recommend', async (req, res) => {
     // Cache key: user + moods + status + date + game ids (order-insensitive)
     const dateKey = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
     const moodKey = [...selectedMoodNames].sort().join('|')
-    const gameIds = games.map((g) => g.game_id).sort().join(',')
-    const cacheKey = `${userId}|${moodKey}|${status || 'all'}|${dateKey}|${gameIds}`
+    const gameIds = games
+      .map((g) => g.game_id)
+      .sort()
+      .join(',')
+    const cacheKey = `${userId}|${moodKey}|${
+      status || 'all'
+    }|${dateKey}|${gameIds}`
     if (moodCache.has(cacheKey)) {
       const cached = moodCache.get(cacheKey)
       return res.json(cached)
@@ -335,9 +346,16 @@ app.post('/api/mood-recommend', async (req, res) => {
         details: {
           selectedMoodNames,
           status,
-          candidates: candidates.map((c) => ({ game_id: c.game_id, title: c.title })),
+          candidates: candidates.map((c) => ({
+            game_id: c.game_id,
+            title: c.title,
+          })),
           // Align with other routes by providing a 'recommendations' field
-          recommendations: items.map((it) => ({ game_id: it.game_id, reason: it.reason, score: it.score })),
+          recommendations: items.map((it) => ({
+            game_id: it.game_id,
+            reason: it.reason,
+            score: it.score,
+          })),
           isDevUser,
         },
         // rely on DB default created_at
@@ -349,7 +367,9 @@ app.post('/api/mood-recommend', async (req, res) => {
         console.error('[mood-recommend] Insert failed:', insertError)
       }
     } else {
-      console.warn('[mood-recommend] Skipping recommendation_history insert: missing public.users row and cannot create without email')
+      console.warn(
+        '[mood-recommend] Skipping recommendation_history insert: missing public.users row and cannot create without email'
+      )
     }
 
     // Bump in-memory usage counter (does not persist)
@@ -362,17 +382,19 @@ app.post('/api/mood-recommend', async (req, res) => {
     return res.json(responsePayload)
   } catch (err) {
     console.error('Error in /api/mood-recommend:', err)
-    return res.status(500).json({ error: err.message || 'Internal server error' })
+    return res
+      .status(500)
+      .json({ error: err.message || 'Internal server error' })
   }
 })
 
 // --- /api/recommend endpoint (deprecated) ---
 // Forward to unified OpenAI route to avoid duplicate logic.
 app.post('/api/recommend', (req, res) => {
-  console.log('[recommend] Forwarding to /api/openai/recommend');
+  console.log('[recommend] Forwarding to /api/openai/recommend')
   // Preserve method and body using 307 Temporary Redirect
-  res.redirect(307, '/api/openai/recommend');
-});
+  res.redirect(307, '/api/openai/recommend')
+})
 
 app.listen(port, () => {
   console.log(`Server running on port ${port}`)
