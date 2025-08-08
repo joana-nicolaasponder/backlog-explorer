@@ -26,6 +26,31 @@ const port = process.env.PORT || 3001
 app.use(express.json({ limit: '5mb' }))
 app.use(express.urlencoded({ extended: true }))
 
+// Configure CORS EARLY so it applies to all routes
+const allowedOrigins = process.env.CORS_ORIGINS
+  ? JSON.parse(process.env.CORS_ORIGINS)
+  : [
+      'http://localhost:5173',
+      'http://localhost:4173',
+      'https://backlogexplorer.com',
+      'https://www.backlogexplorer.com',
+    ]
+
+const corsOptions = {
+  origin(origin, callback) {
+    // Allow non-browser or same-origin requests (no Origin header)
+    if (!origin) return callback(null, true)
+    if (allowedOrigins.includes(origin)) return callback(null, true)
+    return callback(new Error('Not allowed by CORS'))
+  },
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'sentry-trace', 'baggage'],
+  credentials: true,
+}
+
+app.options('*', cors(corsOptions))
+app.use(cors(corsOptions))
+
 // Option A: Ensure a row exists in public.users for FK logging (no placeholders)
 async function ensurePublicUserExists(supabase, userId, userEmail) {
   try {
@@ -160,30 +185,6 @@ async function handleQuota(req, res) {
 // Mount quota under both base API and OpenAI namespace to satisfy prod proxies
 app.get('/api/usage/quota', handleQuota)
 app.get('/api/openai/quota', handleQuota)
-// Configure CORS
-const allowedOrigins = process.env.CORS_ORIGINS
-  ? JSON.parse(process.env.CORS_ORIGINS)
-  : [
-      'http://localhost:5173',
-      'https://backlogexplorer.com',
-      'http://localhost:4173',
-    ]
-
-const corsOptions = {
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true)
-    } else {
-      callback(new Error('Not allowed by CORS'))
-    }
-  },
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'sentry-trace', 'baggage'],
-  credentials: true,
-}
-
-app.options('*', cors(corsOptions))
-app.use(cors(corsOptions))
 
 const igdbRoutes = require('./igdb/routes')
 app.use('/api/igdb', igdbRoutes)
