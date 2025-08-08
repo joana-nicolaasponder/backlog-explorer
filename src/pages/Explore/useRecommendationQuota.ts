@@ -17,7 +17,10 @@ export function useRecommendationQuota() {
       setLoading(true)
       setError(null)
       try {
-        const { data: { user }, error: userError } = await supabase.auth.getUser()
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser()
         if (userError || !user) {
           setError('Not logged in')
           setLoading(false)
@@ -37,11 +40,17 @@ export function useRecommendationQuota() {
         const params = new URLSearchParams({ userId: user.id })
         const envAny = (import.meta as any)?.env || {}
         let API_BASE =
-          envAny.VITE_API_BASE_URL || envAny.VITE_API_URL || envAny.VITE_BACKEND_URL || ''
+          envAny.VITE_API_BASE_URL ||
+          envAny.VITE_API_URL ||
+          envAny.VITE_BACKEND_URL ||
+          ''
         // Runtime fallback: if no env base is available in prod, default by hostname
         if (!API_BASE && typeof window !== 'undefined') {
           const host = window.location.hostname
-          if (host === 'backlogexplorer.com' || host.endsWith('.backlogexplorer.com')) {
+          if (
+            host === 'backlogexplorer.com' ||
+            host.endsWith('.backlogexplorer.com')
+          ) {
             API_BASE = 'https://backlog-explorer-api.onrender.com'
           }
         }
@@ -55,12 +64,6 @@ export function useRecommendationQuota() {
             VITE_API_URL: (import.meta as any)?.env?.VITE_API_URL,
             VITE_BACKEND_URL: (import.meta as any)?.env?.VITE_BACKEND_URL,
           }
-          // eslint-disable-next-line no-console
-          console.log('[quota][env]', envLog)
-          // eslint-disable-next-line no-console
-          console.log('[quota][urls]', { usageUrl, openaiUrl, API_BASE })
-          ;(window as any).__quotaEnv = envLog
-          ;(window as any).__quotaUrls = { usageUrl, openaiUrl, API_BASE }
         } catch {}
 
         // Helper to safely parse JSON or return null if not JSON
@@ -116,4 +119,3 @@ export function useRecommendationQuota() {
 
   return { used, limit, loading, error, isDevUser }
 }
-
