@@ -35,7 +35,9 @@ export function useRecommendationQuota() {
         }
         // Fetch quota from backend to ensure consistent counting and time handling
         const params = new URLSearchParams({ userId: user.id })
-        const API_BASE = (import.meta as any)?.env?.VITE_API_BASE_URL || ''
+        const envAny = (import.meta as any)?.env || {}
+        const API_BASE =
+          envAny.VITE_API_BASE_URL || envAny.VITE_API_URL || envAny.VITE_BACKEND_URL || ''
         const usageUrl = `${API_BASE}/api/usage/quota?${params.toString()}`
         const openaiUrl = `${API_BASE}/api/openai/quota?${params.toString()}`
 
