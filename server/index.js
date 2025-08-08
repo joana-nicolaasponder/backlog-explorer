@@ -101,8 +101,8 @@ async function diagnoseUserFK(supabase, userId) {
   }
 }
 
-// Quota endpoint: returns today's usage for a user (optionally by feature)
-app.get('/api/usage/quota', async (req, res) => {
+// Quota endpoint handler: returns today's usage for a user (optionally by feature)
+async function handleQuota(req, res) {
   try {
     const userId = req.query.userId
     const feature = req.query.feature // optional
@@ -155,7 +155,11 @@ app.get('/api/usage/quota', async (req, res) => {
     console.error('[quota] exception:', e?.message || e)
     return res.status(500).json({ error: 'Quota error' })
   }
-})
+}
+
+// Mount quota under both base API and OpenAI namespace to satisfy prod proxies
+app.get('/api/usage/quota', handleQuota)
+app.get('/api/openai/quota', handleQuota)
 // Configure CORS
 const allowedOrigins = process.env.CORS_ORIGINS
   ? JSON.parse(process.env.CORS_ORIGINS)
