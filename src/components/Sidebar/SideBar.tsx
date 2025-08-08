@@ -249,6 +249,17 @@ const SideBar = ({ onLogout, onAddGame }: SideBarProps) => {
                   <span>Send Feedback</span>
                 </Link>
 
+                <Link
+                  to="/app/coming-soon"
+                  className={`flex items-center space-x-2 p-2 rounded-lg hover:bg-base-200 ${
+                    location.pathname === '/app/coming-soon' ? 'bg-base-200' : ''
+                  }`}
+                  onClick={() => setIsOpen(false)}
+                >
+                  <FontAwesomeIcon icon={faTools} className="h-5 w-5" />
+                  <span>Coming Soon</span>
+                </Link>
+
                 {/* <Link
                   to="/app/mood-recommendations"
                   className={`flex items-center space-x-2 p-2 rounded-lg hover:bg-base-200 ${

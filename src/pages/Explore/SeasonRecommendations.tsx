@@ -94,7 +94,7 @@ const SeasonRecommendations = ({ isDevUser }: { isDevUser: boolean }) => {
     console.log('Payload sent to backend:', JSON.stringify(payload, null, 2));
 
     // Call your API
-    const res = await fetch('http://localhost:3001/api/openai/recommend', {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/openai/recommend`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

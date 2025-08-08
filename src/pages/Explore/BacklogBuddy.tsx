@@ -147,7 +147,7 @@ const BacklogBuddy = ({ isDevUser }: { isDevUser: boolean }) => {
       userId,
       isDevUser,
     }
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/recommend`, {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/openai/recommend`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

@@ -79,7 +79,7 @@ export default function ChatBot() {
     }
 
     try {
-      const res = await fetch('http://localhost:3001/api/openai/recommend', {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/openai/recommend`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -87,7 +87,12 @@ export default function ChatBot() {
 
       const result = await res.json()
       const botMessages = result.messages || []
-      const botReplyRaw = botMessages.map((m: any) => m.content).join('\n\n').trim()
+      let botReplyRaw = ''
+      if (botMessages.length > 0) {
+        botReplyRaw = botMessages.map((m: any) => m.content).join('\n\n').trim()
+      } else {
+        botReplyRaw = (result.recommendation || '').trim()
+      }
       console.log('GPT raw reply:', botReplyRaw)
 
       // Process recommended games from botReplyRaw using improved regex for numbered bolded title-description pairs
