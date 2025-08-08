@@ -35,6 +35,9 @@ export function useRecommendationQuota() {
         }
         // Fetch quota from backend to ensure consistent counting and time handling
         const params = new URLSearchParams({ userId: user.id })
+        const API_BASE = (import.meta as any)?.env?.VITE_API_BASE_URL || ''
+        const usageUrl = `${API_BASE}/api/usage/quota?${params.toString()}`
+        const openaiUrl = `${API_BASE}/api/openai/quota?${params.toString()}`
 
         // Helper to safely parse JSON or return null if not JSON
         const safeParseJson = async (response: Response) => {
@@ -48,7 +51,7 @@ export function useRecommendationQuota() {
         }
 
         // Try primary path first
-        const resp = await fetch(`/api/usage/quota?${params.toString()}`, {
+        const resp = await fetch(usageUrl, {
           method: 'GET',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
@@ -57,7 +60,7 @@ export function useRecommendationQuota() {
 
         // Fallback: some prod proxies only forward /api/openai/*
         if (!resp.ok || data == null) {
-          const fallback = await fetch(`/api/openai/quota?${params.toString()}`, {
+          const fallback = await fetch(openaiUrl, {
             method: 'GET',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
