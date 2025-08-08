@@ -79,6 +79,7 @@ const MoodRecommendations = ({ isDevUser }: MoodRecommendationsProps) => {
   const [showPrimaryMoreMessage, setShowPrimaryMoreMessage] = useState(false)
   const [showSecondaryMoreMessage, setShowSecondaryMoreMessage] =
     useState(false)
+  const [playing, setPlaying] = useState<Record<string, boolean>>({})
   const chatContainerRef = useRef<HTMLDivElement>(null)
 
   // Auto-scroll to bottom when new content appears
@@ -672,6 +673,26 @@ const MoodRecommendations = ({ isDevUser }: MoodRecommendationsProps) => {
                       <p className="text-xs text-base-content mt-2 line-clamp-3">
                         {game.description || 'No description available.'}
                       </p>
+                      <button
+                        className="btn btn-sm btn-success mt-4"
+                        onClick={async (e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          if (playing[game.id]) return
+                          const { error } = await supabase
+                            .from('user_games')
+                            .update({ status: 'Currently Playing' })
+                            .eq('game_id', game.id)
+                          if (error) {
+                            console.error('Error updating status:', error.message)
+                          } else {
+                            setPlaying((prev) => ({ ...prev, [game.id]: true }))
+                          }
+                        }}
+                        disabled={!!playing[game.id]}
+                      >
+                        {playing[game.id] ? 'Playing' : 'Start Playing'}
+                      </button>
                     </Link>
                   ))}
                 </div>

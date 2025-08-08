@@ -11,6 +11,7 @@ const BacklogBuddy = ({ isDevUser }: { isDevUser: boolean }) => {
   const [isLoading, setIsLoading] = useState(false)
   const [rawRecommendation, setRawRecommendation] = useState('')
   const [bypassOwnershipCheck, setBypassOwnershipCheck] = useState(false)
+  const [playing, setPlaying] = useState<Record<string, boolean>>({})
   // other states and logic ...
 
   const handleGetRecommendation = async () => {
@@ -315,6 +316,29 @@ const BacklogBuddy = ({ isDevUser }: { isDevUser: boolean }) => {
                         </span>
                       ))}
                     </div>
+                    <button
+                      className="btn btn-sm btn-success mt-3"
+                      onClick={async () => {
+                        if (playing[game.gameId]) return
+                        const { error } = await supabase
+                          .from('user_games')
+                          .update({ status: 'Currently Playing' })
+                          .eq('game_id', game.gameId)
+                        if (error) {
+                          console.error('Error updating status:', error.message)
+                        } else {
+                          setPlaying((prev) => ({ ...prev, [game.gameId]: true }))
+                          setRecommendedGames((prev) =>
+                            prev.map((g) =>
+                              g.gameId === game.gameId ? { ...g, status: 'Currently Playing' } : g
+                            )
+                          )
+                        }
+                      }}
+                      disabled={!!playing[game.gameId]}
+                    >
+                      {playing[game.gameId] ? 'Playing' : 'Start Playing'}
+                    </button>
                   </div>
                 </div>
               ))}
