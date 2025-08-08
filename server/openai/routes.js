@@ -26,7 +26,7 @@ router.post('/recommend', async (req, res) => {
       .from('recommendation_history')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', userId)
-      .gte('requested_at', utcStart)
+      .gte('created_at', utcStart)
 
     if (usageError) {
       console.error('[openai/recommend] Usage check failed:', usageError)
@@ -155,7 +155,7 @@ router.post('/recommend', async (req, res) => {
           recommendations,
           isDevUser,
         },
-        requested_at: new Date().toISOString(),
+        // rely on DB default created_at
       };
       const { error: insertError } = await supabase
         .from('recommendation_history')

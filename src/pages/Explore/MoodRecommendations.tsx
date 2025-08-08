@@ -63,6 +63,7 @@ const MoodRecommendations = ({ isDevUser }: MoodRecommendationsProps) => {
   const [userName, setUserName] = useState<string>('')
   const [selectedMoods, setSelectedMoods] = useState<string[]>([])
   const [recommendedGames, setRecommendedGames] = useState<Game[]>([])
+  const [aiReasons, setAiReasons] = useState<Record<string, string>>({})
   const [availableMoods, setAvailableMoods] = useState<Mood[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -156,6 +157,7 @@ const MoodRecommendations = ({ isDevUser }: MoodRecommendationsProps) => {
     const fetchRecommendedGames = async () => {
   if (!user || selectedMoods.length === 0) {
     setRecommendedGames([])
+    setAiReasons({})
     return
   }
 
@@ -271,24 +273,87 @@ const MoodRecommendations = ({ isDevUser }: MoodRecommendationsProps) => {
           return scoreB - scoreA
         })
 
-        const gamesWithDescriptionsFilled = await Promise.all(
-          sortedGames.map(async (game: Game) => {
-            if (!game.description) {
-              const fallbackDescription = await fetchExternalDescription(
-                game.id,
-                igdbDescriptionCache.current
-              )
-              return { ...game, description: fallbackDescription || '' }
-            }
-            // Populate cache if not present
-            if (game.description && !igdbDescriptionCache.current.has(game.id)) {
-              igdbDescriptionCache.current.set(game.id, game.description)
-            }
-            return game
-          })
-        )
+        // Attempt LLM re-rank + reasons BEFORE fetching external descriptions
+        try {
+          const selectedMoodNames = getMoodNames(selectedMoods)
+          if (!user?.id) {
+            console.warn('[MoodRecommendations] Missing auth user.id; skipping mood-recommend call to avoid FK error')
+            setRecommendedGames(sortedGames)
+            setTimeout(() => setShowResults(true), 600)
+            return
+          }
+          const payload = {
+            userId: user.id,
+            userEmail: user.email,
+            isDevUser,
+            selectedMoodNames,
+            status: selectedStatus,
+            games: sortedGames.slice(0, 20).map((g) => ({
+              game_id: g.id,
+              title: g.title,
+              description: g.description || '',
+              matched_moods: getMatchedMoodsForGame(g.id),
+            })),
+          }
 
-        setRecommendedGames(gamesWithDescriptionsFilled)
+          const res = await fetch('/api/mood-recommend', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          })
+
+          // Default to deterministic order
+          let finalOrdered: Game[] = [...sortedGames]
+          if (res.ok) {
+            const data = await res.json()
+            const items: { game_id: string; score: number; reason: string }[] =
+              Array.isArray(data?.items) ? data.items : []
+
+            // Build reason map and reorder according to items if provided
+            const reasonMap: Record<string, string> = {}
+            items.forEach((it) => {
+              if (it.reason) reasonMap[it.game_id] = it.reason
+            })
+            setAiReasons(reasonMap)
+
+            if (items.length > 0) {
+              const order = new Map(items.map((it, idx) => [it.game_id, idx]))
+              const reOrdered = [...sortedGames].sort((a, b) => {
+                const ia = order.has(a.id) ? order.get(a.id)! : 9999
+                const ib = order.has(b.id) ? order.get(b.id)! : 9999
+                return ia - ib
+              })
+              finalOrdered = reOrdered
+            }
+          }
+          // After final order is decided, fetch external descriptions for TOP 6 only
+          const TOP_DESC = 6
+          const withTopDescriptions: Game[] = []
+          for (let i = 0; i < finalOrdered.length; i++) {
+            const g = finalOrdered[i]
+            if (!g.description && i < TOP_DESC) {
+              try {
+                const fallbackDescription = await fetchExternalDescription(
+                  g.id,
+                  igdbDescriptionCache.current
+                )
+                withTopDescriptions.push({ ...g, description: fallbackDescription || '' })
+              } catch {
+                withTopDescriptions.push(g)
+              }
+            } else {
+              // Populate cache if not present
+              if (g.description && !igdbDescriptionCache.current.has(g.id)) {
+                igdbDescriptionCache.current.set(g.id, g.description)
+              }
+              withTopDescriptions.push(g)
+            }
+          }
+          setRecommendedGames(withTopDescriptions)
+        } catch (e) {
+          // Network/parse issues -> fallback to deterministic order and avoid mass IGDB calls
+          setRecommendedGames(sortedGames)
+        }
         setTimeout(() => setShowResults(true), 600)
       } catch (error) {
         console.error('Error fetching recommended games:', error)
@@ -591,10 +656,12 @@ const MoodRecommendations = ({ isDevUser }: MoodRecommendationsProps) => {
                         Matches: {getMatchedMoodsForGame(game.id).join(', ')}
                       </p>
                       <p className="text-sm text-base-content mt-1">
-                        {getPersonalizedComment(
-                          game,
-                          getMatchedMoodsForGame(game.id)
-                        )}
+                        {aiReasons[game.id]
+                          ? aiReasons[game.id]
+                          : getPersonalizedComment(
+                              game,
+                              getMatchedMoodsForGame(game.id)
+                            )}
                       </p>
                     </Link>
                   ))}

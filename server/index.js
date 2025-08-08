@@ -26,6 +26,123 @@ const port = process.env.PORT || 3001
 app.use(express.json({ limit: '5mb' }))
 app.use(express.urlencoded({ extended: true }))
 
+// Option A: Ensure a row exists in public.users for FK logging (no placeholders)
+async function ensurePublicUserExists(supabase, userId, userEmail) {
+  try {
+    if (!userId) return false
+    // Already exists?
+    const { data: existing, error: selErr } = await supabase
+      .from('users')
+      .select('id')
+      .eq('id', userId)
+      .maybeSingle()
+    if (!selErr && existing?.id) return true
+
+    if (!userEmail) {
+      console.warn('[mood-recommend] public.users missing and no userEmail provided; cannot create profile')
+      return false
+    }
+    const { error: insErr } = await supabase
+      .from('users')
+      .insert([{ id: userId, email: userEmail }], { returning: 'minimal' })
+    if (insErr) {
+      if (insErr.code === '23505') {
+        // Unique email or id exists; recheck by id
+        const { data: after, error: afterErr } = await supabase
+          .from('users')
+          .select('id')
+          .eq('id', userId)
+          .maybeSingle()
+        return !afterErr && !!after?.id
+      }
+      console.warn('[mood-recommend] ensurePublicUserExists warning:', insErr.message || insErr)
+      return false
+    }
+    return true
+  } catch (e) {
+    console.warn('[mood-recommend] ensurePublicUserExists exception:', e?.message || e)
+    return false
+  }
+}
+
+// Diagnostics: verify userId format and FK target existence (auth.users)
+async function diagnoseUserFK(supabase, userId) {
+  try {
+    if (!userId) return
+    const uuidV4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    const looksUUIDv4 = uuidV4.test(userId)
+    // Check auth.users via Admin API
+    let authExists = false
+    try {
+      const { data: adminUser, error: adminErr } = await supabase.auth.admin.getUserById(userId)
+      if (!adminErr && adminUser?.user?.id) authExists = true
+    } catch (e) {
+      console.warn('[mood-recommend] auth.admin.getUserById check failed:', e?.message || e)
+    }
+    const status = { userId, looksUUIDv4, authExists }
+    console.log('[mood-recommend][FK-diagnose]', status)
+    return status
+  } catch (e) {
+    console.warn('[mood-recommend] diagnoseUserFK exception:', e?.message || e)
+    return undefined
+  }
+}
+
+// Quota endpoint: returns today's usage for a user (optionally by feature)
+app.get('/api/usage/quota', async (req, res) => {
+  try {
+    const userId = req.query.userId
+    const feature = req.query.feature // optional
+    if (!userId) return res.status(400).json({ error: 'Missing userId' })
+
+    const dailyLimit = Number(process.env.DAILY_RECOMMENDATION_LIMIT || 5)
+
+    // Start of today in UTC
+    const now = new Date()
+    const utcStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0))
+    const utcStartIso = utcStart.toISOString()
+
+    // Try count using created_at; fallback to requested_at for older schemas
+    let used = 0
+    let countError = null
+    try {
+      let query = supabase
+        .from('recommendation_history')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .gte('created_at', utcStartIso)
+      if (feature) query = query.eq('feature', feature)
+      const { error, count } = await query
+      if (error) throw error
+      used = count || 0
+    } catch (e1) {
+      countError = e1
+      try {
+        let query2 = supabase
+          .from('recommendation_history')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', userId)
+          .gte('requested_at', utcStartIso)
+        if (feature) query2 = query2.eq('feature', feature)
+        const { error: e2, count: c2 } = await query2
+        if (e2) throw e2
+        used = c2 || 0
+        console.warn('[quota] fallback to requested_at succeeded')
+      } catch (e2) {
+        console.error('[quota] count error (both columns failed):', e1, e2)
+        return res.status(500).json({ error: 'Failed to fetch quota' })
+      }
+    }
+
+    const remaining = Math.max(0, dailyLimit - used)
+    const resetAt = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0)).toISOString()
+
+    return res.json({ used, limit: dailyLimit, remaining, resetAt })
+  } catch (e) {
+    console.error('[quota] exception:', e?.message || e)
+    return res.status(500).json({ error: 'Quota error' })
+  }
+})
 // Configure CORS
 const allowedOrigins = process.env.CORS_ORIGINS
   ? JSON.parse(process.env.CORS_ORIGINS)
@@ -54,6 +171,8 @@ const steamRoutes = require('./steam/routes')
 const openaiRoutes = require('./openai/routes')
 app.use('/api/steam', steamRoutes)
 app.use('/api/openai', openaiRoutes)
+// Mood recommender helper
+const { reRankAndComment } = require('./openai/moodRecommender')
 
 // Steam OpenID verification endpoint
 const STEAM_OPENID_URL = 'https://steamcommunity.com/openid/login'
@@ -111,6 +230,139 @@ app.post('/api/log-usage', async (req, res) => {
   } catch (err) {
     console.error('Error logging feature usage:', err)
     res.status(500).json({ error: 'Failed to log feature usage.' })
+  }
+})
+
+// --- Simple in-memory cache for mood recommendations ---
+// Keyed by userId|moods|status|date|gameIds
+const moodCache = new Map()
+const moodUsageCount = new Map() // key: userId|YYYY-MM-DD -> count
+
+// --- /api/mood-recommend ---
+// Accepts: { userId, isDevUser, selectedMoodNames: string[], status: string, games: [{ game_id, title, description, matched_moods: string[] }] }
+app.post('/api/mood-recommend', async (req, res) => {
+  try {
+    const { userId, userEmail, isDevUser, selectedMoodNames, status, games } = req.body || {}
+
+    if (!userId) return res.status(400).json({ error: 'Missing userId' })
+    if (!Array.isArray(selectedMoodNames) || selectedMoodNames.length === 0) {
+      return res.status(400).json({ error: 'selectedMoodNames required' })
+    }
+    if (!Array.isArray(games) || games.length === 0) {
+      return res.status(400).json({ error: 'games required' })
+    }
+
+    // Quota enforcement (skip for dev users)
+    if (!isDevUser) {
+      const today = new Date()
+      today.setUTCHours(0, 0, 0, 0)
+      const utcStart = today.toISOString()
+      let count = 0
+      try {
+        const { error: e1, count: c1 } = await supabase
+          .from('recommendation_history')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', userId)
+          .gte('created_at', utcStart)
+        if (e1) throw e1
+        count = c1 || 0
+      } catch (e1) {
+        const { error: e2, count: c2 } = await supabase
+          .from('recommendation_history')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', userId)
+          .gte('requested_at', utcStart)
+        if (e2) {
+          console.error('[mood-recommend] Usage check failed (both columns):', e1, e2)
+          return res.status(500).json({ error: 'Usage check failed' })
+        }
+        count = c2 || 0
+      }
+      const DAILY_LIMIT = 5
+      const dateKey = new Date().toISOString().slice(0, 10)
+      const memKey = `${userId}|${dateKey}`
+      const memCount = moodUsageCount.get(memKey) || 0
+      if (((count ?? 0) + memCount) >= DAILY_LIMIT) {
+        return res.status(429).json({
+          error:
+            'You have reached your daily limit for recommendations. Please try again tomorrow!',
+        })
+      }
+    }
+
+    // Cache key: user + moods + status + date + game ids (order-insensitive)
+    const dateKey = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
+    const moodKey = [...selectedMoodNames].sort().join('|')
+    const gameIds = games.map((g) => g.game_id).sort().join(',')
+    const cacheKey = `${userId}|${moodKey}|${status || 'all'}|${dateKey}|${gameIds}`
+    if (moodCache.has(cacheKey)) {
+      const cached = moodCache.get(cacheKey)
+      return res.json(cached)
+    }
+
+    // Trim to top N to control token usage
+    const MAX_CANDIDATES = 20
+    const candidates = games.slice(0, MAX_CANDIDATES).map((g) => ({
+      game_id: g.game_id,
+      title: g.title,
+      description: (g.description || '').slice(0, 400),
+      matched_moods: Array.isArray(g.matched_moods) ? g.matched_moods : [],
+    }))
+
+    // Call OpenAI helper to re-rank and produce reasons
+    const result = await reRankAndComment({
+      moods: selectedMoodNames,
+      candidates,
+    })
+
+    // Validate response
+    const allowedIds = new Set(candidates.map((c) => c.game_id))
+    const items = Array.isArray(result?.items)
+      ? result.items.filter((it) => allowedIds.has(it.game_id))
+      : []
+
+    const responsePayload = { items }
+
+    // Cache for the day
+    moodCache.set(cacheKey, responsePayload)
+
+    // Ensure public.users row exists for FK (current FK points to public.users)
+    const ensured = await ensurePublicUserExists(supabase, userId, userEmail)
+    if (ensured) {
+      const insertPayload = {
+        user_id: userId,
+        feature: 'mood',
+        details: {
+          selectedMoodNames,
+          status,
+          candidates: candidates.map((c) => ({ game_id: c.game_id, title: c.title })),
+          // Align with other routes by providing a 'recommendations' field
+          recommendations: items.map((it) => ({ game_id: it.game_id, reason: it.reason, score: it.score })),
+          isDevUser,
+        },
+        // rely on DB default created_at
+      }
+      const { error: insertError } = await supabase
+        .from('recommendation_history')
+        .insert([insertPayload])
+      if (insertError) {
+        console.error('[mood-recommend] Insert failed:', insertError)
+      }
+    } else {
+      console.warn('[mood-recommend] Skipping recommendation_history insert: missing public.users row and cannot create without email')
+    }
+
+    // Bump in-memory usage counter (does not persist)
+    if (!isDevUser) {
+      const dateKey = new Date().toISOString().slice(0, 10)
+      const memKey = `${userId}|${dateKey}`
+      moodUsageCount.set(memKey, (moodUsageCount.get(memKey) || 0) + 1)
+    }
+
+    return res.json(responsePayload)
+  } catch (err) {
+    console.error('Error in /api/mood-recommend:', err)
+    return res.status(500).json({ error: err.message || 'Internal server error' })
   }
 })
 

@@ -7,6 +7,22 @@ if (!supabaseUrl || !supabaseServiceKey) {
   throw new Error('Missing Supabase environment variables')
 }
 
+// Startup diagnostics (safe, no secrets)
+try {
+  const urlObj = new URL(supabaseUrl)
+  const host = urlObj.host // e.g. abcdef.supabase.co
+  const projectRef = host.split('.')[0]
+  const nodeEnv = process.env.NODE_ENV || 'undefined'
+  console.log('[startup][supabase]', {
+    NODE_ENV: nodeEnv,
+    projectRef,
+    host,
+    serviceRoleSet: !!supabaseServiceKey,
+  })
+} catch (_) {
+  console.log('[startup][supabase] Unable to parse SUPABASE_URL')
+}
+
 const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
 async function upsertGame({ steamAppId, gameTitle, igdbId, coverUrl, summary }) {

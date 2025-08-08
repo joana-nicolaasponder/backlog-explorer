@@ -32,25 +32,21 @@ export function useRecommendationQuota() {
           setLoading(false)
           return
         }
-        // Query today's usage from recommendation_history
-        const today = new Date()
-        // Get start of today in UTC (YYYY-MM-DDT00:00:00Z)
-        const utcStart = today.toISOString().slice(0, 10) + 'T00:00:00Z'
-        const { count, error: countError } = await supabase
-          .from('recommendation_history')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-          .gte('requested_at', utcStart)
-        if (countError) {
-          console.error('Supabase count error:', countError?.message || countError)
-          throw new Error(countError?.message || JSON.stringify(countError))
+        // Fetch quota from backend to ensure consistent counting and time handling
+        const params = new URLSearchParams({ userId: user.id })
+        const resp = await fetch(`/api/usage/quota?${params.toString()}`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+        })
+        if (!resp.ok) {
+          const text = await resp.text()
+          throw new Error(text || 'Failed to fetch quota')
         }
-        // If count is null or undefined, treat as 0 used (new user, no records)
-        if (typeof count === 'number') {
-          setUsed(count)
-        } else {
-          setUsed(0)
-        }
+        const data = await resp.json()
+        // data: { used, limit, remaining, resetAt }
+        if (typeof data?.used === 'number') setUsed(data.used)
+        if (typeof data?.limit === 'number') setLimit(data.limit)
       } catch (e: any) {
         console.error('Quota fetch error:', e)
         setError(e.message || 'Failed to fetch quota')
@@ -63,3 +59,4 @@ export function useRecommendationQuota() {
 
   return { used, limit, loading, error, isDevUser }
 }
+
