@@ -628,11 +628,15 @@ const MoodRecommendations = ({ isDevUser }: MoodRecommendationsProps) => {
           recommendedGames.length > 0 &&
           showResults && (
             <div className="flex items-start gap-2">
-              <span className="text-xl mt-1">🤖</span>
+              <span className="text-xl mt-1">🎯</span>
               <div className="bg-base-200 rounded-xl p-4 max-w-md shadow">
-                <p className="text-sm text-base-content mb-4">
-                  <strong>MoodBot:</strong> Based on your mood, I found these
-                  games in your backlog:
+                <p className="text-sm text-base-content mb-3">
+                  {(() => {
+                    const names = getMoodNames(selectedMoods)
+                    if (names.length === 1) return <>You’re in a <strong>{names[0]}</strong> mood — here are a few picks:</>
+                    if (names.length >= 2) return <>You’re in a <strong>{names[0]}</strong> + <strong>{names[1]}</strong> mood — here are a few picks:</>
+                    return <>Here are some games that fit your mood:</>
+                  })()}
                 </p>
                 <div className="space-y-4">
                   {recommendedGames.map((game) => (
@@ -649,19 +653,24 @@ const MoodRecommendations = ({ isDevUser }: MoodRecommendationsProps) => {
                         alt={game.title}
                         className="w-full h-40 object-cover rounded my-2"
                       />
-                      <p className="text-sm text-base-content mb-2 line-clamp-4">
-                        {game.description || 'No description available.'}
-                      </p>
-                      <p className="text-xs text-base-content">
-                        Matches: {getMatchedMoodsForGame(game.id).join(', ')}
-                      </p>
-                      <p className="text-sm text-base-content mt-1">
+                      <p className="text-sm text-base-content mt-1 italic">
+                        <span className="opacity-80">Why it fits:</span>{' '}
                         {aiReasons[game.id]
                           ? aiReasons[game.id]
                           : getPersonalizedComment(
                               game,
                               getMatchedMoodsForGame(game.id)
                             )}
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {getMatchedMoodsForGame(game.id).map((m) => (
+                          <span key={m} className="badge badge-ghost badge-sm">
+                            {m}
+                          </span>
+                        ))}
+                      </div>
+                      <p className="text-xs text-base-content mt-2 line-clamp-3">
+                        {game.description || 'No description available.'}
                       </p>
                     </Link>
                   ))}
