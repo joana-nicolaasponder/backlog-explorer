@@ -13,7 +13,7 @@
   [headers.values]
     # Start in Report-Only; flip to Content-Security-Policy after testing
     # Includes: Render API, Supabase (client usage), Sentry, Twitch OAuth, IGDB
-    Content-Security-Policy-Report-Only = "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; script-src 'self' https://browser.sentry-cdn.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data: https:; connect-src 'self' https://backlog-explorer-api.onrender.com https://*.supabase.co https://*.supabase.net https://id.twitch.tv https://api.igdb.com https://sentry.io https://*.sentry.io; object-src 'none'; upgrade-insecure-requests"
+    Content-Security-Policy-Report-Only = "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; script-src 'self' https://browser.sentry-cdn.com; worker-src 'self' blob:; child-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data: https:; connect-src 'self' https://backlog-explorer-api.onrender.com https://*.supabase.co https://*.supabase.net https://id.twitch.tv https://api.igdb.com https://sentry.io https://*.sentry.io; object-src 'none'; upgrade-insecure-requests"
     Referrer-Policy = "strict-origin-when-cross-origin"
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
