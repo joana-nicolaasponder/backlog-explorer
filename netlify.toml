@@ -6,3 +6,16 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# Global security headers (start with Report-Only CSP; enforce after verifying no violations)
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Start in Report-Only; flip to Content-Security-Policy after testing
+    # Includes: Render API, Supabase (client usage), Sentry, Twitch OAuth, IGDB
+    Content-Security-Policy-Report-Only = "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; script-src 'self' https://browser.sentry-cdn.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data: https:; connect-src 'self' https://backlog-explorer-api.onrender.com https://*.supabase.co https://*.supabase.net https://id.twitch.tv https://api.igdb.com https://sentry.io https://*.sentry.io; object-src 'none'; upgrade-insecure-requests"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Permissions-Policy = "interest-cohort=(), geolocation=(), camera=(), microphone=()"
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
