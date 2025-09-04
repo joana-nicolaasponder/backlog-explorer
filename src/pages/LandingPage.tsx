@@ -73,7 +73,7 @@ const LandingPage = () => {
             </p>
           </div>
 
-          <div className="mb-12 max-w-3xl mx-auto text-left">
+          {/* <div className="mb-12 max-w-3xl mx-auto text-left">
             <h2 className="text-2xl font-semibold mb-4 text-base-content">
               🎥 A Peek Inside
             </h2>
@@ -88,7 +88,7 @@ const LandingPage = () => {
                 ></iframe>
               </div>
             </div>
-          </div>
+          </div> */}
 
           {/* <div className="max-w-md mx-auto mb-16">
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
