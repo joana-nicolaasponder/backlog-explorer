@@ -73,7 +73,7 @@ const LandingPage = () => {
             </p>
           </div>
 
-          {/* <div className="mb-12 max-w-3xl mx-auto text-left">
+          <div className="mb-12 max-w-3xl mx-auto text-left">
             <h2 className="text-2xl font-semibold mb-4 text-base-content">
               🎥 A Peek Inside
             </h2>
@@ -81,14 +81,14 @@ const LandingPage = () => {
               <div className="relative w-full pb-[56.25%] h-0 overflow-hidden rounded-b-lg">
                 <iframe
                   className="absolute top-0 left-0 w-full h-full"
-                  src="https://youtu.be/dsJUFhKoyGQ?si=4XBB_M-v70ByGwrJ"
+                  src="https://www.youtube.com/embed/dsJUFhKoyGQ?si=YKfrguHzcJ2jyiqi"
                   title="Backlog Explorer WIP Demo"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
                 ></iframe>
               </div>
             </div>
-          </div> */}
+          </div>
 
           {/* <div className="max-w-md mx-auto mb-16">
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
