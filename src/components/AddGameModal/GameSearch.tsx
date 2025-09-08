@@ -13,7 +13,6 @@ const GameSearch: React.FC<GameSearchProps> = ({ onGameSelect }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Create a debounced search function
   const debouncedSearch = useRef(
     debounce(async (searchQuery: string) => {
       if (searchQuery.length < 2) {
@@ -38,8 +37,7 @@ const GameSearch: React.FC<GameSearchProps> = ({ onGameSelect }) => {
 
   useEffect(() => {
     debouncedSearch(query);
-    
-    // Cleanup
+
     return () => {
       debouncedSearch.cancel();
     };

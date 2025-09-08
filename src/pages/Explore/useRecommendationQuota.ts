@@ -1,10 +1,7 @@
 import { useState, useEffect } from 'react'
 import supabase from '../../supabaseClient'
 
-/**
- * Hook to fetch the user's daily AI recommendation quota usage and limit.
- * Returns { used, limit, loading, error, isDevUser }
- */
+
 export function useRecommendationQuota() {
   const [used, setUsed] = useState<number | null>(null)
   const [limit, setLimit] = useState<number>(5)
@@ -26,7 +23,6 @@ export function useRecommendationQuota() {
           setLoading(false)
           return
         }
-        // Check if dev user (update this logic as needed)
         const devEmails = ['joanaponder@gmail.com']
         const userEmail = user.email ?? ''
         setIsDevUser(devEmails.includes(userEmail))
@@ -36,7 +32,6 @@ export function useRecommendationQuota() {
           setLoading(false)
           return
         }
-        // Fetch quota from backend to ensure consistent counting and time handling
         const params = new URLSearchParams({ userId: user.id })
         const envAny = (import.meta as any)?.env || {}
         let API_BASE =
@@ -44,7 +39,6 @@ export function useRecommendationQuota() {
           envAny.VITE_API_URL ||
           envAny.VITE_BACKEND_URL ||
           ''
-        // Runtime fallback: if no env base is available in prod, default by hostname
         if (!API_BASE && typeof window !== 'undefined') {
           const host = window.location.hostname
           if (
@@ -57,16 +51,8 @@ export function useRecommendationQuota() {
         const usageUrl = `${API_BASE}/api/usage/quota?${params.toString()}`
         const openaiUrl = `${API_BASE}/api/openai/quota?${params.toString()}`
 
-        // Diagnostics: log resolved envs and URLs (temporary)
-        try {
-          const envLog = {
-            VITE_API_BASE_URL: (import.meta as any)?.env?.VITE_API_BASE_URL,
-            VITE_API_URL: (import.meta as any)?.env?.VITE_API_URL,
-            VITE_BACKEND_URL: (import.meta as any)?.env?.VITE_BACKEND_URL,
-          }
-        } catch {}
+      
 
-        // Helper to safely parse JSON or return null if not JSON
         const safeParseJson = async (response: Response) => {
           const ctype = response.headers.get('content-type') || ''
           if (!ctype.toLowerCase().includes('application/json')) return null
@@ -77,7 +63,6 @@ export function useRecommendationQuota() {
           }
         }
 
-        // Try primary path first
         const resp = await fetch(usageUrl, {
           method: 'GET',
           credentials: 'include',
@@ -85,7 +70,6 @@ export function useRecommendationQuota() {
         })
         let data = await safeParseJson(resp)
 
-        // Fallback: some prod proxies only forward /api/openai/*
         if (!resp.ok || data == null) {
           const fallback = await fetch(openaiUrl, {
             method: 'GET',
@@ -104,7 +88,6 @@ export function useRecommendationQuota() {
             )
           }
         }
-        // data: { used, limit, remaining, resetAt }
         if (typeof data?.used === 'number') setUsed(data.used)
         if (typeof data?.limit === 'number') setLimit(data.limit)
       } catch (e: any) {

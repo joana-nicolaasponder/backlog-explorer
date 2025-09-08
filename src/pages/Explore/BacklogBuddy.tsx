@@ -12,7 +12,6 @@ const BacklogBuddy = ({ isDevUser }: { isDevUser: boolean }) => {
   const [rawRecommendation, setRawRecommendation] = useState('')
   const [bypassOwnershipCheck, setBypassOwnershipCheck] = useState(false)
   const [playing, setPlaying] = useState<Record<string, boolean>>({})
-  // other states and logic ...
 
   const handleGetRecommendation = async () => {
     setIsLoading(true)
@@ -29,7 +28,6 @@ const BacklogBuddy = ({ isDevUser }: { isDevUser: boolean }) => {
 
     const userId = user.id
 
-    // Fetch ALL user games (for ownership check)
     const { data: allUserGames, error: allGamesError } = await supabase
       .from('user_games')
       .select(
@@ -57,7 +55,6 @@ const BacklogBuddy = ({ isDevUser }: { isDevUser: boolean }) => {
       return
     }
 
-    // Fetch backlog (filtered, for GPT)
     const { data: userGames, error } = await supabase
       .from('user_games')
       .select(
@@ -86,11 +83,10 @@ const BacklogBuddy = ({ isDevUser }: { isDevUser: boolean }) => {
       return
     }
 
-    // Check if the user already owns the game they're considering
     function normalize(str: string) {
       return str
         .toLowerCase()
-        .replace(/[^a-z0-9]/gi, '') // remove punctuation and spaces
+        .replace(/[^a-z0-9]/gi, '') 
         .trim()
     }
     const normalizedConsidering = normalize(consideringGame)
@@ -107,7 +103,6 @@ const BacklogBuddy = ({ isDevUser }: { isDevUser: boolean }) => {
     const alreadyOwned = allUserGames.some((entry) => {
       const backlogTitle = entry.games?.title || ''
       const normalizedBacklogTitle = normalize(backlogTitle)
-      // Match if either title contains the other
       return (
         normalizedBacklogTitle.includes(normalizedConsidering) ||
         normalizedConsidering.includes(normalizedBacklogTitle)
@@ -162,9 +157,7 @@ const BacklogBuddy = ({ isDevUser }: { isDevUser: boolean }) => {
     }
 
     const result = await res.json()
-    console.log('Full API result:', result)
 
-    // Handle server-side errors gracefully
     if (!res.ok) {
       const apiError =
         typeof result?.error === 'string'
@@ -222,7 +215,6 @@ const BacklogBuddy = ({ isDevUser }: { isDevUser: boolean }) => {
     setRecommendedGames(matches as any)
     setIsLoading(false)
 
-    // Enhanced feature usage logging: include considered game and actual recommendations
     logFeatureUsage({
       user_id: userId,
       feature: 'backlog_buddy',
@@ -243,7 +235,6 @@ const BacklogBuddy = ({ isDevUser }: { isDevUser: boolean }) => {
 
   return (
     <div>
-      {/* other UI elements */}
       {mode === 'purchase_alternative' && (
         <div className="mb-6">
           <label className="label">
@@ -257,7 +248,7 @@ const BacklogBuddy = ({ isDevUser }: { isDevUser: boolean }) => {
             value={consideringGame}
             onChange={(e) => {
               setConsideringGame(e.target.value)
-              setBypassOwnershipCheck(false) // Reset bypass on input change
+              setBypassOwnershipCheck(false) 
             }}
             placeholder="Enter the game title"
           />
@@ -287,7 +278,6 @@ const BacklogBuddy = ({ isDevUser }: { isDevUser: boolean }) => {
                       setBypassOwnershipCheck(true)
                       setIsLoading(true)
                       setRawRecommendation('')
-                      // Ensure bypassOwnershipCheck is true before running recommendation
                       Promise.resolve().then(() => handleGetRecommendation())
                     }}
                   >
@@ -368,7 +358,6 @@ const BacklogBuddy = ({ isDevUser }: { isDevUser: boolean }) => {
           )}
         </div>
       )}
-      {/* other UI elements */}
     </div>
   )
 }

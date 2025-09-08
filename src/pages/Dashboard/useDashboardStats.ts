@@ -49,7 +49,6 @@ export function useDashboardStats() {
           return
         }
 
-        // Aggregate counts for stats
         const [
           { count: totalLibrary },
           { count: backlog },
@@ -77,17 +76,15 @@ export function useDashboardStats() {
             .in('status', COMPLETED_STATUSES),
         ])
 
-        // Fetch games minimally for top stats (genre, platform, mood)
         const { data: userGamesMin } = await supabase
           .from('user_games')
           .select(
             `status, updated_at, platforms, games!user_games_game_id_fkey (game_genres (genres (name)), game_platforms (platforms (name)), game_moods (moods (name)))`
           )
           .eq('user_id', user.id)
-          .limit(2000) // increase if needed, or use pagination if >2000
+          .limit(2000) 
 
         const currentYear = new Date().getFullYear()
-        // Fetch top stats using SQL functions (RPCs)
         const [
           { data: topGenreData },
           { data: topPlatformData },
@@ -101,7 +98,6 @@ export function useDashboardStats() {
         const topPlatform = topPlatformData?.[0]?.platform || ''
         const topMood = topMoodData?.[0]?.mood || ''
 
-        // For completedThisYear, still use minimal fetch
         const gamesCompletedThisYear = (userGamesMin || []).filter((game) => {
           const updatedAt = new Date(game.updated_at)
           return (
@@ -111,7 +107,6 @@ export function useDashboardStats() {
         })
         const completedThisYear = gamesCompletedThisYear.length
 
-        // Recent activity (unchanged)
         const { data: recentNotes } = await supabase
           .from('game_notes')
           .select('created_at, content')

@@ -14,7 +14,7 @@ interface GameFormData {
   status: string
   progress: number
   image: string
-  moods: string[] // Mood IDs are strings from the database
+  moods: string[] 
   igdb_id?: string
   provider?: string
   metacritic_rating?: number
@@ -36,12 +36,10 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
   showModal,
   setShowModal,
 }) => {
-  // IGDB ID input and fetch-by-ID state
   const [igdbIdInput, setIgdbIdInput] = useState('')
   const [isFetchingById, setIsFetchingById] = useState(false)
   const [fetchByIdError, setFetchByIdError] = useState<string | null>(null)
 
-  // Handler for IGDB ID fetch
   const handleFetchByIgdbId = async () => {
     setFetchByIdError(null)
     setIsFetchingById(true)
@@ -57,7 +55,6 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
         setIsFetchingById(false)
         return
       }
-      // Check if user already has this game
       const {
         data: { user },
       } = await supabase.auth.getUser()
@@ -80,7 +77,6 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
           return
         }
       }
-      // Set selected game and form data
       setSelectedGame(game)
       setFormData({
         title: game.name,
@@ -122,7 +118,6 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
   const [selectedGame, setSelectedGame] = useState<GameDetailed | null>(null)
   useEffect(() => {
     if (!selectedGame) return
-    // Auto-select the only platform if there's just one
     if (
       availablePlatforms.length === 1 &&
       !formData.platforms.includes(availablePlatforms[0].name)
@@ -132,29 +127,23 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
         platforms: [availablePlatforms[0].name],
       }))
     }
-    // Log when selectedGame is loaded but missing websites
     if (!selectedGame.websites) {
       // console.log('Selected game loaded but missing websites:', selectedGame)
     }
 
     const loadSteamLogic = async () => {
-      // Detect a Steam link in the IGDB game websites (category 13 = Steam)
       const hasSteamLink =
         Array.isArray(selectedGame.websites) &&
         selectedGame.websites.some(
           (w) => w.type === 13 || w.url?.includes('store.steampowered.com')
         )
-      // console.log removed for production
       const steamPlat = { id: 'Steam', name: 'Steam' }
-      // console.log removed for production
 
-      // Start with IGDB platforms
       let platforms = (selectedGame.platforms || []).map((p) => ({
         id: p.name,
         name: p.name,
       }))
 
-      // If Steam game, ensure Steam is included and enrich via title search
       if (hasSteamLink) {
         if (!platforms.some((p) => p.name === 'Steam')) {
           platforms.push(steamPlat)
@@ -183,7 +172,6 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
         }
       }
 
-      // Preserve any user-selected platforms
       const userChosen = Array.isArray(formData.platforms)
         ? formData.platforms
         : []
@@ -218,7 +206,6 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
   const [existingGameMessage, setExistingGameMessage] = useState<string | null>(
     null
   )
-  // Direct DOM manipulation for toast
   const showToast = ({
     message,
     type = 'warning',
@@ -228,9 +215,6 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
     type?: string
     duration?: number
   }) => {
-    // console.log removed for production
-
-    // Create a toast element using DaisyUI
     const toastContainer = document.createElement('div')
     toastContainer.className = 'toast toast-top toast-center z-[9999]'
 
@@ -249,12 +233,9 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
       </div>
     `
 
-    // Add to document
     document.body.appendChild(toastContainer)
 
-    // Remove after duration
     setTimeout(() => {
-      // console.log removed for production
       if (document.body.contains(toastContainer)) {
         document.body.removeChild(toastContainer)
       }
@@ -263,7 +244,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
 
   useEffect(() => {
     fetchMoods()
-  }, []) // Run once when component mounts
+  }, []) 
 
   const fetchMoods = async () => {
     try {
@@ -284,13 +265,11 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
       const gameDetails = await gameService.getGameDetails(game.id)
       setSelectedGame(gameDetails)
 
-      // Check if user already has this game
       const {
         data: { user },
       } = await supabase.auth.getUser()
       if (!user) throw new Error('No user found')
 
-      // First check if the game exists in IGDB provider (only if igdb_id is defined)
       let existingGames = null
       if (game.igdb_id) {
         const { data } = await supabase
@@ -314,7 +293,6 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
       const existingGame = allExistingGames[0]
       const resolvedGameId = existingGame?.id
 
-      // Only check for user game if we found an existing game
       let existingUserGame = null
       if (existingGame) {
         const { data: userGames } = await supabase
@@ -334,23 +312,18 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
       }
 
       if (existingUserGame) {
-        // If user already has this game, show a message
         setExistingGameMessage(
           `You already have ${game.name} in your library with status: ${existingUserGame.status}. You can edit it in your library.`
         )
 
-        // console.log('GAME ALREADY EXISTS IN LIBRARY:', game.name)
 
-        // Force a small delay to ensure state updates properly
         setTimeout(() => {
-          // Show toast notification with more prominent styling
           showToast({
             message: `Game "${game.name}" is already in your library!`,
-            type: 'error', // Changed to error for maximum visibility
-            duration: 10000, // Increased duration to 10 seconds
+            type: 'error', 
+            duration: 10000, 
           })
         }, 100)
-        // Clear the form and selected game
         setSelectedGame(null)
         setFormData({
           title: '',
@@ -368,14 +341,10 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
           description: undefined,
         })
       } else {
-        // Build platform options from both IGDB and existing Supabase platforms for this game
         const igdbPlatformNames = (game.platforms || []).map((p) => p.name)
 
-        // Fetch additional platforms from Supabase if the game already exists
         let extraPlatformNames: string[] = []
-        // Use resolvedGameId instead of gameDetails.id for the game_platforms query
         if (resolvedGameId) {
-          // Step 1: Get platform IDs from game_platforms
           const { data: gamePlatformLinks, error: linkError } = await supabase
             .from('game_platforms')
             .select('platform_id')
@@ -388,7 +357,6 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
           const platformIds =
             gamePlatformLinks?.map((gp) => gp.platform_id) || []
 
-          // Step 2: Get platform names from platforms table
           const { data: platformsData, error: platformError } = await supabase
             .from('platforms')
             .select('name')
@@ -412,15 +380,14 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
           combinedPlatforms.map((name) => ({ id: name, name }))
         )
 
-        // Set form data with IGDB data
         setFormData({
           title: game.name,
-          platforms: [], // User will select from combinedPlatforms
-          genres: (game.genres || []).map((g) => g.name), // Use IGDB genres
+          platforms: [], 
+          genres: (game.genres || []).map((g) => g.name), 
           status: 'Not Started',
           progress: 0,
           moods: [],
-          image: game.background_image || '', // IGDB image is already set in background_image
+          image: game.background_image || '', 
           igdb_id: game.igdb_id?.toString(),
           provider: GAME_PROVIDER,
           metacritic_rating: game.metacritic || undefined,
@@ -430,7 +397,6 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
         })
       }
 
-      // Close search after selection
       setIsSearching(false)
     } catch (error) {
       console.error('Error in handleGameSelect:', error)
@@ -459,7 +425,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
   }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    setExistingGameMessage(null) // Clear any existing message
+    setExistingGameMessage(null) 
     e.preventDefault()
     setIsLoading(true)
 
@@ -469,17 +435,13 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
       } = await supabase.auth.getUser()
       if (!user) throw new Error('No user found')
 
-      // First, get or create the game
       let gameId: string
 
-      // Check if we have a selected game with IGDB data
       if (selectedGame) {
-        // If we have a selected game but no igdb_id/provider, this is likely a legacy RAWG game
-        // that needs to be migrated to IGDB
+        
         const igdbId = formData.igdb_id || selectedGame.id?.toString()
         const provider = formData.provider || GAME_PROVIDER
 
-        // Check if game exists by igdb_id and provider (only if igdbId is defined)
         let existingGames = null
         if (igdbId) {
           const { data } = await supabase
@@ -490,14 +452,12 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
           existingGames = data
         }
 
-        // Also check if this game exists as a RAWG game by title
         const { data: rawgGames } = await supabase
           .from('games')
           .select('id, provider, igdb_id')
           .eq('title', formData.title)
           .eq('provider', 'rawg')
 
-        // Check if the user already has this game (from either provider)
         const allExistingGames = [
           ...(existingGames || []),
           ...(rawgGames || []),
@@ -505,9 +465,8 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
         const existingGame = allExistingGames[0]
 
         if (existingGame) {
-          // If it's a RAWG game, migrate it to IGDB
           if (existingGame.provider === 'rawg') {
-            // Upgrade to IGDB
+           
             const { error: updateError } = await supabase
               .from('games')
               .update({
@@ -524,12 +483,10 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
           }
           gameId = existingGame.id
         } else {
-          // Create new game - ensure we have a valid title at minimum
           if (!formData.title) {
             throw new Error('Game title is required')
           }
 
-          // Create the game object with required fields
           const gameData: {
             title: string
             provider: string
@@ -543,12 +500,10 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
             provider: provider,
           }
 
-          // Only add igdb_id if it's defined
           if (igdbId) {
             gameData.igdb_id = igdbId
           }
 
-          // Add optional fields if they exist
           if (formData.metacritic_rating)
             gameData.metacritic_rating = formData.metacritic_rating
           if (formData.release_date)
@@ -568,13 +523,10 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
           gameId = newGame.id
         }
       } else {
-        // If no selected game, we can't proceed
         throw new Error('No game selected')
       }
 
-      // For new games, add all available platforms and genres from RAWG
       if (selectedGame && gameId) {
-        // Get platform and genre IDs from the database based on names
         const { data: platforms } = await supabase
           .from('platforms')
           .select('id, name')
@@ -594,10 +546,8 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
         const platformIds = platforms?.map((p) => p.id) || []
         const genreIds = genres?.map((g) => g.id) || []
 
-        // Add all available platforms - check if they exist first to avoid 409 errors
         try {
           for (const platformId of platformIds) {
-            // Check if this platform is already associated with the game
             const { data: existingPlatform } = await supabase
               .from('game_platforms')
               .select('*')
@@ -605,7 +555,6 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
               .eq('platform_id', platformId)
               .maybeSingle()
 
-            // Only insert if it doesn't already exist
             if (!existingPlatform) {
               await supabase.from('game_platforms').insert({
                 game_id: gameId,
@@ -615,13 +564,10 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
           }
         } catch (error) {
           console.error('Error adding platforms:', error)
-          // Continue execution even if platform insertion fails
         }
 
-        // Add genres - check if they exist first to avoid 409 errors
         try {
           for (const genreId of genreIds) {
-            // Check if this genre is already associated with the game
             const { data: existingGenre } = await supabase
               .from('game_genres')
               .select('*')
@@ -629,7 +575,6 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
               .eq('genre_id', genreId)
               .maybeSingle()
 
-            // Only insert if it doesn't already exist
             if (!existingGenre) {
               await supabase.from('game_genres').insert({
                 game_id: gameId,
@@ -639,11 +584,9 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
           }
         } catch (error) {
           console.error('Error adding genres:', error)
-          // Continue execution even if genre insertion fails
         }
       }
 
-      // Now check if the user already has this game in their library
       const { data: existingUserGames } = await supabase
         .from('user_games')
         .select('id, status, platforms')
@@ -653,13 +596,11 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
       const existingUserGame = existingUserGames?.[0]
 
       if (existingUserGame) {
-        // Get existing platforms and merge with new ones (avoiding duplicates)
         const existingPlatforms = existingUserGame.platforms || []
         const mergedPlatforms = [
           ...new Set([...existingPlatforms, ...formData.platforms]),
         ]
 
-        // Update platforms for existing user_game
         await supabase
           .from('user_games')
           .update({
@@ -667,51 +608,43 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
           })
           .eq('id', existingUserGame.id)
 
-        // Set a message but don't throw an error
         setExistingGameMessage(
           `You already have this game in your library with status: ${existingUserGame.status}. Platforms have been updated.`
         )
 
-        // console.log('UPDATING EXISTING GAME PLATFORMS')
 
-        // Force a small delay to ensure state updates properly
         setTimeout(() => {
-          // Show toast notification with more prominent styling
           showToast({
             message: `Game is already in your library. Platforms updated.`,
-            type: 'error', // Changed to error for maximum visibility
-            duration: 10000, // Increased duration to 10 seconds
+            type: 'error', 
+            duration: 10000, 
           })
         }, 100)
 
-        // Navigate to the library instead of throwing an error
         onGameAdded()
         setShowModal(false)
         navigate('/app/library')
         return
       } else {
-        // Create new user_game
         await supabase.from('user_games').upsert(
           {
             user_id: user.id,
             game_id: gameId,
             status: formData.status,
             progress: formData.progress,
-            platforms: formData.platforms, // Store user's selected platforms
+            platforms: formData.platforms,
             image:
               formData.image !== formData.background_image
                 ? formData.image
-                : null, // Store user's custom image
+                : null, 
           },
           { onConflict: ['user_id', 'game_id'] }
         )
       }
 
-      // Insert moods if any are selected
       if (formData.moods.length > 0) {
         try {
           for (const moodId of formData.moods) {
-            // Check if this mood is already associated with the game for this user
             const { data: existingMood } = await supabase
               .from('game_moods')
               .select('*')
@@ -720,7 +653,6 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
               .eq('mood_id', moodId)
               .maybeSingle()
 
-            // Only insert if it doesn't already exist
             if (!existingMood) {
               await supabase.from('game_moods').insert({
                 user_id: user.id,
@@ -733,8 +665,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
           }
         } catch (error) {
           console.error('Failed to insert moods:', error)
-          // Continue execution even if mood insertion fails
-          // Don't throw the error to prevent the whole transaction from failing
+          
         }
       }
 
@@ -756,18 +687,16 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
           ? error.message
           : 'An error occurred while adding the game'
       )
-      return // Exit early if there's an error
+      return 
     } finally {
       setIsLoading(false)
     }
 
-    // Only close modal, notify, and navigate if we succeeded
     setShowModal(false)
     onGameAdded()
     navigate('/app/library')
   }
 
-  // --- STEAM OAUTH HANDLER (copied from ProfilePage) ---
   const BASE_URL =
     import.meta.env.MODE === 'development'
       ? 'http://localhost:5173'
@@ -1278,7 +1207,7 @@ const AddGameModal: React.FC<AddGameModalProps> = ({
       </div>
       <div className="modal-backdrop" onClick={() => onGameAdded()}></div>
 
-      {/* Toast is now handled via direct DOM manipulation */}
+\
     </div>
   )
 }

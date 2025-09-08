@@ -18,7 +18,6 @@ const FeedbackPage = () => {
     setMessage('');
 
     try {
-      // Optionally get user info for name/email (if available)
       let userName = '';
       let userEmail = '';
       let userId = null;
@@ -33,7 +32,6 @@ const FeedbackPage = () => {
         // Not critical if user info fails
       }
 
-      console.log('Submitting feedback:', { name: userName, email: userEmail, content, category, user_id: userId });
       const res = await fetch(API_BASE_URL + '/api/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

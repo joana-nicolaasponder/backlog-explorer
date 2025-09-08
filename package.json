@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "api": "node api/server.cjs"
+    "api": "node api/server.cjs",
+    "migrate:rawg": "node scripts/migrate-rawg-to-igdb.mjs"
   },
   "dependencies": {
     "@fortawesome/free-solid-svg-icons": "^6.7.2",

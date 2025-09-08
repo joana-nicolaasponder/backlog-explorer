@@ -48,17 +48,13 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     genres: game.genres || [],
     image: game.image || '',
     moods: game.moods || [],
-    // Initialize with user's previously selected platforms
     platforms: Array.isArray(game.platforms) ? game.platforms : [],
-    // Track if the image is custom
     hasCustomImage: !!game.image,
   })
-  // Track the originally loaded platforms
   const [originalPlatforms, setOriginalPlatforms] = useState<string[]>(
     game.platforms || []
   )
 
-  // Update formData and selections when modal opens
   useEffect(() => {
     if (showModal) {
       setFormData({
@@ -78,11 +74,9 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
   }, [showModal])
   const [platformOptions, setPlatformOptions] = useState<GamePlatform[]>([])
   const [genreOptions, setGenreOptions] = useState<GameGenre[]>([])
-  // Use the availablePlatforms passed from the game object
   const [availablePlatforms, setAvailablePlatforms] = useState<UIPlatform[]>(
     game.availablePlatforms?.map((name) => ({ id: name, name })) || []
   )
-  // Platforms are managed in formData.platforms
   const [availableMoods, setAvailableMoods] = useState<Mood[]>([])
   const [selectedMoods, setSelectedMoods] = useState<string[]>(game.moods || [])
   const [originalMoods, setOriginalMoods] = useState<string[]>(game.moods || [])
@@ -116,7 +110,6 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     )
   }
 
-  // Load available platforms for this game
   useEffect(() => {
     const loadGamePlatforms = async () => {
       try {
@@ -137,30 +130,24 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
         }
 
         if (igdbGameDetails) {
-          // --- STEAM LINK LOGIC ---
           const hasSteamLink =
             Array.isArray(igdbGameDetails.websites) &&
             igdbGameDetails.websites.some(
               (w) => w.type === 13 || w.url?.includes('store.steampowered.com')
             );
-          // --- END STEAM LINK LOGIC ---
 
           let platforms: UIPlatform[] = [];
           if (Array.isArray(igdbGameDetails.platforms) && igdbGameDetails.platforms.length > 0) {
             platforms = igdbGameDetails.platforms.map((p: any) => ({ id: p.name, name: p.name }));
           }
 
-          // Only add Steam if IGDB platforms includes Steam, or IGDB websites has a Steam link
           const hasSteamPlatform = platforms.some((p) => p.name === 'Steam');
           if (!hasSteamPlatform && hasSteamLink) {
             platforms.push({ id: 'Steam', name: 'Steam' });
           }
 
-          // Set the available platforms from IGDB (+Steam if above)
           setAvailablePlatforms(platforms);
 
-          // If we have user-selected platforms that aren't in IGDB's list,
-          // add them to available platforms to preserve user's selections
           const igdbPlatformNames = platforms.map((p) => p.name);
           const userPlatforms = Array.isArray(game.platforms) ? game.platforms : [];
           const missingPlatforms = userPlatforms
@@ -171,7 +158,6 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
             setAvailablePlatforms((prev) => [...prev, ...missingPlatforms]);
           }
         } else {
-          // Fallback: use whatever platforms are on the game object
           setAvailablePlatforms(
             Array.isArray(game.availablePlatforms)
               ? game.availablePlatforms.map((name) => ({ id: name, name }))
@@ -183,15 +169,12 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
       }
     }
 
-    // Load platforms when the component mounts
     loadGamePlatforms()
   }, [game.igdb_id, game.title])
 
-  // Load available moods from Supabase
   useEffect(() => {
     const loadMoods = async () => {
       try {
-        // Get the current session
         const {
           data: { session },
           error: sessionError,
@@ -222,12 +205,9 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           return
         }
 
-        // Sort moods after receiving them
         const sortedMoods = [...moods].sort((a, b) => {
-          // Sort by category (primary first)
           if (a.category === 'primary' && b.category !== 'primary') return -1
           if (a.category !== 'primary' && b.category === 'primary') return 1
-          // Then by name
           return a.name.localeCompare(b.name)
         })
 
@@ -240,7 +220,6 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     loadMoods()
   }, [])
 
-  // Load game's existing moods when modal opens, but only if not already loaded and user hasn't made changes
   useEffect(() => {
     let mounted = true
 
@@ -269,7 +248,6 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
       }
     }
 
-    // Only reload moods if the user hasn't made any changes (i.e., no unsaved changes)
     const moodUnchanged = arraysEqual(selectedMoods, originalMoods)
     const platformUnchanged = arraysEqual(formData.platforms, originalPlatforms)
     if (showModal && !hasLoadedMoods && moodUnchanged && platformUnchanged) {
@@ -290,7 +268,6 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     originalPlatforms,
   ])
 
-  // Reset hasLoadedMoods when modal closes
   useEffect(() => {
     if (!showModal) {
       setHasLoadedMoods(false)
@@ -311,9 +288,8 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
       clearTimeout(validationTimeout)
       setValidationTimeout(null)
     }
-    if (!url) return true // Empty URL is valid (optional field)
+    if (!url) return true 
 
-    // Basic URL format validation
     try {
       new URL(url)
     } catch {
@@ -321,7 +297,6 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
       return false
     }
 
-    // Check if image can be loaded in the browser
     try {
       setIsValidatingImage(true)
 
@@ -353,11 +328,9 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
     setError(null)
     setSuccess(null)
 
-    // Store original form state to revert on error
     const originalFormState = { ...formData }
 
     try {
-      // Validate image URL if one is provided
       if (formData.image) {
         const isValidImage = await validateImageUrl(formData.image, true)
         if (!isValidImage) {
@@ -366,7 +339,6 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
         }
       }
 
-      // Get current user
       const {
         data: { user },
         error: userError,
@@ -378,7 +350,6 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
         throw new Error('No user found. Please log in again.')
       }
 
-      // Step 1: Update user_games
       const { error: updateError } = await supabase
         .from('user_games')
         .update({
@@ -386,7 +357,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           progress: formData.progress,
           platforms: Array.isArray(formData.platforms)
             ? formData.platforms
-            : [], // Ensure platforms is always an array
+            : [], 
           image: formData.image,
           updated_at: new Date().toISOString(),
         })
@@ -398,9 +369,7 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
         throw new Error('Failed to update game status. Please try again.')
       }
 
-      // Step 2: Update platform relationships
       try {
-        // Delete existing platform relationships
         const { error: deletePlatformsError } = await supabase
           .from('game_platforms')
           .delete()
@@ -411,7 +380,6 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           throw new Error('Failed to update game platforms. Please try again.')
         }
 
-        // Get platform IDs for the selected platform names
         const { data: platformData, error: platformError } = await supabase
           .from('platforms')
           .select('id, name')
@@ -424,7 +392,6 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           )
         }
 
-        // Insert new platform relationships
         if (platformData && platformData.length > 0) {
           const platformRelations = platformData.map((platform) => ({
             game_id: game.id,
@@ -444,7 +411,6 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           }
         }
       } catch (platformError) {
-        // If platform update fails, roll back the game status update
         const { error: rollbackError } = await supabase
           .from('user_games')
           .update({
@@ -461,19 +427,16 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           throw new Error('Update failed. Please refresh and try again.')
         }
 
-        // Reset form state
         setFormData(originalFormState)
         throw platformError
       }
 
-      // Handle mood updates
       const hasExistingMoods = originalMoods.length > 0
       const moodsCleared = selectedMoods.length === 0 && hasExistingMoods
       const moodsChanged = !arraysEqual(selectedMoods, originalMoods)
 
       if (moodsCleared || moodsChanged) {
         try {
-          // Step 2: Delete existing moods
           const { error: deleteError } = await supabase
             .from('game_moods')
             .delete()
@@ -485,7 +448,6 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
             throw new Error('Failed to update game moods. Please try again.')
           }
 
-          // Step 3: Insert new moods if any are selected
           if (selectedMoods.length > 0) {
             const moodData = selectedMoods.map((moodId) => ({
               user_id: userId,
@@ -507,7 +469,6 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
             }
           }
 
-          // Verify mood updates
           const { data: newMoods, error: moodsError } = await supabase
             .from('game_moods')
             .select('mood_id')
@@ -522,7 +483,6 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
 
           setSelectedMoods(newMoods ? newMoods.map((m) => m.mood_id) : [])
         } catch (moodError) {
-          // If mood update fails, we should roll back the game status update
           const { error: rollbackError } = await supabase
             .from('user_games')
             .update({
@@ -539,14 +499,12 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
             throw new Error('Update failed. Please refresh and try again.')
           }
 
-          // Reset form state
           setFormData(originalFormState)
           throw moodError
         }
       }
 
       setSuccess('Changes saved successfully!')
-      // Give users a moment to see the success message
       setTimeout(() => {
         setShowModal(false)
         onGameUpdated()
@@ -558,7 +516,6 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
           ? error.message
           : 'Failed to update game. Please try again.'
       )
-      // Reset form state on error
       setFormData(originalFormState)
     } finally {
       setIsLoading(false)
@@ -642,10 +599,9 @@ const EditGameModal: React.FC<EditGameModalProps> = ({
                     }
 
                     if (newUrl) {
-                      // Set a new timeout for validation
                       const timeout = setTimeout(() => {
                         validateImageUrl(newUrl)
-                      }, 500) // 500ms debounce
+                      }, 500) 
                       setValidationTimeout(timeout)
                     } else {
                       setImageError(null)

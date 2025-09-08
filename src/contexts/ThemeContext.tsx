@@ -11,17 +11,15 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [theme, setThemeState] = useState('dark') // Default theme
+  const [theme, setThemeState] = useState('dark') 
 
   useEffect(() => {
-    // Load theme from localStorage first for immediate display
     const savedTheme = localStorage.getItem('theme')
     if (savedTheme) {
       setThemeState(savedTheme)
       document.documentElement.setAttribute('data-theme', savedTheme)
     }
 
-    // Then try to load from user preferences in database
     const loadUserTheme = async () => {
       const {
         data: { user },
@@ -66,13 +64,11 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (error) throw error
 
-      // Update local state and DOM
       setThemeState(newTheme)
       document.documentElement.setAttribute('data-theme', newTheme)
       localStorage.setItem('theme', newTheme)
     } catch (error) {
       console.error('Error setting theme:', error)
-      // Still update locally even if DB update fails
       setThemeState(newTheme)
       document.documentElement.setAttribute('data-theme', newTheme)
       localStorage.setItem('theme', newTheme)

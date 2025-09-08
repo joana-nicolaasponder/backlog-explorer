@@ -14,11 +14,8 @@ export class IGDBError extends Error {
   }
 }
 
-// You'll need to get these from your Twitch Developer Console
 const TWITCH_CLIENT_ID = import.meta.env.VITE_TWITCH_CLIENT_ID
 const TWITCH_APP_ACCESS_TOKEN = import.meta.env.VITE_TWITCH_APP_ACCESS_TOKEN
-
-// We'll need to proxy these requests through our backend to avoid CORS issues
 const IGDB_PROXY_URL = import.meta.env.VITE_API_URL + '/api/igdb'
 
 const mapPlatform = (platform: any): Platform => ({

@@ -6,7 +6,6 @@ import supabase from '../../supabaseClient'
 import { Game, Mood } from '../../types/database'
 import { gameService } from '../../services/gameService'
 
-// Accepts optional cache Map
 const fetchExternalDescription = async (
   gameId: string,
   cache?: Map<string, string>
@@ -57,7 +56,6 @@ interface MoodRecommendationsProps {
 }
 
 const MoodRecommendations = ({ isDevUser }: MoodRecommendationsProps) => {
-  // In-memory cache for IGDB descriptions (gameId -> description)
   const igdbDescriptionCache = useRef<Map<string, string>>(new Map());
   const [user, setUser] = useState<User | null>(null)
   const [userName, setUserName] = useState<string>('')
@@ -82,14 +80,12 @@ const MoodRecommendations = ({ isDevUser }: MoodRecommendationsProps) => {
   const [playing, setPlaying] = useState<Record<string, boolean>>({})
   const chatContainerRef = useRef<HTMLDivElement>(null)
 
-  // Auto-scroll to bottom when new content appears
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight
     }
   }, [selectedMoods, recommendedGames, isLoading])
 
-  // Get the current user
   useEffect(() => {
     const getCurrentUser = async () => {
       const {
@@ -120,7 +116,6 @@ const MoodRecommendations = ({ isDevUser }: MoodRecommendationsProps) => {
     }
   }, [])
 
-  // Load available moods
   useEffect(() => {
     const loadMoods = async () => {
       try {
@@ -136,7 +131,6 @@ const MoodRecommendations = ({ isDevUser }: MoodRecommendationsProps) => {
           return
         }
 
-        // Sort moods by category (primary first) and then by name
         const sortedMoods = [...moods].sort((a, b) => {
           if (a.category === 'primary' && b.category !== 'primary') return -1
           if (a.category !== 'primary' && b.category === 'primary') return 1
@@ -153,7 +147,6 @@ const MoodRecommendations = ({ isDevUser }: MoodRecommendationsProps) => {
     loadMoods()
   }, [])
 
-  // Fetch recommended games when selected moods change
   useEffect(() => {
     const fetchRecommendedGames = async () => {
   if (!user || selectedMoods.length === 0) {
@@ -166,7 +159,6 @@ const MoodRecommendations = ({ isDevUser }: MoodRecommendationsProps) => {
         setIsLoading(true)
         setError(null)
 
-        // First, get all games the user has added
         const { data: userGames, error: userGamesError } = await supabase
           .from('user_games')
           .select('game_id, status')
@@ -175,7 +167,6 @@ const MoodRecommendations = ({ isDevUser }: MoodRecommendationsProps) => {
 
         if (userGamesError) throw userGamesError
 
-        // Log feature usage AFTER fetching userGames
         logFeatureUsage({
           user_id: user.id,
           feature: 'mood_recommendation',
@@ -187,9 +178,7 @@ const MoodRecommendations = ({ isDevUser }: MoodRecommendationsProps) => {
           },
         })
 
-        // ...continue with the rest of the recommendation logic (no duplicate fetch)
 
-        // Filter by status if specified
         const filteredGameIds =
           selectedStatus === 'all'
             ? userGames.map((ug) => ug.game_id)
@@ -202,7 +191,6 @@ const MoodRecommendations = ({ isDevUser }: MoodRecommendationsProps) => {
           return
         }
 
-        // Get all game_moods entries for these games
         const { data: gameMoods, error: gameMoodsError } = await supabase
           .from('game_moods')
           .select('game_id, mood_id')
@@ -213,7 +201,6 @@ const MoodRecommendations = ({ isDevUser }: MoodRecommendationsProps) => {
 
         setGameMoods(gameMoods)
 
-        // Calculate match scores for each game
         const gameScores = new Map<string, number>()
         gameMoods.forEach((gm) => {
           if (selectedMoods.includes(gm.mood_id)) {
@@ -222,12 +209,11 @@ const MoodRecommendations = ({ isDevUser }: MoodRecommendationsProps) => {
           }
         })
 
-        // Get game details for games with matches
         const matchedGameIds = Array.from(gameScores.entries())
           .filter(([_, score]) => score > 0)
-          .sort((a, b) => b[1] - a[1]) // Sort by match score descending
+          .sort((a, b) => b[1] - a[1]) 
           .map(([gameId]) => gameId)
-          .slice(0, 10) // Limit to top 10 matches
+          .slice(0, 10) 
 
         if (matchedGameIds.length === 0) {
           setRecommendedGames([])
@@ -267,25 +253,20 @@ const MoodRecommendations = ({ isDevUser }: MoodRecommendationsProps) => {
           description: entry.game.description,
         }))
 
-        // Sort games by match score
         const sortedGames: Game[] = games.sort((a, b) => {
           const scoreA = gameScores.get(a.id) || 0
           const scoreB = gameScores.get(b.id) || 0
           return scoreB - scoreA
         })
 
-        // Attempt LLM re-rank + reasons BEFORE fetching external descriptions
         try {
           const selectedMoodNames = getMoodNames(selectedMoods)
           if (!user?.id) {
-            console.warn('[MoodRecommendations] Missing auth user.id; skipping mood-recommend call to avoid FK error')
             setRecommendedGames(sortedGames)
             setTimeout(() => setShowResults(true), 600)
             return
           }
-          // Only use LLM when we have enough candidates to benefit
           if (sortedGames.length < 6) {
-            // Fetch external descriptions for TOP items without calling LLM
             const TOP_DESC = 6
             const withTopDescriptions: Game[] = []
             for (let i = 0; i < sortedGames.length; i++) {
@@ -325,7 +306,6 @@ const MoodRecommendations = ({ isDevUser }: MoodRecommendationsProps) => {
             })),
           }
 
-          // Add a strict timeout so UI never feels stuck
           const controller = new AbortController()
           const timeout = setTimeout(() => controller.abort(), 2500)
           const res = await fetch('/api/mood-recommend', {
@@ -335,14 +315,12 @@ const MoodRecommendations = ({ isDevUser }: MoodRecommendationsProps) => {
             signal: controller.signal,
           }).finally(() => clearTimeout(timeout))
 
-          // Default to deterministic order
           let finalOrdered: Game[] = [...sortedGames]
           if (res.ok) {
             const data = await res.json()
             const items: { game_id: string; score: number; reason: string }[] =
               Array.isArray(data?.items) ? data.items : []
 
-            // Build reason map and reorder according to items if provided
             const reasonMap: Record<string, string> = {}
             items.forEach((it) => {
               if (it.reason) reasonMap[it.game_id] = it.reason
@@ -359,7 +337,6 @@ const MoodRecommendations = ({ isDevUser }: MoodRecommendationsProps) => {
               finalOrdered = reOrdered
             }
           }
-          // After final order is decided, fetch external descriptions for TOP 6 only
           const TOP_DESC = 6
           const withTopDescriptions: Game[] = []
           for (let i = 0; i < finalOrdered.length; i++) {
@@ -375,7 +352,6 @@ const MoodRecommendations = ({ isDevUser }: MoodRecommendationsProps) => {
                 withTopDescriptions.push(g)
               }
             } else {
-              // Populate cache if not present
               if (g.description && !igdbDescriptionCache.current.has(g.id)) {
                 igdbDescriptionCache.current.set(g.id, g.description)
               }
@@ -384,7 +360,6 @@ const MoodRecommendations = ({ isDevUser }: MoodRecommendationsProps) => {
           }
           setRecommendedGames(withTopDescriptions)
         } catch (e) {
-          // Network/parse issues -> fallback to deterministic order and avoid mass IGDB calls
           setRecommendedGames(sortedGames)
         }
         setTimeout(() => setShowResults(true), 600)

@@ -9,7 +9,8 @@ const Explore = ({ isDevUser }: { isDevUser: boolean }) => {
   const [activeFeature, setActiveFeature] = useState<string | null>(null)
 
   const renderFeature = () => {
-    if (activeFeature === 'mood') return <MoodRecommendations isDevUser={isDevUser} />
+    if (activeFeature === 'mood')
+      return <MoodRecommendations isDevUser={isDevUser} />
     if (activeFeature === 'seasonal')
       return <SeasonRecommendations isDevUser={isDevUser} />
     if (activeFeature === 'smart') return <BacklogBuddy isDevUser={isDevUser} />
@@ -17,10 +18,15 @@ const Explore = ({ isDevUser }: { isDevUser: boolean }) => {
     return null
   }
 
-  // Use a different name for the hook's dev flag to avoid shadowing
-  const { used, limit, loading, error, isDevUser: isDevUserFromHook } = useRecommendationQuota()
+  const {
+    used,
+    limit,
+    loading,
+    error,
+    isDevUser: isDevUserFromHook,
+  } = useRecommendationQuota()
   const remaining = Math.max(0, (limit ?? 0) - (used ?? 0))
-  const canRequest = (isDevUser || isDevUserFromHook) || remaining > 0
+  const canRequest = isDevUser || isDevUserFromHook || remaining > 0
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -33,29 +39,43 @@ const Explore = ({ isDevUser }: { isDevUser: boolean }) => {
             your collection.
           </p>
 
-          {/* Quota Display and WIP Disclaimer */}
           <div className="mb-6">
             {loading ? (
-              <div className="text-sm text-base-content/70">Checking your daily AI quota...</div>
+              <div className="text-sm text-base-content/70">
+                Checking your daily AI quota...
+              </div>
             ) : error ? (
               <div className="text-sm text-error">{error}</div>
             ) : isDevUser ? (
-              <div className="text-sm text-success">Unlimited AI recommendations (dev user)</div>
+              <div className="text-sm text-success">
+                Unlimited AI recommendations (dev user)
+              </div>
             ) : (
               <div className="text-sm text-base-content/80">
-                <span className="font-semibold">{remaining} of {limit} AI recommendations left today</span>
+                <span className="font-semibold">
+                  {remaining} of {limit} AI recommendations left today
+                </span>
               </div>
             )}
             <div className="text-xs text-base-content/60 mt-1">
               {isDevUser ? (
-                <>As a dev user, you have unlimited daily AI recommendations for testing and development.</>
+                <>
+                  As a dev user, you have unlimited daily AI recommendations for
+                  testing and development.
+                </>
               ) : (
-                <>You can request up to {limit} AI-powered recommendations per day. This helps us control costs and keep the service sustainable for all users. Your quota resets each day at midnight.</>
+                <>
+                  You can request up to {limit} AI-powered recommendations per
+                  day. This helps us control costs and keep the service
+                  sustainable for all users. Your quota resets each day at
+                  midnight.
+                </>
               )}
             </div>
-            {/* WIP Disclaimer */}
             <div className="text-xs text-base-content/60 mt-2">
-              <strong>Note:</strong> AI-powered recommendations are a work in progress. I'm still improving the prompts and results. Quota and limits may change as I improve the feature. Feedback is welcome!
+              <strong>Note:</strong> AI-powered recommendations are a work in
+              progress. I'm still improving the prompts and results. Quota and
+              limits may change as I improve the feature. Feedback is welcome!
             </div>
           </div>
 
@@ -71,13 +91,18 @@ const Explore = ({ isDevUser }: { isDevUser: boolean }) => {
                 story-driven.
               </p>
               <p className="text-xs text-base-content/60 mb-4">
-                <strong>Note:</strong> This feature uses AI to re-rank your games by mood fit and counts toward your AI quota.
+                <strong>Note:</strong> This feature uses AI to re-rank your
+                games by mood fit and counts toward your AI quota.
               </p>
               <button
                 onClick={() => setActiveFeature('mood')}
                 className="btn btn-sm btn-primary"
                 disabled={!canRequest}
-                title={!canRequest ? 'Daily AI quota reached. Try again tomorrow.' : ''}
+                title={
+                  !canRequest
+                    ? 'Daily AI quota reached. Try again tomorrow.'
+                    : ''
+                }
               >
                 Go
               </button>
@@ -96,13 +121,20 @@ const Explore = ({ isDevUser }: { isDevUser: boolean }) => {
                 onClick={() => setActiveFeature('seasonal')}
                 className="btn btn-sm btn-primary"
                 disabled={!canRequest}
-                title={!canRequest ? 'Daily AI quota reached. Try again tomorrow.' : ''}
+                title={
+                  !canRequest
+                    ? 'Daily AI quota reached. Try again tomorrow.'
+                    : ''
+                }
               >
                 Go
               </button>
             </div>
             <div className="bg-base-100 border p-6 rounded-lg shadow">
-              <h2 className="text-lg font-semibold mb-2 flex items-center gap-2">💡 Backlog Buddy <span className="badge badge-info text-xs ml-2">AI</span></h2>
+              <h2 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                💡 Backlog Buddy{' '}
+                <span className="badge badge-info text-xs ml-2">AI</span>
+              </h2>
               <p className="text-sm mb-4">
                 Want to buy a new game? Let Backlog Buddy help you find similar
                 games in your backlog first! Save money and rediscover hidden
@@ -112,7 +144,11 @@ const Explore = ({ isDevUser }: { isDevUser: boolean }) => {
                 onClick={() => setActiveFeature('smart')}
                 className="btn btn-sm btn-primary"
                 disabled={!canRequest}
-                title={!canRequest ? 'Daily AI quota reached. Try again tomorrow.' : ''}
+                title={
+                  !canRequest
+                    ? 'Daily AI quota reached. Try again tomorrow.'
+                    : ''
+                }
               >
                 Go
               </button>

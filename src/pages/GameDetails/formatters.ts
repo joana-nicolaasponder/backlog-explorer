@@ -2,7 +2,6 @@ import { GameNote } from '../../types'
 
 export const formatDuration = (duration: number | null): string => {
   if (!duration) return ''
-  // Duration is stored in minutes, so convert to hours and remaining minutes
   const hours = Math.floor(duration / 60)
   const minutes = duration % 60
 

@@ -9,11 +9,10 @@ import {
   faMagnifyingGlass,
   faUser,
   faCommentDots,
-  faFaceSmile,
   faPlus,
   faRightFromBracket,
   faTools,
-  faChartSimple
+  faChartSimple,
 } from '@fortawesome/free-solid-svg-icons'
 
 interface SideBarProps {
@@ -48,10 +47,12 @@ const SideBar = ({ onLogout, onAddGame }: SideBarProps) => {
           </svg>
         </button>
         <div className="flex items-center gap-2">
-  <h1 className="text-2xl font-bold">Backlog Explorer</h1>
-  <span className="lg:hidden align-middle"><BetaPill /></span>
-</div>
-        <div className="w-10"></div> {/* Spacer to center the title */}
+          <h1 className="text-2xl font-bold">Backlog Explorer</h1>
+          <span className="lg:hidden align-middle">
+            <BetaPill />
+          </span>
+        </div>
+        <div className="w-10"></div>
       </div>
 
       {/* Desktop Sidebar */}
@@ -60,9 +61,11 @@ const SideBar = ({ onLogout, onAddGame }: SideBarProps) => {
         <div className="p-4 flex-1">
           <div className="mb-8">
             <div>
-  <h1 className="text-2xl font-bold mb-1">Backlog Explorer</h1>
-  <div className="hidden lg:block mt-2"><BetaPill /></div>
-</div>
+              <h1 className="text-2xl font-bold mb-1">Backlog Explorer</h1>
+              <div className="hidden lg:block mt-2">
+                <BetaPill />
+              </div>
+            </div>
           </div>
 
           <nav className="space-y-2">
@@ -142,19 +145,6 @@ const SideBar = ({ onLogout, onAddGame }: SideBarProps) => {
               <FontAwesomeIcon icon={faTools} className="h-5 w-5" />
               <span>Coming Soon</span>
             </Link>
-
-            {/* <Link
-              to="/app/mood-recommendations"
-              className={`flex items-center space-x-2 p-2 rounded-lg hover:bg-base-200 ${
-                location.pathname === '/app/mood-recommendations'
-                  ? 'bg-base-200'
-                  : ''
-              }`}
-              onClick={() => setIsOpen(false)}
-            >
-              <FontAwesomeIcon icon={faFaceSmile} className="h-5 w-5" />
-              <span>Mood Recommendations</span>
-            </Link> */}
           </nav>
         </div>
 
@@ -223,7 +213,10 @@ const SideBar = ({ onLogout, onAddGame }: SideBarProps) => {
                   }`}
                   onClick={() => setIsOpen(false)}
                 >
-                  <FontAwesomeIcon icon={faMagnifyingGlass} className="h-5 w-5" />
+                  <FontAwesomeIcon
+                    icon={faMagnifyingGlass}
+                    className="h-5 w-5"
+                  />
                   <span>Explore</span>
                 </Link>
 
@@ -252,26 +245,15 @@ const SideBar = ({ onLogout, onAddGame }: SideBarProps) => {
                 <Link
                   to="/app/coming-soon"
                   className={`flex items-center space-x-2 p-2 rounded-lg hover:bg-base-200 ${
-                    location.pathname === '/app/coming-soon' ? 'bg-base-200' : ''
+                    location.pathname === '/app/coming-soon'
+                      ? 'bg-base-200'
+                      : ''
                   }`}
                   onClick={() => setIsOpen(false)}
                 >
                   <FontAwesomeIcon icon={faTools} className="h-5 w-5" />
                   <span>Coming Soon</span>
                 </Link>
-
-                {/* <Link
-                  to="/app/mood-recommendations"
-                  className={`flex items-center space-x-2 p-2 rounded-lg hover:bg-base-200 ${
-                    location.pathname === '/app/mood-recommendations'
-                      ? 'bg-base-200'
-                      : ''
-                  }`}
-                  onClick={() => setIsOpen(false)}
-                >
-                  <FontAwesomeIcon icon={faFaceSmile} className="h-5 w-5" />
-                  <span>Mood Recommendations</span>
-                </Link> */}
               </nav>
             </div>
 

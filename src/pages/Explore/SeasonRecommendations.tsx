@@ -24,7 +24,6 @@ const SeasonRecommendations = ({ isDevUser }: { isDevUser: boolean }) => {
     setRecommendation('')
     setRecommendedGames([])
 
-    // Fetch games from Supabase
     const { data: games, error } = await supabase
       .from('user_games')
       .select(`
@@ -53,10 +52,8 @@ const SeasonRecommendations = ({ isDevUser }: { isDevUser: boolean }) => {
       return
     }
 
-    // Get seasonal context
     const { season, holidays } = getSeasonalContext()
 
-    // Fetch current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
       console.error('User not logged in or failed to fetch user:', userError);
@@ -65,7 +62,6 @@ const SeasonRecommendations = ({ isDevUser }: { isDevUser: boolean }) => {
     }
     const userId = user.id;
 
-    // Log feature usage after fetching games, getting context, and confirming user
     logFeatureUsage({
       user_id: userId,
       feature: 'season_recommendation',
@@ -86,14 +82,13 @@ const SeasonRecommendations = ({ isDevUser }: { isDevUser: boolean }) => {
       mood: entry.game?.game_moods?.map(m => m.moods?.name).join(', ') || 'N/A',
       status: entry.status,
       image: entry.game?.background_image || '',
-      recommendationNote: '', // placeholder to be filled after parsing
+      recommendationNote: '', 
     }))
 
     const payload = { mode: 'seasonal', backlog: enrichedBacklog, season, holidays, userId, isDevUser };
 
     console.log('Payload sent to backend:', JSON.stringify(payload, null, 2));
 
-    // Call your API
     const res = await fetch(`${import.meta.env.VITE_API_URL}/api/openai/recommend`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -113,7 +108,7 @@ const SeasonRecommendations = ({ isDevUser }: { isDevUser: boolean }) => {
 
     const recommendedTitles = result.recommendation
       .split('\n')
-      .filter(line => /^\d+\./.test(line)) // lines starting with "1.", "2.", etc.
+      .filter(line => /^\d+\./.test(line)) 
       .map(line => {
         const match = line.match(/\*\*(.*?)\*\*/)
         return match?.[1] || ''
@@ -132,8 +127,8 @@ const SeasonRecommendations = ({ isDevUser }: { isDevUser: boolean }) => {
       const noteMatch = result.recommendation
         .split('\n')
         .find(line => line.toLowerCase().includes(game.title.toLowerCase()))
-        ?.replace(/\*\*.*?\*\*\s*[-:]?\s*/g, '') // removes **Title** and dash or colon after
-        .replace(/^\d+\.\s*/, '') // removes the leading number
+        ?.replace(/\*\*.*?\*\*\s*[-:]?\s*/g, '') 
+        .replace(/^\d+\.\s*/, '') 
       return { ...game, recommendationNote: noteMatch || '' }
     })
 

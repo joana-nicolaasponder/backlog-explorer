@@ -8,8 +8,7 @@ type Holiday = {
 
 export function getSeasonalContext(extraHolidays: Holiday[] = []) {
   const now = new Date()
-  now.setHours(0, 0, 0, 0) // Normalize to date only
-
+  now.setHours(0, 0, 0, 0) 
   const seasons = {
     winter: [0, 1, 11],
     spring: [2, 3, 4],
@@ -75,9 +74,7 @@ export function getSeasonalContext(extraHolidays: Holiday[] = []) {
     ) || 'unknown'
 
   const relevantHolidays = holidays.filter((holiday) => {
-    // Ongoing
     if (now >= holiday.startDate && now <= holiday.endDate) return true
-    // Starting within next 30 days
     const daysUntilStart =
       (holiday.startDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
     return daysUntilStart > 0 && daysUntilStart <= 30

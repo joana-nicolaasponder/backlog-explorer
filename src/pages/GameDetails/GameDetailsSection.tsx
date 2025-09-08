@@ -3,7 +3,7 @@ import ExpandableText from '../../components/ExpandableText'
 
 interface GameDetailsSectionProps {
   rawgDetails: RawgGameDetails | null
-  details: any // IGDB details
+  details: any 
   selectedScreenshot: string | null
   setSelectedScreenshot: (url: string | null) => void
 }

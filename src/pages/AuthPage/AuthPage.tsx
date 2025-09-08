@@ -18,7 +18,6 @@ const AuthPage = () => {
     }
   }, [location.search])
 
-  // Optionally, handle successful auth (e.g., redirect to /app)
   const handleAuth = (session: Session | null) => {
     if (session) {
       navigate('/app')

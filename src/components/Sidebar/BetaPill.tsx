@@ -15,7 +15,6 @@ const BetaPill: React.FC<BetaPillProps> = ({ className = '' }) => (
     >
       Beta
     </span>
-    {/* Custom tooltip for hover/focus */}
     <div className="absolute left-1/2 z-50 -translate-x-1/2 mt-2 max-w-xs px-3 py-2 rounded-lg bg-gray-900 text-white text-xs shadow-lg opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-pre-line break-words text-center">
       {tooltipText}
     </div>

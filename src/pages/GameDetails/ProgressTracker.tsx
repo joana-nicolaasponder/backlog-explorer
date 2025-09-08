@@ -62,7 +62,6 @@ const ProgressTracker = ({ game, onGameUpdated, details }: ProgressTrackerProps)
         .select()
       
       if (!updateError) {
-        // Notify parent to refetch data
         onGameUpdated()
       }
     } catch (error) {

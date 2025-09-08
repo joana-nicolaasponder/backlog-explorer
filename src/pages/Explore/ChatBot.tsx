@@ -68,7 +68,7 @@ export default function ChatBot() {
 
     const payload = {
       mode: 'chat',
-      messages, // full chat history
+      messages, 
       userMessage: input,
       backlog: userGames.map((entry) => ({
         title: entry.games?.title || '',
@@ -95,7 +95,6 @@ export default function ChatBot() {
       }
       console.log('GPT raw reply:', botReplyRaw)
 
-      // Process recommended games from botReplyRaw using improved regex for numbered bolded title-description pairs
       const recommended: any[] = []
       const regex = /\d+\.\s*\*\*(.+?)\*\*\s*[-–—]\s*([\s\S]*?)(?=\n\d+\.\s*\*\*|Outro:|\*\*Outro\*\*|$)/g
       let match: RegExpExecArray | null
@@ -130,7 +129,6 @@ export default function ChatBot() {
       setRecommendedGames(recommended)
       setIsLoading(false)
 
-      // After parsing matches, update visibleBotText extraction logic
       const outroMatch = botReplyRaw.match(/(\*\*Outro\*\*|Outro:)/)
       const outroText = outroMatch
         ? botReplyRaw.slice(botReplyRaw.indexOf(outroMatch[0]) + outroMatch[0].length).trim()
@@ -147,7 +145,6 @@ export default function ChatBot() {
 
       setVisibleBotMessage(primaryMessage)
 
-      // Show each assistant chunk as a separate bubble
       const allChunks = botMessages.length > 0
         ? botMessages.map((m: any) => ({ sender: 'bot', text: m.content }))
         : [{ sender: 'bot', text: primaryMessage }]
