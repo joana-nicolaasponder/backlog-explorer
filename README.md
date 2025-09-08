@@ -5,7 +5,7 @@
 **🔗 Live Application:** [https://backlogexplorer.com](https://backlogexplorer.com)  
 **👤 Developer:** Joana Nicolaas Ponder  
 **📅 Development Period:** January 2024 to present  
-**📊 Scale:** 30+ active users managing 1000+ game records, 100+ commits, production-ready platform
+**📊 Scale:** 20+ active users managing 1000+ game records, 100+ commits, production-ready platform
 
 ## 🏗️ Technical Architecture
 
