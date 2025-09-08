@@ -4,7 +4,7 @@
 
 **🔗 Live Application:** [https://backlogexplorer.com](https://backlogexplorer.com)  
 **👤 Developer:** Joana Nicolaas Ponder  
-**📅 Development Period:** 2024 to present
+**📅 Development Period:** January 2024 to present
 **📊 Scale:** 30+ active users managing 1000+ game records, 100+ commits, production-ready platform
 
 ## 🏗️ Technical Architecture
@@ -182,7 +182,7 @@ npm run preview
 The application uses Supabase for database management. Database migrations and schema are handled automatically through Supabase's migration system.
 
 ## 📊 Project Stats
-- **Development Time:** 2+ years of active development
+- **Development Time:** In active developement since January 2024
 - **Commits:** 100+ meaningful commits with detailed history
 - **Lines of Code:** ~15,000+ lines across frontend and backend
 - **Test Coverage:** Unit and integration tests for core functionality
