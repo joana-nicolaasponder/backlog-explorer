@@ -4,7 +4,7 @@
 
 **🔗 Live Application:** [https://backlogexplorer.com](https://backlogexplorer.com)  
 **👤 Developer:** Joana Nicolaas Ponder  
-**📅 Development Period:** January 2024 to present
+**📅 Development Period:** January 2024 to present  
 **📊 Scale:** 30+ active users managing 1000+ game records, 100+ commits, production-ready platform
 
 ## 🏗️ Technical Architecture
@@ -96,15 +96,15 @@
 
 #### **Impact:** Reusable state management pattern applied across multiple features
 
-### **Multi-API Integration Strategy**
+ ### **Multi-API Integration Strategy**
 
-#### **Challenge:** Reliable Data from Multiple External Sources
-- **Problem:** Different API rate limits, data formats, and availability requirements
-- **Solution:** Built unified integration layer with smart fallbacks and caching
-- **Implementation:** Request pooling, exponential backoff, data normalization pipeline
-- **Result:** 99%+ uptime for external data features, consistent user experience
+  #### **Challenge:** Reliable Data from Multiple External Sources
+  - **Problem:** Different API rate limits, data formats, and availability requirements
+  - **Solution:** Built unified data layer with consistent interfaces across Steam, IGDB APIs
+  - **Implementation:** Data normalization, error handling, and fallback strategies
+  - **Result:** Stable external data integration supporting core app functionality
 
-#### **Impact:** Robust data pipeline supporting feature expansion and new API integrations
+#### **Impact:** Unified interface for game data regardless of source  (Steam, IGDB, etc.)
 
 ## ✨ Key Features & User Experience
 
@@ -124,24 +124,22 @@
 - **Responsive Design:** Optimized for desktop, tablet, and mobile devices
 - **Loading States:** Smooth loading indicators and skeleton screens
 - **Error Handling:** Graceful error recovery with user-friendly messages
-- **Accessibility:** Keyboard navigation, screen reader support, high contrast support
 
 ### **Performance & Reliability**
-- **Optimistic Updates:** Immediate UI feedback with background synchronization
-- **Offline Resilience:** Cached data and graceful degradation
-- **Fast Loading:** Optimized images, code splitting, and efficient state management
+- **Responsive UI:** Immediate loading states and user feedback
+- **Fast Loading:** Optimized images and efficient state management
 
 ## 🔧 Local Development Setup
 
 ### **Prerequisites**
 - Node.js 18+ 
-- npm or yarn
+- npm 
 - Git
 
 ### **Installation**
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/backlog-explorer.git
+git clone https://github.com/joanaponder/backlog-explorer.git
 cd backlog-explorer
 
 # Install dependencies
@@ -179,15 +177,13 @@ npm run preview
 ```
 
 ### **Database Setup**
-The application uses Supabase for database management. Database migrations and schema are handled automatically through Supabase's migration system.
+The application uses Supabase (PostgreSQL) for data storage and management. Database schema and tables are managed through Supabase's dashboard interface.
 
 ## 📊 Project Stats
-- **Development Time:** In active developement since January 2024
+- **Development Time:** In active development since January 2024
 - **Commits:** 100+ meaningful commits with detailed history
-- **Lines of Code:** ~15,000+ lines across frontend and backend
 - **Test Coverage:** Unit and integration tests for core functionality
-- **Performance:** <2s initial load time, <500ms filter operations
-- **User Scale:** Built to handle 1000+ concurrent users with large libraries
+- **User Scale:** Built to handle large individual libraries (1000+ games per user)
 
 ---
 
