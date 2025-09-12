@@ -179,6 +179,7 @@ npm run preview
 ### **Database Setup**
 The application uses Supabase (PostgreSQL) for data storage and management. Database schema and tables are managed through Supabase's dashboard interface.
 
+
 ## 📊 Project Stats
 - **Development Time:** In active development since January 2024
 - **Commits:** 100+ meaningful commits with detailed history

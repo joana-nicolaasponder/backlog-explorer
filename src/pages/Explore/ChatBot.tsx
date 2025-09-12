@@ -8,11 +8,20 @@ interface Message {
   text: string
 }
 
+interface RecommendedGame {
+  id: string
+  title: string
+  description?: string
+  background_image?: string
+  platforms?: string[]
+  genres?: string[]
+}
+
 export default function ChatBot() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [recommendedGames, setRecommendedGames] = useState<any[]>([])
+  const [recommendedGames, setRecommendedGames] = useState<RecommendedGame[]>([])
   const [visibleBotMessage, setVisibleBotMessage] = useState<string>('')
   const [outroMessage, setOutroMessage] = useState('')
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
@@ -95,7 +104,7 @@ export default function ChatBot() {
       }
       console.log('GPT raw reply:', botReplyRaw)
 
-      const recommended: any[] = []
+      const recommended: RecommendedGame[] = []
       const regex = /\d+\.\s*\*\*(.+?)\*\*\s*[-–—]\s*([\s\S]*?)(?=\n\d+\.\s*\*\*|Outro:|\*\*Outro\*\*|$)/g
       let match: RegExpExecArray | null
       const matchPositions: { start: number; end: number }[] = []

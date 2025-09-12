@@ -2,10 +2,19 @@ import React, { useState } from 'react'
 import { logFeatureUsage } from '../../utils/logger'
 import supabase from '../../supabaseClient'
 
+interface RecommendedGame {
+  id: string
+  title: string
+  description?: string
+  background_image?: string
+  platforms?: string[]
+  genres?: string[]
+}
+
 const BacklogBuddy = ({ isDevUser }: { isDevUser: boolean }) => {
   const [consideringGame, setConsideringGame] = useState('')
   const [mode, setMode] = useState('purchase_alternative') // Default to 'purchase_alternative'
-  const [recommendedGames, setRecommendedGames] = useState<any[]>([])
+  const [recommendedGames, setRecommendedGames] = useState<RecommendedGame[]>([])
   const [introLine, setIntroLine] = useState('')
   const [outroLine, setOutroLine] = useState('')
   const [isLoading, setIsLoading] = useState(false)
