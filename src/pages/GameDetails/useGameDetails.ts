@@ -50,11 +50,11 @@ export const useGameDetails = () => {
           metacritic: (gameDetails as any).total_rating || 0,
           playtime: 0,
           background_image: (gameDetails as any).background_image || '',
-          screenshots: screenshots.map((url, index) => ({ 
-            id: index, 
-            image: url, 
-            width: 1920, 
-            height: 1080 
+          screenshots: screenshots.map((url, index) => ({
+            id: index,
+            image: url,
+            width: 1920,
+            height: 1080,
           })),
         }
 
@@ -85,7 +85,7 @@ export const useGameDetails = () => {
         if (migratedGame) {
           console.log('Successfully migrated Steam game to IGDB')
           // Redirect to the new IGDB game page
-          window.location.href = `/game/${migratedGame.id}`
+          window.location.href = `${migratedGame.id}`
           return
         } else {
           console.log('Could not migrate Steam game to IGDB, using Steam data')
@@ -214,7 +214,6 @@ export const useGameDetails = () => {
       if (userGameData.game) {
         await fetchGameDetails(userGameData.game)
       }
-
     } catch (error) {
       console.error('Error:', error)
     } finally {
